@@ -1,0 +1,22 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Every AUN user-data row belongs to one user (ownerId == Firebase uid).
+    match /records/{docId} {
+      allow read, delete: if request.auth != null
+                          && request.auth.uid == resource.data.ownerId;
+      // The owner can never be changed, and a row can only be written as yourself.
+      allow create: if request.auth != null
+                    && request.auth.uid == request.resource.data.ownerId;
+      allow update: if request.auth != null
+                    && request.auth.uid == resource.data.ownerId
+                    && request.auth.uid == request.resource.data.ownerId;
+    }
+
+    // Everything else is closed.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

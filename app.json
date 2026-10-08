@@ -1,0 +1,65 @@
+{
+  "expo": {
+    "name": "AUN",
+    "slug": "aun",
+    "scheme": "aun",
+    "version": "0.1.0",
+    "orientation": "default",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.aun.allyouneed"
+    },
+    "android": {
+      "package": "com.aun.allyouneed",
+      "adaptiveIcon": {
+        "backgroundColor": "#111322",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "name": "AUN · All You Need",
+      "shortName": "AUN",
+      "themeColor": "#2563EB",
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-status-bar",
+      "expo-secure-store",
+      ["expo-notifications", { "color": "#2563EB" }],
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 160,
+          "backgroundColor": "#F5F6FA",
+          "dark": {
+            "backgroundColor": "#0E1018"
+          }
+        }
+      ],
+      "expo-sharing",
+      "expo-image",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "AUN necesita acceder a tus fotos para guardarlas en 2ndBrain.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ],
+      "expo-web-browser"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
