@@ -10,7 +10,8 @@ import { useLocale } from '@/hooks/useLocale';
 import { makeStyles, useTheme } from '@/theme';
 import { withAlpha } from '@/utils/color';
 import { addMonths, formatLongDate, formatMonthYear, monthMatrix, toDateKey, weekdayNames } from '@/utils/date';
-import type { DayNote, EventOccurrence } from '../types';
+import { shortShiftTitle } from '../shifts';
+import { occurrenceColor, type DayNote, type EventOccurrence } from '../types';
 
 interface MonthGridProps {
   month: Date;
@@ -26,7 +27,7 @@ interface MonthGridProps {
 }
 
 /** One line inside a day cell: the event name (or note text) on its colour. */
-type Label = { key: string; text: string; color: string; note?: DayNote; occurrence?: EventOccurrence };
+type Label = { key: string; text: string; color: string; stripe?: string; note?: DayNote; occurrence?: EventOccurrence };
 
 export function MonthGrid({
   month,
@@ -54,9 +55,16 @@ export function MonthGrid({
     const map = new Map<string, Label[]>();
     const push = (key: string, l: Label) => map.set(key, [...(map.get(key) ?? []), l]);
     for (const n of notes) push(n.date, { key: n.id, text: n.text, color: n.color, note: n });
-    for (const o of occurrences) push(toDateKey(o.start), { key: o.key, text: o.event.title, color: o.calendar.color, occurrence: o });
+    for (const o of occurrences)
+      push(toDateKey(o.start), {
+        key: o.key,
+        text: shortShiftTitle(o.event.title, t),
+        color: occurrenceColor(o),
+        stripe: o.calendar.color,
+        occurrence: o,
+      });
     return map;
-  }, [occurrences, notes]);
+  }, [occurrences, notes, t]);
 
   return (
     <View>
@@ -101,7 +109,7 @@ export function MonthGrid({
                 key={key}
                 style={[
                   styles.dayCell,
-                  { minHeight: isCompact ? 76 : 104, opacity: inMonth ? 1 : 0.55 },
+                  { minHeight: isCompact ? 76 : 104, padding: isCompact ? 1 : 2, opacity: inMonth ? 1 : 0.55 },
                   isSelected && { borderColor: colors.primary, backgroundColor: withAlpha(colors.primary, 0.06) },
                 ]}
               >
@@ -132,16 +140,25 @@ export function MonthGrid({
                     accessibilityLabel={l.text}
                     style={(s) => [
                       styles.label,
+                      // Notes: dashed sticky-note outline. Events: own colour as the fill, the
+                      // calendar (person) colour as the stripe.
                       l.note
-                        ? { backgroundColor: withAlpha(l.color, 0.35), borderLeftWidth: 2, borderLeftColor: l.color }
-                        : { backgroundColor: withAlpha(l.color, interaction(s).hovered ? 0.3 : 0.18) },
+                        ? { backgroundColor: withAlpha(l.color, 0.3), borderWidth: 1, borderStyle: 'dashed', borderColor: l.color }
+                        : {
+                            // Own colours (shifts…) read as solid blocks; calendar colours stay soft.
+                            backgroundColor: withAlpha(l.color, (l.color !== l.stripe ? 0.4 : 0.2) + (interaction(s).hovered ? 0.1 : 0)),
+                            borderLeftWidth: 3,
+                            borderLeftColor: l.stripe,
+                          },
                     ]}
                   >
                     <AppText
                       numberOfLines={2}
                       color={colors.text}
                       style={[
-                        { fontSize: isCompact ? 9.5 : 11, lineHeight: isCompact ? 12 : 14 },
+                        // Never split a word in two ("Mañan/a"): wrap between words only.
+                        { overflowWrap: 'normal', wordBreak: 'keep-all' } as object,
+                        isCompact ? { fontSize: 9, lineHeight: 11, letterSpacing: -0.3 } : { fontSize: 11, lineHeight: 14 },
                         l.note?.done ? { textDecorationLine: 'line-through', opacity: 0.6 } : null,
                       ]}
                     >
@@ -191,5 +208,5 @@ const useStyles = makeStyles((t) => ({
     justifyContent: 'center',
     alignSelf: 'center',
   },
-  label: { borderRadius: 3, paddingHorizontal: 2, paddingVertical: 1 },
+  label: { borderRadius: 3, paddingHorizontal: 1.5, paddingVertical: 1, overflow: 'hidden' },
 }));

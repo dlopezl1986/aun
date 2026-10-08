@@ -256,6 +256,7 @@ export const en: Translation = {
     },
   },
   calendars: {
+    eventColor: { label: 'Event colour', fromCalendar: 'Calendar colour' },
     shifts: {
       label: 'Shift (optional)',
       hint: 'You can change the time: AUN will remember your hours for this shift.',

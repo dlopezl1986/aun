@@ -173,3 +173,6 @@ Asistente sobre `AIContextSource`/`AIAction`, ejecutado en backend.
 - Formulario de evento: **Turno** (Mañana 07–15, Tarde 15–23, Noche 23–07; la hora se puede cambiar y se
   recuerda) y **Repetir estos días** (días de la semana, hasta fin de mes / una fecha / sin fin).
 - Vista **Mes**: tocar un evento o una nota dentro de la casilla lo abre directamente (con «Editar»).
+- **Color propio por evento** (p. ej. cada turno de un color): el color del evento es el relleno y el del
+  calendario (la persona) queda como franja lateral. Los turnos traen color por defecto (mañana ámbar,
+  tarde violeta, noche pizarra), editable y recordado. En las casillas pequeñas se ve «Mañana/Tarde/Noche».

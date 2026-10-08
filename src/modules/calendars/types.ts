@@ -31,6 +31,11 @@ export interface CalendarEvent extends BaseEntity {
   /** Occurrence dates removed from a series ("solo este evento"). */
   exdates?: DateKey[];
   notes?: string | null;
+  /**
+   * Own colour (e.g. each work shift in its colour). Shown as the fill; the
+   * calendar colour stays as the stripe so you still see whose event it is.
+   */
+  color?: string | null;
   /** Cross-module links: 2ndBrain documents, Familia children… (section 48). */
   links?: EntityRef[];
   /** @deprecated Phase 1 field, superseded by `links`. */
@@ -61,3 +66,6 @@ export interface DayNote extends BaseEntity {
   /** "HH:MM" — shows up in Notificaciones at that time on `date`. */
   remindAt?: string | null;
 }
+
+/** Fill colour of an occurrence: its own colour, else its calendar's. */
+export const occurrenceColor = (o: Pick<EventOccurrence, 'event' | 'calendar'>): string => o.event.color || o.calendar.color;

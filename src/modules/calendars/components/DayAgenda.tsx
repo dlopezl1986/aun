@@ -12,7 +12,7 @@ import { withAlpha } from '@/utils/color';
 import { formatTime } from '@/utils/date';
 import { useUpdateDayNote } from '../hooks';
 import { calendarsMeta } from '../meta';
-import type { DayNote, EventOccurrence } from '../types';
+import { occurrenceColor, type DayNote, type EventOccurrence } from '../types';
 
 /** A sticky note: tick it off, tap it to edit. */
 export function NoteCard({ note, onPress }: { note: DayNote; onPress: (n: DayNote) => void }) {
@@ -73,6 +73,8 @@ export function EventCard({ occurrence, onPress }: { occurrence: EventOccurrence
   const { spacing, radius } = useTheme();
   const { event, calendar, start, end } = occurrence;
   const when = event.allDay ? t('calendars.allDay') : `${formatTime(start, locale)} – ${formatTime(end, locale)}`;
+  const fill = occurrenceColor(occurrence);
+  const own = fill !== calendar.color;
   return (
     <Pressable
       onPress={() => onPress(occurrence)}
@@ -82,7 +84,7 @@ export function EventCard({ occurrence, onPress }: { occurrence: EventOccurrence
         flexDirection: 'row',
         borderRadius: radius.md,
         overflow: 'hidden',
-        backgroundColor: withAlpha(calendar.color, interaction(s).hovered ? 0.18 : 0.11),
+        backgroundColor: withAlpha(fill, (own ? 0.26 : 0.11) + (interaction(s).hovered ? 0.07 : 0)),
         opacity: interaction(s).pressed ? 0.7 : 1,
       })}
     >

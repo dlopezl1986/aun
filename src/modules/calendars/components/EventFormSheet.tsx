@@ -26,8 +26,9 @@ import { describeReminder, REMINDER_PRESETS } from '@/utils/recurrenceText';
 import { useCreateEvent, useUpdateEvent } from '../hooks';
 import { calendarsMeta } from '../meta';
 import { eventLinks } from '../service';
-import { DEFAULT_SHIFT_HOURS, detectShift, endOfMonth, SHIFT_IDS, shiftEndDate, type ShiftId } from '../shifts';
+import { DEFAULT_SHIFT_COLORS, DEFAULT_SHIFT_HOURS, detectShift, endOfMonth, SHIFT_IDS, shiftEndDate, type ShiftId } from '../shifts';
 import type { Calendar, CalendarEvent } from '../types';
+import { EventColorPicker } from './EventColorPicker';
 
 interface Props {
   visible: boolean;
@@ -84,6 +85,9 @@ function EventForm({ onClose, calendars, event, date, time, initialLinks, initia
   const savedShiftHours = useAppPreferences((s) => s.shiftHours);
   const setShiftHours = useAppPreferences((s) => s.setShiftHours);
   const shiftHours = useMemo(() => ({ ...DEFAULT_SHIFT_HOURS, ...savedShiftHours }), [savedShiftHours]);
+  const savedShiftColors = useAppPreferences((s) => s.shiftColors);
+  const setShiftColor = useAppPreferences((s) => s.setShiftColor);
+  const shiftColors = useMemo(() => ({ ...DEFAULT_SHIFT_COLORS, ...savedShiftColors }), [savedShiftColors]);
 
   const [title, setTitle] = useState(event?.title ?? '');
   const [calendarId, setCalendarId] = useState<string | null>(
@@ -104,6 +108,7 @@ function EventForm({ onClose, calendars, event, date, time, initialLinks, initia
   const [participantText, setParticipantText] = useState('');
   const [description, setDescription] = useState(event?.description ?? '');
   const [notes, setNotes] = useState(event?.notes ?? '');
+  const [color, setColor] = useState<string | null>(event?.color ?? null);
   const [links, setLinks] = useState<EntityRef[]>(event ? eventLinks(event) : (initialLinks ?? []));
   const [linking, setLinking] = useState(false);
   const [invalid, setInvalid] = useState<Set<string>>(new Set());
@@ -116,10 +121,12 @@ function EventForm({ onClose, calendars, event, date, time, initialLinks, initia
   const chooseShift = (id: ShiftId) => {
     if (shift === id) {
       setShift(null);
+      if (color === shiftColors[id]) setColor(null);
       return;
     }
     const hours = shiftHours[id];
     setShift(id);
+    setColor(shiftColors[id]);
     setAllDay(false);
     setStartTime(hours.start);
     setEndTime(hours.end);
@@ -179,6 +186,8 @@ function EventForm({ onClose, calendars, event, date, time, initialLinks, initia
     // Adjusted shift hours become the new default for that shift.
     if (shift && !allDay && (shiftHours[shift].start !== startTime || shiftHours[shift].end !== endTime))
       setShiftHours(shift, { start: startTime, end: endTime });
+    // …and so does a colour picked for it.
+    if (shift && color && color !== shiftColors[shift]) setShiftColor(shift, color);
     const input = {
       calendarId,
       title: title.trim() || shiftTitle,
@@ -190,6 +199,7 @@ function EventForm({ onClose, calendars, event, date, time, initialLinks, initia
       location,
       description,
       notes,
+      color,
       participants,
       reminders,
       recurrence,
@@ -262,6 +272,14 @@ function EventForm({ onClose, calendars, event, date, time, initialLinks, initia
             );
           })}
         </View>
+      </Section>
+
+      <Section title={t('calendars.eventColor.label')}>
+        <EventColorPicker
+          value={color}
+          calendarColor={calendars.find((c) => c.id === calendarId)?.color ?? colors.primary}
+          onChange={setColor}
+        />
       </Section>
 
       <Section title={t('calendars.form.when')}>

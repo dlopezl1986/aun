@@ -43,7 +43,7 @@ export const linkedEventsSource: RelatedSource = {
       ref: { module: calendarsMeta.id, type: 'event', id: o.event.id },
       title: o.event.title,
       subtitle: o.event.recurrence ? `${o.calendar.name} · ↻` : o.calendar.name,
-      color: o.calendar.color,
+      color: o.event.color || o.calendar.color,
       date: o.start.toISOString(),
       allDay: o.event.allDay,
       route: `/calendars?event=${o.event.id}`,

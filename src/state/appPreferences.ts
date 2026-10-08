@@ -18,12 +18,15 @@ interface AppPreferencesState {
   sidebarCollapsed: boolean;
   /** Work-shift hours the user adjusted in the event form (defaults otherwise). */
   shiftHours: Partial<Record<ShiftId, ShiftHours>>;
+  /** Colours the user picked for each shift. */
+  shiftColors: Partial<Record<ShiftId, string>>;
   hydrated: boolean;
   setThemeMode: (mode: ThemeMode) => void;
   setPalette: (palette: PaletteId) => void;
   setLanguage: (language: LanguageCode) => void;
   toggleSidebar: () => void;
   setShiftHours: (id: ShiftId, hours: ShiftHours) => void;
+  setShiftColor: (id: ShiftId, color: string) => void;
 }
 
 export const useAppPreferences = create<AppPreferencesState>()(
@@ -34,23 +37,26 @@ export const useAppPreferences = create<AppPreferencesState>()(
       language: DEFAULT_LANGUAGE,
       sidebarCollapsed: false,
       shiftHours: {},
+      shiftColors: {},
       hydrated: false,
       setThemeMode: (themeMode) => set({ themeMode }),
       setPalette: (palette) => set({ palette }),
       setLanguage: (language) => set({ language }),
       toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
       setShiftHours: (id, hours) => set((s) => ({ shiftHours: { ...s.shiftHours, [id]: hours } })),
+      setShiftColor: (id, color) => set((s) => ({ shiftColors: { ...s.shiftColors, [id]: color } })),
     }),
     {
       name: storageKeys.device('preferences'),
       storage: createJSONStorage(() => AsyncStorage),
       version: 1,
-      partialize: ({ themeMode, palette, language, sidebarCollapsed, shiftHours }) => ({
+      partialize: ({ themeMode, palette, language, sidebarCollapsed, shiftHours, shiftColors }) => ({
         themeMode,
         palette,
         language,
         sidebarCollapsed,
         shiftHours,
+        shiftColors,
       }),
       onRehydrateStorage: () => () => {
         useAppPreferences.setState({ hydrated: true });

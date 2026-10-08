@@ -6,7 +6,7 @@ import { IconButton } from '@/components/ui/IconButton';
 import { useLocale } from '@/hooks/useLocale';
 import { useTheme } from '@/theme';
 import { formatTime } from '@/utils/date';
-import type { EventOccurrence } from '../types';
+import { occurrenceColor, type EventOccurrence } from '../types';
 
 interface EventRowProps {
   occurrence: EventOccurrence;
@@ -24,7 +24,7 @@ export function EventRow({ occurrence, onDelete }: EventRowProps) {
       style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.sm, minHeight: 48 }}
       accessibilityLabel={`${when}, ${event.title}, ${calendar.name}`}
     >
-      <View style={{ width: 4, alignSelf: 'stretch', borderRadius: radius.pill, backgroundColor: calendar.color }} />
+      <View style={{ width: 4, alignSelf: 'stretch', borderRadius: radius.pill, backgroundColor: occurrenceColor(occurrence) }} />
       <View style={{ width: 92 }}>
         <AppText variant="smallStrong" tone="textMuted">
           {event.allDay ? t('calendars.allDay') : formatTime(start, locale)}

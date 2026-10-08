@@ -30,7 +30,7 @@ export const eventAlertSource: AlertSource = {
           at: at.toISOString(),
           route: `/calendars?event=${o.event.id}`,
           icon: 'calendar' as const,
-          color: o.calendar.color,
+          color: o.event.color || o.calendar.color,
         });
       }
     }

@@ -11,7 +11,8 @@ import { withAlpha } from '@/utils/color';
 import { formatLongDate, formatTime, toDateKey, weekdayNames } from '@/utils/date';
 import { mondayIndex } from '@/utils/recurrence';
 import { allDayOn, layoutDay } from '../layout';
-import type { DayNote, EventOccurrence } from '../types';
+import { shortShiftTitle } from '../shifts';
+import { occurrenceColor, type DayNote, type EventOccurrence } from '../types';
 
 const HOUR_HEIGHT = 52;
 const GUTTER = 52;
@@ -147,10 +148,12 @@ export function TimeGrid({ days, occurrences, today, height, onSlotPress, onEven
                     paddingHorizontal: 6,
                     paddingVertical: 2,
                     borderRadius: radius.xs,
-                    backgroundColor: withAlpha(o.calendar.color, 0.18),
+                    backgroundColor: withAlpha(occurrenceColor(o), 0.22),
+                    borderLeftWidth: 3,
+                    borderLeftColor: o.calendar.color,
                   }}
                 >
-                  <AppText variant="caption" color={o.calendar.color} numberOfLines={1}>
+                  <AppText variant="caption" color={colors.text} numberOfLines={1}>
                     {o.event.title}
                   </AppText>
                 </Pressable>
@@ -193,7 +196,8 @@ export function TimeGrid({ days, occurrences, today, height, onSlotPress, onEven
                 {layouts[i].map((p) => {
                   const top = (p.startMin / 60) * HOUR_HEIGHT;
                   const h = Math.max(((p.endMin - p.startMin) / 60) * HOUR_HEIGHT - 2, 18);
-                  const c = p.occurrence.calendar.color;
+                  const c = occurrenceColor(p.occurrence);
+                  const own = c !== p.occurrence.calendar.color;
                   return (
                     <Pressable
                       key={p.occurrence.key}
@@ -215,15 +219,15 @@ export function TimeGrid({ days, occurrences, today, height, onSlotPress, onEven
                           flex: 1,
                           borderRadius: radius.sm,
                           borderLeftWidth: 3,
-                          borderLeftColor: c,
-                          backgroundColor: withAlpha(c, 0.16),
+                          borderLeftColor: p.occurrence.calendar.color,
+                          backgroundColor: withAlpha(c, own ? 0.34 : 0.16),
                           paddingHorizontal: 4,
                           paddingVertical: 2,
                           overflow: 'hidden',
                         }}
                       >
-                        <AppText variant="caption" color={c} numberOfLines={h > 36 ? 2 : 1}>
-                          {p.occurrence.event.title}
+                        <AppText variant="caption" color={own ? colors.text : c} numberOfLines={h > 36 ? 2 : 1}>
+                          {days.length > 1 ? shortShiftTitle(p.occurrence.event.title, t) : p.occurrence.event.title}
                         </AppText>
                         {h > 34 ? (
                           <AppText variant="caption" tone="textMuted" numberOfLines={1} style={{ fontSize: 10, lineHeight: 12 }}>

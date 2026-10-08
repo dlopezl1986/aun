@@ -254,6 +254,7 @@ export const es = {
     },
   },
   calendars: {
+    eventColor: { label: 'Color del evento', fromCalendar: 'Del calendario' },
     shifts: {
       label: 'Turno (opcional)',
       hint: 'Puedes cambiar la hora: AUN recordará tu horario para este turno.',

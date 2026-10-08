@@ -25,6 +25,8 @@ export interface EventInput {
   location?: string | null;
   description?: string | null;
   notes?: string | null;
+  /** Own colour; `null` = the calendar's. */
+  color?: string | null;
   participants?: string[];
   reminders?: number[];
   recurrence?: RecurrenceRule | null;
@@ -140,6 +142,7 @@ export class CalendarService {
       location: input.location?.trim() || null,
       description: input.description?.trim() || null,
       notes: input.notes?.trim() || null,
+      color: input.color || null,
       participants: (input.participants ?? []).map((p) => p.trim()).filter(Boolean),
       reminders: [...new Set(input.reminders ?? [])].sort((a, b) => a - b),
       recurrence: input.recurrence ?? null,
