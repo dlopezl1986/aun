@@ -254,6 +254,20 @@ export const es = {
     },
   },
   calendars: {
+    shifts: {
+      label: 'Turno (opcional)',
+      hint: 'Puedes cambiar la hora: AUN recordará tu horario para este turno.',
+      title: 'Turno de {{shift}}',
+      names: { morning: 'Mañana', afternoon: 'Tarde', night: 'Noche' },
+    },
+    repeatDays: {
+      label: 'Repetir estos días',
+      hint: 'Marca los días de la semana para crearlo todos esos días (por ejemplo, tu calendario laboral del mes).',
+      until: 'Hasta',
+      endOfMonth: 'Hasta fin de mes',
+      untilDate: 'Hasta una fecha',
+      never: 'Sin fin',
+    },
     dayEvents_one: '{{count}} evento',
     dayEvents_other: '{{count}} eventos',
     moreItems_one: '+{{count}} más',
@@ -1327,7 +1341,7 @@ export const es = {
   },
   auth: {
     emailOrUsername: 'Email o usuario',
-    providerNotEnabled: 'Este método no está activado en el servidor de AUN.',
+    providerNotEnabled: 'Google y Apple todavía no están activados: entra con tu email y contraseña.',
     signOut: 'Cerrar sesión',
     tagline: 'Todo lo que necesitas para organizar tu vida, en un solo lugar.',
     taglineSub: 'Tu segundo cerebro: documentos, calendarios, tareas, correo y familia conectados.',

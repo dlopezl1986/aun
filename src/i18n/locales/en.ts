@@ -256,6 +256,20 @@ export const en: Translation = {
     },
   },
   calendars: {
+    shifts: {
+      label: 'Shift (optional)',
+      hint: 'You can change the time: AUN will remember your hours for this shift.',
+      title: '{{shift}} shift',
+      names: { morning: 'Morning', afternoon: 'Afternoon', night: 'Night' },
+    },
+    repeatDays: {
+      label: 'Repeat on these days',
+      hint: 'Pick the weekdays to add it on all of them (e.g. your work schedule for the month).',
+      until: 'Until',
+      endOfMonth: 'Until end of month',
+      untilDate: 'Until a date',
+      never: 'No end',
+    },
     dayEvents_one: '{{count}} event',
     dayEvents_other: '{{count}} events',
     moreItems_one: '+{{count}} more',
@@ -1325,7 +1339,7 @@ export const en: Translation = {
   },
   auth: {
     emailOrUsername: 'Email or username',
-    providerNotEnabled: 'This method is not enabled on the AUN server.',
+    providerNotEnabled: 'Google and Apple are not enabled yet: sign in with your email and password.',
     signOut: 'Sign out',
     tagline: 'Everything you need to organise your life, in one place.',
     taglineSub: 'Your second brain: documents, calendars, tasks, mail and family — connected.',

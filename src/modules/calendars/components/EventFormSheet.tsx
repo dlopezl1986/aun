@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
@@ -14,15 +14,19 @@ import { Icon } from '@/components/ui/Icon';
 import { Sheet } from '@/components/ui/Sheet';
 import { TextField } from '@/components/ui/TextField';
 import { Toggle } from '@/components/ui/Toggle';
+import { useLocale } from '@/hooks/useLocale';
+import { useAppPreferences } from '@/state/appPreferences';
 import { useTheme } from '@/theme';
 import type { EntityRef } from '@/types/entity';
 import type { RecurrenceRule } from '@/types/recurrence';
 import { withAlpha } from '@/utils/color';
-import { addDays, combine, timeOf, toDateKey, type DateKey } from '@/utils/date';
+import { addDays, combine, fromDateKey, timeOf, toDateKey, weekdayNames, type DateKey } from '@/utils/date';
+import { mondayIndex } from '@/utils/recurrence';
 import { describeReminder, REMINDER_PRESETS } from '@/utils/recurrenceText';
 import { useCreateEvent, useUpdateEvent } from '../hooks';
 import { calendarsMeta } from '../meta';
 import { eventLinks } from '../service';
+import { DEFAULT_SHIFT_HOURS, detectShift, endOfMonth, SHIFT_IDS, shiftEndDate, type ShiftId } from '../shifts';
 import type { Calendar, CalendarEvent } from '../types';
 
 interface Props {
@@ -75,6 +79,11 @@ function EventForm({ onClose, calendars, event, date, time, initialLinks, initia
   const update = useUpdateEvent();
   const linkSources = useLinkSources(calendarsMeta.id);
   const init = initialState(event, date, time);
+  const locale = useLocale();
+  const dayNames = useMemo(() => weekdayNames(locale), [locale]);
+  const savedShiftHours = useAppPreferences((s) => s.shiftHours);
+  const setShiftHours = useAppPreferences((s) => s.setShiftHours);
+  const shiftHours = useMemo(() => ({ ...DEFAULT_SHIFT_HOURS, ...savedShiftHours }), [savedShiftHours]);
 
   const [title, setTitle] = useState(event?.title ?? '');
   const [calendarId, setCalendarId] = useState<string | null>(
@@ -98,6 +107,40 @@ function EventForm({ onClose, calendars, event, date, time, initialLinks, initia
   const [links, setLinks] = useState<EntityRef[]>(event ? eventLinks(event) : (initialLinks ?? []));
   const [linking, setLinking] = useState(false);
   const [invalid, setInvalid] = useState<Set<string>>(new Set());
+  const [shift, setShift] = useState<ShiftId | null>(() =>
+    event && !event.allDay ? detectShift(init.startTime, init.endTime, shiftHours) : null,
+  );
+  // Remounts the advanced recurrence editor when the quick weekday picker changes the rule.
+  const [recurrenceKey, setRecurrenceKey] = useState(0);
+
+  const chooseShift = (id: ShiftId) => {
+    if (shift === id) {
+      setShift(null);
+      return;
+    }
+    const hours = shiftHours[id];
+    setShift(id);
+    setAllDay(false);
+    setStartTime(hours.start);
+    setEndTime(hours.end);
+    setEndDate(shiftEndDate(startDate, hours));
+  };
+
+  // "Repeat on these days": a weekly rule on the chosen weekdays, until the end of the month by default.
+  const quickDays =
+    recurrence?.freq === 'weekly' && recurrence.interval === 1 ? (recurrence.byWeekday ?? [mondayIndex(fromDateKey(startDate))]) : [];
+  const toggleQuickDay = (d: number) => {
+    const next = quickDays.includes(d) ? quickDays.filter((x) => x !== d) : [...quickDays, d].sort((a, b) => a - b);
+    setRecurrence(
+      next.length ? { freq: 'weekly', interval: 1, byWeekday: next, until: recurrence?.until ?? endOfMonth(startDate), count: null } : null,
+    );
+    setRecurrenceKey((k) => k + 1);
+  };
+  const setQuickUntil = (until: DateKey | null) => {
+    if (recurrence) setRecurrence({ ...recurrence, until, count: null });
+    setRecurrenceKey((k) => k + 1);
+  };
+  const shiftTitle = shift ? t('calendars.shifts.title', { shift: t(`calendars.shifts.names.${shift}`).toLowerCase() }) : '';
 
   const setValidity = (field: string) => (ok: boolean) =>
     setInvalid((prev) => {
@@ -129,13 +172,16 @@ function EventForm({ onClose, calendars, event, date, time, initialLinks, initia
   };
 
   const relevantInvalid = [...invalid].filter((f) => !allDay || !f.endsWith('Time'));
-  const canSave = !!title.trim() && !!calendarId && relevantInvalid.length === 0;
+  const canSave = !!(title.trim() || shift) && !!calendarId && relevantInvalid.length === 0;
 
   const save = () => {
     if (!canSave || !calendarId) return;
+    // Adjusted shift hours become the new default for that shift.
+    if (shift && !allDay && (shiftHours[shift].start !== startTime || shiftHours[shift].end !== endTime))
+      setShiftHours(shift, { start: startTime, end: endTime });
     const input = {
       calendarId,
-      title,
+      title: title.trim() || shiftTitle,
       allDay,
       startDate,
       startTime,
@@ -168,7 +214,7 @@ function EventForm({ onClose, calendars, event, date, time, initialLinks, initia
     >
       <TextField
         label={t('calendars.form.title')}
-        placeholder={t('calendars.form.titlePlaceholder')}
+        placeholder={shiftTitle || t('calendars.form.titlePlaceholder')}
         value={title}
         onChangeText={setTitle}
         autoFocus={!event}
@@ -219,6 +265,23 @@ function EventForm({ onClose, calendars, event, date, time, initialLinks, initia
       </Section>
 
       <Section title={t('calendars.form.when')}>
+        <View style={{ gap: spacing.xs }}>
+          <AppText variant="smallStrong">{t('calendars.shifts.label')}</AppText>
+          <ChipGroup<ShiftId>
+            accessibilityLabel={t('calendars.shifts.label')}
+            selected={shift ?? ('' as ShiftId)}
+            onToggle={chooseShift}
+            options={SHIFT_IDS.map((id) => ({
+              value: id,
+              label: `${t(`calendars.shifts.names.${id}`)} · ${shiftHours[id].start}–${shiftHours[id].end}`,
+            }))}
+          />
+          {shift ? (
+            <AppText variant="caption" tone="textSubtle">
+              {t('calendars.shifts.hint')}
+            </AppText>
+          ) : null}
+        </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <AppText variant="bodyStrong">{t('calendars.allDay')}</AppText>
           <Toggle value={allDay} onValueChange={setAllDay} label={t('calendars.allDay')} />
@@ -230,7 +293,8 @@ function EventForm({ onClose, calendars, event, date, time, initialLinks, initia
               value={startDate}
               onChange={(d) => {
                 setStartDate(d);
-                onStartChange(d, startTime);
+                if (shift) setEndDate(shiftEndDate(d, { start: startTime, end: endTime }));
+                else onStartChange(d, startTime);
               }}
               onValidityChange={setValidity('startDate')}
             />
@@ -242,7 +306,8 @@ function EventForm({ onClose, calendars, event, date, time, initialLinks, initia
                 value={startTime}
                 onChange={(tm) => {
                   setStartTime(tm);
-                  onStartChange(startDate, tm);
+                  if (shift) setEndDate(shiftEndDate(startDate, { start: tm, end: endTime }));
+                  else onStartChange(startDate, tm);
                 }}
                 onValidityChange={setValidity('startTime')}
               />
@@ -260,14 +325,63 @@ function EventForm({ onClose, calendars, event, date, time, initialLinks, initia
           </View>
           {allDay ? null : (
             <View style={{ flexGrow: 1, flexBasis: 110 }}>
-              <TimeField label={t('calendars.form.end')} value={endTime} onChange={setEndTime} onValidityChange={setValidity('endTime')} />
+              <TimeField
+                label={t('calendars.form.end')}
+                value={endTime}
+                onChange={(tm) => {
+                  setEndTime(tm);
+                  if (shift) setEndDate(shiftEndDate(startDate, { start: startTime, end: tm }));
+                }}
+                onValidityChange={setValidity('endTime')}
+              />
             </View>
           )}
         </View>
       </Section>
 
+      <Section title={t('calendars.repeatDays.label')}>
+        <ChipGroup<number>
+          multi
+          compact
+          accessibilityLabel={t('calendars.repeatDays.label')}
+          selected={quickDays}
+          onToggle={toggleQuickDay}
+          options={dayNames.map((label, i) => ({ value: i, label }))}
+        />
+        {quickDays.length ? (
+          <View style={{ gap: spacing.sm }}>
+            <ChipGroup<'month' | 'never' | 'date'>
+              compact
+              accessibilityLabel={t('calendars.repeatDays.until')}
+              selected={!recurrence?.until ? 'never' : recurrence.until === endOfMonth(startDate) ? 'month' : 'date'}
+              onToggle={(v) =>
+                setQuickUntil(
+                  v === 'never'
+                    ? null
+                    : v === 'month'
+                      ? endOfMonth(startDate)
+                      : (recurrence?.until ?? toDateKey(addDays(fromDateKey(endOfMonth(startDate)), 1))),
+                )
+              }
+              options={[
+                { value: 'month', label: t('calendars.repeatDays.endOfMonth') },
+                { value: 'date', label: t('calendars.repeatDays.untilDate') },
+                { value: 'never', label: t('calendars.repeatDays.never') },
+              ]}
+            />
+            {recurrence?.until && recurrence.until !== endOfMonth(startDate) ? (
+              <DateField label={t('calendars.repeatDays.until')} value={recurrence.until} onChange={(d) => setQuickUntil(d)} />
+            ) : null}
+          </View>
+        ) : (
+          <AppText variant="caption" tone="textSubtle">
+            {t('calendars.repeatDays.hint')}
+          </AppText>
+        )}
+      </Section>
+
       <Section title={t('recurrence.label')}>
-        <RecurrenceEditor value={recurrence} onChange={setRecurrence} startDate={startDate} />
+        <RecurrenceEditor key={recurrenceKey} value={recurrence} onChange={setRecurrence} startDate={startDate} />
       </Section>
 
       <Section title={t('reminders.label')}>

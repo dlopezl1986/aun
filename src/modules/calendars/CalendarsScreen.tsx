@@ -337,6 +337,8 @@ export function CalendarsScreen() {
           notes={notes}
           onSelect={setSelected}
           onMonthChange={(m) => setSelected(toDateKey(m))}
+          onEventPress={setDetail}
+          onNotePress={onNote}
         />
         <Divider />
         <CardHeader

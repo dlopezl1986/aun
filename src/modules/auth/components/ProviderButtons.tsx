@@ -41,7 +41,7 @@ export function ProviderButtons() {
       ))}
       {anyUnavailable ? (
         <AppText variant="caption" tone="textSubtle" align="center">
-          {t('auth.providerRequiresBackend')}
+          {t(providers.find((p) => !p.available)?.reasonKey ?? 'auth.providerRequiresBackend')}
         </AppText>
       ) : null}
     </View>

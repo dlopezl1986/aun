@@ -168,3 +168,8 @@ Asistente sobre `AIContextSource`/`AIAction`, ejecutado en backend.
 - **Notas del día** (tipo pósit): texto, color, marcar como hecha y aviso opcional a una hora
   (Notificaciones). Aparecen en Mes, Semana, Día, Agenda, en «Hoy» de Inicio y en la búsqueda.
 - Eventos: **Descripción** (bajo el título) y **Notas** separadas; las dos se ven en la ficha del evento.
+
+## Calendarios — turnos y días de la semana (2026-10-08)
+- Formulario de evento: **Turno** (Mañana 07–15, Tarde 15–23, Noche 23–07; la hora se puede cambiar y se
+  recuerda) y **Repetir estos días** (días de la semana, hasta fin de mes / una fecha / sin fin).
+- Vista **Mes**: tocar un evento o una nota dentro de la casilla lo abre directamente (con «Editar»).

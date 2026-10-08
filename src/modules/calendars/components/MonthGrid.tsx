@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Pressable, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { AppText } from '@/components/ui/AppText';
@@ -20,12 +20,25 @@ interface MonthGridProps {
   notes?: DayNote[];
   onSelect: (dateKey: string) => void;
   onMonthChange: (month: Date) => void;
+  /** Tapping an event / note inside a day opens it directly. */
+  onEventPress?: (o: EventOccurrence) => void;
+  onNotePress?: (n: DayNote) => void;
 }
 
 /** One line inside a day cell: the event name (or note text) on its colour. */
-type Label = { key: string; text: string; color: string; note: boolean; done?: boolean };
+type Label = { key: string; text: string; color: string; note?: DayNote; occurrence?: EventOccurrence };
 
-export function MonthGrid({ month, selected, today, occurrences, notes = [], onSelect, onMonthChange }: MonthGridProps) {
+export function MonthGrid({
+  month,
+  selected,
+  today,
+  occurrences,
+  notes = [],
+  onSelect,
+  onMonthChange,
+  onEventPress,
+  onNotePress,
+}: MonthGridProps) {
   const styles = useStyles();
   const { colors } = useTheme();
   const locale = useLocale();
@@ -40,8 +53,8 @@ export function MonthGrid({ month, selected, today, occurrences, notes = [], onS
   const labels = useMemo(() => {
     const map = new Map<string, Label[]>();
     const push = (key: string, l: Label) => map.set(key, [...(map.get(key) ?? []), l]);
-    for (const n of notes) push(n.date, { key: n.id, text: n.text, color: n.color, note: true, done: n.done });
-    for (const o of occurrences) push(toDateKey(o.start), { key: o.key, text: o.event.title, color: o.calendar.color, note: false });
+    for (const n of notes) push(n.date, { key: n.id, text: n.text, color: n.color, note: n });
+    for (const o of occurrences) push(toDateKey(o.start), { key: o.key, text: o.event.title, color: o.calendar.color, occurrence: o });
     return map;
   }, [occurrences, notes]);
 
@@ -82,32 +95,46 @@ export function MonthGrid({ month, selected, today, occurrences, notes = [], onS
             const shown = items.length > maxLines ? items.slice(0, maxLines - 1) : items;
             const more = items.length - shown.length;
             return (
-              <Pressable
+              // The whole cell selects the day (a pressable layer behind); the labels on top are their own
+              // buttons, so nothing is nested inside another button.
+              <View
                 key={key}
-                onPress={() => onSelect(key)}
-                accessibilityRole="button"
-                aria-selected={isSelected}
-                accessibilityLabel={[formatLongDate(day, locale), ...items.map((i) => i.text)].join(', ')}
-                style={(s) => [
+                style={[
                   styles.dayCell,
                   { minHeight: isCompact ? 76 : 104, opacity: inMonth ? 1 : 0.55 },
                   isSelected && { borderColor: colors.primary, backgroundColor: withAlpha(colors.primary, 0.06) },
-                  interaction(s).hovered && !isSelected && { backgroundColor: colors.surfaceMuted },
                 ]}
               >
-                <View style={[styles.dayNumber, isToday && { backgroundColor: colors.primary }]}>
+                <Pressable
+                  onPress={() => onSelect(key)}
+                  accessibilityRole="button"
+                  aria-selected={isSelected}
+                  accessibilityLabel={formatLongDate(day, locale)}
+                  style={(s) => [
+                    StyleSheet.absoluteFill,
+                    interaction(s).hovered && !isSelected && { backgroundColor: colors.surfaceMuted },
+                  ]}
+                />
+                <View pointerEvents="none" style={[styles.dayNumber, isToday && { backgroundColor: colors.primary }]}>
                   <AppText variant="caption" color={isToday ? colors.onPrimary : inMonth ? colors.text : colors.textSubtle}>
                     {day.getDate()}
                   </AppText>
                 </View>
                 {shown.map((l) => (
-                  <View
+                  <Pressable
                     key={l.key}
-                    style={[
+                    onPress={() => {
+                      onSelect(key);
+                      if (l.occurrence) onEventPress?.(l.occurrence);
+                      else if (l.note) onNotePress?.(l.note);
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel={l.text}
+                    style={(s) => [
                       styles.label,
                       l.note
                         ? { backgroundColor: withAlpha(l.color, 0.35), borderLeftWidth: 2, borderLeftColor: l.color }
-                        : { backgroundColor: withAlpha(l.color, 0.18) },
+                        : { backgroundColor: withAlpha(l.color, interaction(s).hovered ? 0.3 : 0.18) },
                     ]}
                   >
                     <AppText
@@ -115,19 +142,24 @@ export function MonthGrid({ month, selected, today, occurrences, notes = [], onS
                       color={colors.text}
                       style={[
                         { fontSize: isCompact ? 9.5 : 11, lineHeight: isCompact ? 12 : 14 },
-                        l.done ? { textDecorationLine: 'line-through', opacity: 0.6 } : null,
+                        l.note?.done ? { textDecorationLine: 'line-through', opacity: 0.6 } : null,
                       ]}
                     >
                       {l.text}
                     </AppText>
-                  </View>
+                  </Pressable>
                 ))}
                 {more > 0 ? (
-                  <AppText variant="caption" tone="textMuted" style={{ fontSize: isCompact ? 9.5 : 11, paddingHorizontal: 2 }}>
+                  <AppText
+                    pointerEvents="none"
+                    variant="caption"
+                    tone="textMuted"
+                    style={{ fontSize: isCompact ? 9.5 : 11, paddingHorizontal: 2 }}
+                  >
                     {t('calendars.moreItems', { count: more })}
                   </AppText>
                 ) : null}
-              </Pressable>
+              </View>
             );
           })}
         </View>
