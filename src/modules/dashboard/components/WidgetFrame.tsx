@@ -29,6 +29,7 @@ function WidgetFrameBase({ definition, size, isFirst, isLast, onMove, onResize, 
   const { colors, spacing, radius } = useTheme();
   const title = t(definition.titleKey);
   const sizes = definition.sizes ?? ALL_SIZES;
+  const EditControls = definition.editControls;
 
   return (
     <View
@@ -110,6 +111,20 @@ function WidgetFrameBase({ definition, size, isFirst, isLast, onMove, onResize, 
         ) : null}
         <IconButton icon="eye-off" size={16} color={colors.danger} label={t('dashboard.edit.hide', { name: title })} onPress={onHide} />
       </View>
+      {EditControls ? (
+        // Interactive: the preview below is not.
+        <View
+          style={{
+            padding: spacing.md,
+            borderRadius: radius.md,
+            backgroundColor: colors.surface,
+            borderWidth: 1,
+            borderColor: colors.border,
+          }}
+        >
+          <EditControls />
+        </View>
+      ) : null}
       <View pointerEvents="none" style={{ opacity: 0.85, flex: 1 }} importantForAccessibility="no-hide-descendants">
         {children}
       </View>

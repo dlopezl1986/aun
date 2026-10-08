@@ -8,7 +8,6 @@ import { useLocale } from '@/hooks/useLocale';
 import { useEnabledModules, useUserSettings } from '@/state/userSettingsStore';
 import { useTheme } from '@/theme';
 import { formatLongDate } from '@/utils/date';
-import { useDashboardEditMode } from '../editMode';
 
 /**
  * "HOY" — the heart of the command centre (section 8). Each enabled module
@@ -22,8 +21,6 @@ export function TodayPanel() {
   const all = modules.filter((m) => m.todaySummary).sort((a, b) => a.nav.order - b.nav.order);
   // What to show inside "Hoy" is chosen while customising Inicio.
   const hiddenIds = useUserSettings((s) => s.settings?.dashboard.todayHidden);
-  const setVisible = useUserSettings((s) => s.setTodayItemVisible);
-  const editing = useDashboardEditMode((s) => s.editing);
   const hidden = new Set(hiddenIds ?? []);
   const contributors = all.filter((m) => !hidden.has(m.id));
 
@@ -35,21 +32,6 @@ export function TodayPanel() {
           {formatLongDate(new Date(), locale)}
         </AppText>
       </View>
-      {editing && all.length ? (
-        <View style={{ gap: spacing.xs }}>
-          <AppText variant="smallStrong">{t('dashboard.todayPick')}</AppText>
-          <AppText variant="caption" tone="textMuted">
-            {t('dashboard.todayPickHint')}
-          </AppText>
-          <ChipGroup<string>
-            multi
-            accessibilityLabel={t('dashboard.todayPick')}
-            selected={contributors.map((m) => m.id)}
-            onToggle={(id) => void setVisible(id, hidden.has(id))}
-            options={all.map((m) => ({ value: m.id, label: t(m.titleKey) }))}
-          />
-        </View>
-      ) : null}
       {contributors.length ? (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md }}>
           {contributors.map((m) => {
@@ -74,6 +56,36 @@ function TodayBadge({ label }: { label: string }) {
       <AppText variant="overline" color={colors.onPrimary} style={{ letterSpacing: 2 }}>
         {label}
       </AppText>
+    </View>
+  );
+}
+
+/**
+ * "Qué mostrar en Hoy", shown in the edit toolbar while customising Inicio
+ * (the panel itself is only a preview there and cannot be tapped).
+ */
+export function TodayEditControls() {
+  const { t } = useTranslation();
+  const { spacing } = useTheme();
+  const modules = useEnabledModules();
+  const all = modules.filter((m) => m.todaySummary).sort((a, b) => a.nav.order - b.nav.order);
+  const hiddenIds = useUserSettings((s) => s.settings?.dashboard.todayHidden);
+  const setVisible = useUserSettings((s) => s.setTodayItemVisible);
+  const hidden = new Set(hiddenIds ?? []);
+  if (!all.length) return null;
+  return (
+    <View style={{ gap: spacing.xs }}>
+      <AppText variant="smallStrong">{t('dashboard.todayPick')}</AppText>
+      <AppText variant="caption" tone="textMuted">
+        {t('dashboard.todayPickHint')}
+      </AppText>
+      <ChipGroup<string>
+        multi
+        accessibilityLabel={t('dashboard.todayPick')}
+        selected={all.filter((m) => !hidden.has(m.id)).map((m) => m.id)}
+        onToggle={(id) => void setVisible(id, hidden.has(id))}
+        options={all.map((m) => ({ value: m.id, label: t(m.titleKey) }))}
+      />
     </View>
   );
 }

@@ -24,6 +24,11 @@ export interface DashboardWidgetDefinition {
   sizes?: WidgetSize[];
   defaultVisible: boolean;
   component: ComponentType;
+  /**
+   * Options shown while customising Inicio, above the (non-interactive)
+   * widget preview — e.g. which sections appear inside "Hoy".
+   */
+  editControls?: ComponentType;
 }
 
 /** Something another module can link to (a document, a child…) — section 48. */
