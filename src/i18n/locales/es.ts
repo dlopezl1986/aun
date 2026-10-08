@@ -254,6 +254,15 @@ export const es = {
     },
   },
   calendars: {
+    move: {
+      hint: 'Mantén pulsado y arrastra para cambiarlo de día',
+      moved: 'Evento movido',
+      noteMoved: 'Nota movida',
+      recurringTitle: '¿Qué quieres mover?',
+      recurringMessage: '«{{title}}» se repite. Puedes mover solo este día o toda la serie.',
+      single: 'Solo este día',
+      series: 'Toda la serie',
+    },
     eventColor: { label: 'Color del evento', fromCalendar: 'Del calendario' },
     shifts: {
       label: 'Turno (opcional)',

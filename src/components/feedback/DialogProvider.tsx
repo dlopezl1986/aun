@@ -30,14 +30,24 @@ interface PromptOptions {
   destructive?: boolean;
 }
 
+interface ChooseOptions {
+  title: string;
+  message?: string;
+  /** One button per choice; the last one is the primary action. */
+  choices: { value: string; label: string }[];
+}
+
 interface DialogApi {
   confirm: (options: ConfirmOptions) => Promise<boolean>;
   prompt: (options: PromptOptions) => Promise<string | null>;
+  /** Several answers ("Solo este día" / "Toda la serie"); `null` = cancelled. */
+  choose: (options: ChooseOptions) => Promise<string | null>;
 }
 
 type ActiveDialog =
   | { kind: 'confirm'; options: ConfirmOptions; resolve: (v: boolean) => void }
-  | { kind: 'prompt'; options: PromptOptions; resolve: (v: string | null) => void };
+  | { kind: 'prompt'; options: PromptOptions; resolve: (v: string | null) => void }
+  | { kind: 'choose'; options: ChooseOptions; resolve: (v: string | null) => void };
 
 const DialogContext = createContext<DialogApi | null>(null);
 
@@ -60,17 +70,23 @@ export function DialogProvider({ children }: PropsWithChildren) {
     [],
   );
 
-  const close = (accepted: boolean) => {
+  const choose = useCallback(
+    (options: ChooseOptions) => new Promise<string | null>((resolve) => setActive({ kind: 'choose', options, resolve })),
+    [],
+  );
+
+  const close = (accepted: boolean, choice: string | null = null) => {
     const current = active;
     if (!current) return;
     if (current.kind === 'confirm') current.resolve(accepted);
+    else if (current.kind === 'choose') current.resolve(accepted ? choice : null);
     else current.resolve(accepted && text.trim() ? text.trim() : null);
     setActive(null);
   };
 
-  const api = useMemo(() => ({ confirm, prompt }), [confirm, prompt]);
+  const api = useMemo(() => ({ confirm, prompt, choose }), [confirm, prompt, choose]);
   const options = active?.options;
-  const destructive = !!active?.options.destructive;
+  const destructive = active?.kind !== 'choose' && !!active?.options.destructive;
 
   return (
     <DialogContext.Provider value={api}>
@@ -107,19 +123,34 @@ export function DialogProvider({ children }: PropsWithChildren) {
                     }}
                   />
                 ) : null}
-                <View style={styles.actions}>
-                  <Button
-                    label={(active?.kind === 'confirm' && active.options.cancelLabel) || t('common.cancel')}
-                    variant="ghost"
-                    onPress={() => close(false)}
-                  />
-                  <Button
-                    label={options.confirmLabel ?? t('common.accept')}
-                    variant={destructive ? 'danger' : 'primary'}
-                    onPress={() => close(true)}
-                    disabled={active?.kind === 'prompt' && !text.trim()}
-                  />
-                </View>
+                {active?.kind === 'choose' ? (
+                  <View style={styles.choices}>
+                    {active.options.choices.map((c, i, all) => (
+                      <Button
+                        key={c.value}
+                        label={c.label}
+                        variant={i === all.length - 1 ? 'primary' : 'secondary'}
+                        fullWidth
+                        onPress={() => close(true, c.value)}
+                      />
+                    ))}
+                    <Button label={t('common.cancel')} variant="ghost" fullWidth onPress={() => close(false)} />
+                  </View>
+                ) : (
+                  <View style={styles.actions}>
+                    <Button
+                      label={(active?.kind === 'confirm' && active.options.cancelLabel) || t('common.cancel')}
+                      variant="ghost"
+                      onPress={() => close(false)}
+                    />
+                    <Button
+                      label={active.options.confirmLabel ?? t('common.accept')}
+                      variant={destructive ? 'danger' : 'primary'}
+                      onPress={() => close(true)}
+                      disabled={active?.kind === 'prompt' && !text.trim()}
+                    />
+                  </View>
+                )}
               </View>
             ) : null}
           </View>
@@ -148,4 +179,5 @@ const useStyles = makeStyles((t) => ({
     boxShadow: t.shadow.raised,
   },
   actions: { flexDirection: 'row', justifyContent: 'flex-end', gap: t.spacing.sm, marginTop: t.spacing.sm },
+  choices: { gap: t.spacing.sm, marginTop: t.spacing.sm },
 }));

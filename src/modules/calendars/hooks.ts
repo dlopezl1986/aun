@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 
 import { useDataMutation, useDataQuery } from '@/state/queryClient';
 import { addDays, startOfDay, toDateKey } from '@/utils/date';
-import { EventValidationError, type CalendarInput, type DayNoteInput, type EventInput } from './service';
+import { EventValidationError, type CalendarInput, type DayNoteInput, type EventInput, type MoveScope } from './service';
 
 export function useCalendars() {
   return useDataQuery('calendars', [], (s) => s.calendars.listCalendars());
@@ -128,5 +128,22 @@ export function useRemoveDayNote() {
   return useDataMutation((s, id: string) => s.calendars.removeDayNote(id), {
     invalidate: ['events'],
     successMessage: t('calendars.notes.toast.deleted'),
+  });
+}
+
+/** Drag & drop of an event occurrence to another day (and time). */
+export function useMoveOccurrence() {
+  const { t } = useTranslation();
+  return useDataMutation(
+    (s, v: { id: string; from: string; to: string; toTime?: string | null; scope: MoveScope }) => s.calendars.moveOccurrence(v.id, v),
+    { invalidate: ['events'], successMessage: t('calendars.move.moved') },
+  );
+}
+
+export function useMoveDayNote() {
+  const { t } = useTranslation();
+  return useDataMutation((s, v: { id: string; date: string }) => s.calendars.moveDayNote(v.id, v.date), {
+    invalidate: ['events'],
+    successMessage: t('calendars.move.noteMoved'),
   });
 }

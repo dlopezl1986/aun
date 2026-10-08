@@ -23,7 +23,7 @@ function Manager({ onClose }: { onClose: () => void }) {
   const remove = useDeleteCategory();
   const [name, setName] = useState('');
   const [emoji, setEmoji] = useState('🎈');
-  const [color, setColor] = useState<string>(accentPalette[8]);
+  const [color, setColor] = useState<string>(accentPalette[9]);
   const custom = categories.filter((c) => !c.builtin);
 
   const add = () => {

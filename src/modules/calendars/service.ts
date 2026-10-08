@@ -2,7 +2,7 @@ import type { Repository } from '@/storage/repository';
 import type { EntityRef } from '@/types/entity';
 import type { RecurrenceRule } from '@/types/recurrence';
 import { matchScore, type SearchResult } from '@/types/search';
-import { addDays, combine, startOfDay, toDateKey, type DateKey } from '@/utils/date';
+import { addDays, combine, fromDateKey, startOfDay, timeOf, toDateKey, type DateKey } from '@/utils/date';
 import { expandOccurrences } from '@/utils/recurrence';
 import { NOTE_COLORS, type Calendar, type CalendarEvent, type DayNote, type EventOccurrence } from './types';
 
@@ -32,6 +32,13 @@ export interface EventInput {
   recurrence?: RecurrenceRule | null;
   links?: EntityRef[];
 }
+
+/** Drag & drop: move one day of a series, or the whole series. */
+export type MoveScope = 'single' | 'series';
+
+const DAY = 24 * 60 * 60 * 1000;
+const daysBetween = (from: DateKey, to: DateKey) => Math.round((fromDateKey(to).getTime() - fromDateKey(from).getTime()) / DAY);
+const shiftKey = (key: DateKey, days: number) => toDateKey(addDays(fromDateKey(key), days));
 
 export class EventValidationError extends Error {
   constructor(public readonly field: 'title' | 'calendar') {
@@ -177,6 +184,57 @@ export class CalendarService {
     const e = await this.events.get(id);
     if (!e) return;
     await this.events.update(id, { exdates: [...new Set([...(e.exdates ?? []), date])] });
+  }
+
+  /**
+   * Moves an occurrence dragged from day `from` to day `to` (and, in the
+   * hours view, to `toTime`), keeping its duration. Recurring events move
+   * either just that day (it becomes a single event) or the whole series.
+   */
+  async moveOccurrence(
+    id: string,
+    input: { from: DateKey; to: DateKey; toTime?: string | null; scope: MoveScope },
+  ): Promise<CalendarEvent> {
+    const e = await this.events.get(id);
+    if (!e) throw new Error('Event not found');
+    const start = new Date(e.start);
+    const durationMs = new Date(e.end).getTime() - start.getTime();
+    const dayDelta = daysBetween(input.from, input.to);
+    const times = (startKey: DateKey) => {
+      if (e.allDay) {
+        const days = Math.max(1, Math.round(durationMs / DAY));
+        return { start: combine(startKey).toISOString(), end: combine(shiftKey(startKey, days)).toISOString() };
+      }
+      const s = combine(startKey, input.toTime ?? timeOf(start));
+      return { start: s.toISOString(), end: new Date(s.getTime() + durationMs).toISOString() };
+    };
+
+    if (e.recurrence && input.scope === 'single') {
+      // Detach that day: the series skips it and a one-off copy takes its place.
+      await this.events.update(id, { exdates: [...new Set([...(e.exdates ?? []), input.from])] });
+      const { id: _id, ownerId: _o, createdAt: _c, updatedAt: _u, deletedAt: _d, ...copy } = e;
+      return this.events.create({ ...copy, ...times(input.to), recurrence: null, exdates: [] });
+    }
+
+    const rule = e.recurrence
+      ? {
+          ...e.recurrence,
+          // Weekdays and the end date travel with the series.
+          ...(e.recurrence.byWeekday?.length
+            ? { byWeekday: [...new Set(e.recurrence.byWeekday.map((d) => (((d + dayDelta) % 7) + 7) % 7))].sort((a, b) => a - b) }
+            : {}),
+          ...(e.recurrence.until ? { until: shiftKey(e.recurrence.until.slice(0, 10), dayDelta) } : {}),
+        }
+      : null;
+    return this.events.update(id, {
+      ...times(shiftKey(toDateKey(start), dayDelta)),
+      recurrence: rule,
+      exdates: (e.exdates ?? []).map((d) => shiftKey(d, dayDelta)),
+    });
+  }
+
+  moveDayNote(id: string, date: DateKey): Promise<DayNote> {
+    return this.notesRepo().update(id, { date });
   }
 
   /**

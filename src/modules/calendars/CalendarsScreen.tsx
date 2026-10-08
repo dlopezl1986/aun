@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, View, useWindowDimensions } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
+import { useDialog } from '@/components/feedback/DialogProvider';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Screen } from '@/components/layout/Screen';
 import { AppText } from '@/components/ui/AppText';
@@ -28,7 +29,8 @@ import { DayAgenda, EventCard, NoteCard } from './components/DayAgenda';
 import { DayNoteSheet } from './components/DayNoteSheet';
 import { MonthGrid } from './components/MonthGrid';
 import { TimeGrid } from './components/TimeGrid';
-import { useCalendars, useCreateCalendar, useDayNotes, useEvent, useOccurrences } from './hooks';
+import { useCalendars, useCreateCalendar, useDayNotes, useEvent, useMoveDayNote, useMoveOccurrence, useOccurrences } from './hooks';
+import type { MoveScope } from './service';
 import { calendarsMeta } from './meta';
 import type { Calendar, CalendarEvent, DayNote, EventOccurrence } from './types';
 
@@ -86,6 +88,28 @@ export function CalendarsScreen() {
   const range = rangeFor(mode, anchor);
   const occurrences = useOccurrences(range.start, range.days);
   const notesQuery = useDayNotes(range.start, range.days);
+  const dialog = useDialog();
+  const moveOccurrence = useMoveOccurrence();
+  const moveDayNote = useMoveDayNote();
+
+  // Drag & drop: a repeating event asks whether to move just that day or the whole series.
+  const moveEvent = async (o: EventOccurrence, from: string, to: string, toTime: string | null = null) => {
+    let scope: MoveScope = 'series';
+    if (o.event.recurrence) {
+      const choice = await dialog.choose({
+        title: t('calendars.move.recurringTitle'),
+        message: t('calendars.move.recurringMessage', { title: o.event.title }),
+        choices: [
+          { value: 'series', label: t('calendars.move.series') },
+          { value: 'single', label: t('calendars.move.single') },
+        ],
+      });
+      if (!choice) return;
+      scope = choice as MoveScope;
+    }
+    moveOccurrence.mutate({ id: o.event.id, from, to, toTime, scope });
+  };
+  const moveNote = (n: DayNote, to: string) => moveDayNote.mutate({ id: n.id, date: to });
   const createCalendar = useCreateCalendar();
 
   // Deep link from the global search: /calendars?event=<id>
@@ -307,6 +331,8 @@ export function CalendarsScreen() {
         onSlotPress={(date, time) => newEvent(date, time)}
         onEventPress={setDetail}
         onNotePress={onNote}
+        onMoveEvent={moveEvent}
+        onMoveNote={moveNote}
       />
     );
   } else if (mode === 'week') {
@@ -339,6 +365,8 @@ export function CalendarsScreen() {
           onMonthChange={(m) => setSelected(toDateKey(m))}
           onEventPress={setDetail}
           onNotePress={onNote}
+          onMoveEvent={moveEvent}
+          onMoveNote={moveNote}
         />
         <Divider />
         <CardHeader

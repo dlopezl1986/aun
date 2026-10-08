@@ -176,3 +176,10 @@ Asistente sobre `AIContextSource`/`AIAction`, ejecutado en backend.
 - **Color propio por evento** (p. ej. cada turno de un color): el color del evento es el relleno y el del
   calendario (la persona) queda como franja lateral. Los turnos traen color por defecto (mañana ámbar,
   tarde violeta, noche pizarra), editable y recordado. En las casillas pequeñas se ve «Mañana/Tarde/Noche».
+
+## Calendarios — arrastrar y soltar (2026-10-08)
+- **Arrastrar eventos y notas a otro día** en Mes, y en Semana/Día «Por horas» también a otra hora
+  (pasos de 15 min, con vista previa). Ratón: arrastrar directamente; táctil: mantener pulsado y arrastrar.
+  Un evento que se repite pregunta «Solo este día» o «Toda la serie» (los días de la semana, los días
+  saltados y la fecha final se desplazan con la serie). Solo web; en apps nativas se edita como siempre.
+- Color **amarillo** añadido a la paleta.

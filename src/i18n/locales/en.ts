@@ -256,6 +256,15 @@ export const en: Translation = {
     },
   },
   calendars: {
+    move: {
+      hint: 'Press and hold, then drag to move it to another day',
+      moved: 'Event moved',
+      noteMoved: 'Note moved',
+      recurringTitle: 'What do you want to move?',
+      recurringMessage: '“{{title}}” repeats. You can move just this day or the whole series.',
+      single: 'Just this day',
+      series: 'The whole series',
+    },
     eventColor: { label: 'Event colour', fromCalendar: 'Calendar colour' },
     shifts: {
       label: 'Shift (optional)',

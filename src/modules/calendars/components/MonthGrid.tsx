@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
@@ -10,6 +10,17 @@ import { useLocale } from '@/hooks/useLocale';
 import { makeStyles, useTheme } from '@/theme';
 import { withAlpha } from '@/utils/color';
 import { addMonths, formatLongDate, formatMonthYear, monthMatrix, toDateKey, weekdayNames } from '@/utils/date';
+import {
+  canDrag,
+  DragGhost,
+  dropDay,
+  dropTargetAt,
+  followPointer,
+  justDragged,
+  mouseDraggable,
+  pointOf,
+  type DragPoint,
+} from '../dragDrop';
 import { shortShiftTitle } from '../shifts';
 import { occurrenceColor, type DayNote, type EventOccurrence } from '../types';
 
@@ -24,6 +35,9 @@ interface MonthGridProps {
   /** Tapping an event / note inside a day opens it directly. */
   onEventPress?: (o: EventOccurrence) => void;
   onNotePress?: (n: DayNote) => void;
+  /** Drag & drop to another day (web). */
+  onMoveEvent?: (o: EventOccurrence, from: string, to: string) => void;
+  onMoveNote?: (n: DayNote, to: string) => void;
 }
 
 /** One line inside a day cell: the event name (or note text) on its colour. */
@@ -39,6 +53,8 @@ export function MonthGrid({
   onMonthChange,
   onEventPress,
   onNotePress,
+  onMoveEvent,
+  onMoveNote,
 }: MonthGridProps) {
   const styles = useStyles();
   const { colors } = useTheme();
@@ -49,6 +65,27 @@ export function MonthGrid({
   const names = useMemo(() => weekdayNames(locale), [locale]);
   // Phones have ~50px wide cells: fewer, shorter lines.
   const maxLines = isCompact ? 3 : 4;
+  const [drag, setDrag] = useState<{ label: Label; from: string; point: DragPoint; over: string | null } | null>(null);
+
+  // Long press picks an event / note up; dropping it on another day moves it.
+  const startDrag = (label: Label, from: string, point: DragPoint, moved = false) => {
+    if (!canDrag || (label.note ? !onMoveNote : !onMoveEvent)) return;
+    const started = followPointer(
+      {
+        move: (p) => setDrag((d) => d && { ...d, point: p, over: dropTargetAt(p)?.day ?? null }),
+        end: (p) => {
+          setDrag(null);
+          const to = p ? dropTargetAt(p)?.day : null;
+          if (!to || to === from) return;
+          if (label.note) onMoveNote?.(label.note, to);
+          else if (label.occurrence) onMoveEvent?.(label.occurrence, from, to);
+        },
+      },
+      point,
+      moved,
+    );
+    if (started) setDrag({ label, from, point, over: moved ? (dropTargetAt(point)?.day ?? null) : from });
+  };
 
   // dateKey → notes first (reminders), then events in time order.
   const labels = useMemo(() => {
@@ -107,10 +144,18 @@ export function MonthGrid({
               // buttons, so nothing is nested inside another button.
               <View
                 key={key}
+                {...dropDay(key)}
                 style={[
                   styles.dayCell,
                   { minHeight: isCompact ? 76 : 104, padding: isCompact ? 1 : 2, opacity: inMonth ? 1 : 0.55 },
                   isSelected && { borderColor: colors.primary, backgroundColor: withAlpha(colors.primary, 0.06) },
+                  drag?.over === key &&
+                    drag.from !== key && {
+                      borderColor: colors.primary,
+                      borderWidth: 2,
+                      backgroundColor: withAlpha(colors.primary, 0.14),
+                      zIndex: 1,
+                    },
                 ]}
               >
                 <Pressable
@@ -131,15 +176,22 @@ export function MonthGrid({
                 {shown.map((l) => (
                   <Pressable
                     key={l.key}
+                    {...mouseDraggable(`m:${l.key}`, (p) => startDrag(l, key, p, true))}
                     onPress={() => {
+                      if (justDragged()) return;
                       onSelect(key);
                       if (l.occurrence) onEventPress?.(l.occurrence);
                       else if (l.note) onNotePress?.(l.note);
                     }}
+                    onLongPress={(e) => startDrag(l, key, pointOf(e))}
+                    delayLongPress={250}
                     accessibilityRole="button"
                     accessibilityLabel={l.text}
+                    accessibilityHint={canDrag ? t('calendars.move.hint') : undefined}
                     style={(s) => [
                       styles.label,
+                      { userSelect: 'none' } as object,
+                      drag?.label.key === l.key && { opacity: 0.35 },
                       // Notes: dashed sticky-note outline. Events: own colour as the fill, the
                       // calendar (person) colour as the stripe.
                       l.note
@@ -181,6 +233,14 @@ export function MonthGrid({
           })}
         </View>
       ))}
+      {drag ? (
+        <DragGhost
+          point={drag.point}
+          label={drag.label.text}
+          color={drag.label.color}
+          hint={drag.over && drag.over !== drag.from ? `→ ${formatLongDate(new Date(`${drag.over}T12:00:00`), locale)}` : null}
+        />
+      ) : null}
     </View>
   );
 }

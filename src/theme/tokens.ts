@@ -75,6 +75,7 @@ export const accentPalette = [
   '#0EA5A4',
   '#16A34A',
   '#84CC16',
+  '#EAB308',
   '#F59E0B',
   '#F97316',
   '#E5484D',

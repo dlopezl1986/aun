@@ -105,7 +105,7 @@ function MemberForm({ onClose, child, onCreated }: Props) {
   const setPhoto = useSetChildPhoto();
   const [relation, setRelation] = useState<MemberRelation>(child?.relation ?? 'child');
   const [name, setName] = useState(child?.name ?? '');
-  const [color, setColor] = useState<string>(child?.color ?? accentPalette[8]);
+  const [color, setColor] = useState<string>(child?.color ?? accentPalette[9]);
   const [birth, setBirth] = useState(child?.birthDate ? formatDateInput(child.birthDate) : '');
   const [phone, setPhone] = useState(child?.phone ?? '');
   const [email, setEmail] = useState(child?.email ?? '');
