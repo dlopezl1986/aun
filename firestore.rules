@@ -1,17 +1,124 @@
 rules_version = '2';
 service cloud.firestore {
-  match /databases/{database}/documents {
+  match /databases/{db}/documents {
 
-    // Every AUN user-data row belongs to one user (ownerId == Firebase uid).
+    function signedIn() {
+      return request.auth != null;
+    }
+    function uid() {
+      return request.auth.uid;
+    }
+
+    // ---------------------------------------------------------------------
+    // Shared spaces. A space groups records shared with other people:
+    //   cal_<ownerUid>_<calendarId>  one calendar and its events
+    //   fam_<ownerUid>               the family: members, lists, shopping
+    // Its id embeds the owner, so nobody can create a space in someone
+    // else's name. roles: { uid: 'view' | 'edit' }.
+    // ---------------------------------------------------------------------
+    function ownSpace(s) {
+      return s == 'fam_' + uid() || s.matches('cal_' + uid() + '_.+');
+    }
+    function spaceDoc(s) {
+      return get(/databases/$(db)/documents/spaces/$(s)).data;
+    }
+    function hasSpace(s) {
+      return exists(/databases/$(db)/documents/spaces/$(s));
+    }
+    function canRead(s) {
+      return s != null && (ownSpace(s) || (hasSpace(s) && uid() in spaceDoc(s).memberIds));
+    }
+    function canWrite(s) {
+      return s != null && (ownSpace(s) || (hasSpace(s) && spaceDoc(s).roles.get(uid(), 'none') == 'edit'));
+    }
+
+    // ---------------------------------------------------------------------
+    // AUN user data. One document per row: <ownerUid>_<collection>_<id>.
+    // Private rows have spaceId == null and only their owner sees them.
+    // ---------------------------------------------------------------------
     match /records/{docId} {
-      allow read, delete: if request.auth != null
-                          && request.auth.uid == resource.data.ownerId;
-      // The owner can never be changed, and a row can only be written as yourself.
-      allow create: if request.auth != null
-                    && request.auth.uid == request.resource.data.ownerId;
-      allow update: if request.auth != null
-                    && request.auth.uid == resource.data.ownerId
-                    && request.auth.uid == request.resource.data.ownerId;
+      allow read: if signedIn()
+        && (resource.data.ownerId == uid() || canRead(resource.data.get('spaceId', null)));
+
+      allow create: if signedIn()
+        && request.resource.data.ownerId == uid()
+        && docId == uid() + '_' + request.resource.data.collection + '_' + request.resource.data.id
+        && (request.resource.data.get('spaceId', null) == null || canWrite(request.resource.data.spaceId));
+
+      // Owner, or an editor of the row's space. The owner, id and collection
+      // never change; a row only moves to a space the writer can edit (only
+      // its owner can make it private again).
+      allow update: if signedIn()
+        && request.resource.data.ownerId == resource.data.ownerId
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.collection == resource.data.collection
+        && (resource.data.ownerId == uid() || canWrite(resource.data.get('spaceId', null)))
+        && (
+          request.resource.data.get('spaceId', null) == resource.data.get('spaceId', null)
+          || (request.resource.data.get('spaceId', null) == null && resource.data.ownerId == uid())
+          || canWrite(request.resource.data.get('spaceId', null))
+        );
+
+      // Deletions are tombstones (updates); hard deletes only by the owner.
+      allow delete: if signedIn() && resource.data.ownerId == uid();
+    }
+
+    // ---------------------------------------------------------------------
+    // Spaces: the owner manages them; a person joins one only with a valid,
+    // unexpired, single-use invitation that grants it (claimed in the same
+    // batch), adding exactly themselves with exactly the granted role.
+    // ---------------------------------------------------------------------
+    function joining(spaceId) {
+      let inv = getAfter(/databases/$(db)/documents/invites/$(request.resource.data.joinedWith)).data;
+      let role = inv.grants.get(spaceId, null);
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      return role != null
+        && inv.ownerId == resource.data.ownerId
+        && inv.usedBy == uid()
+        && inv.expiresAt > request.time
+        && !(uid() in resource.data.memberIds)
+        && request.resource.data.memberIds.hasAll(resource.data.memberIds)
+        && request.resource.data.memberIds.size() == resource.data.memberIds.size() + 1
+        && uid() in request.resource.data.memberIds
+        && request.resource.data.roles.diff(resource.data.roles).affectedKeys().hasOnly([uid()])
+        && request.resource.data.roles[uid()] == role
+        && request.resource.data.names.diff(resource.data.names).affectedKeys().hasOnly([uid()])
+        && changed.hasOnly(['memberIds', 'roles', 'names', 'joinedWith', 'assignee', 'updatedAt'])
+        && (!('assignee' in changed) || (inv.get('assign', null) == spaceId && request.resource.data.assignee == uid()));
+    }
+
+    match /spaces/{spaceId} {
+      // Own spaces can be read even before they exist (to create them); others only by their members.
+      allow read: if signedIn() && (ownSpace(spaceId) || uid() in resource.data.memberIds);
+      allow create: if signedIn()
+        && ownSpace(spaceId)
+        && request.resource.data.ownerId == uid()
+        && uid() in request.resource.data.memberIds;
+      allow update: if signedIn() && (
+        (resource.data.ownerId == uid() && request.resource.data.ownerId == uid() && uid() in request.resource.data.memberIds)
+        || joining(spaceId)
+      );
+      allow delete: if signedIn() && resource.data.ownerId == uid();
+    }
+
+    // ---------------------------------------------------------------------
+    // Invitations: the link carries a random code (the document id). Anyone
+    // signed in who has the code can read it and claim it once.
+    // ---------------------------------------------------------------------
+    match /invites/{code} {
+      allow get: if signedIn();
+      allow list: if signedIn() && resource.data.ownerId == uid();
+      allow create: if signedIn()
+        && request.resource.data.ownerId == uid()
+        && request.resource.data.usedBy == null
+        && code.size() >= 20;
+      allow update: if signedIn()
+        && resource.data.usedBy == null
+        && resource.data.expiresAt > request.time
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['usedBy', 'usedByName', 'usedAt'])
+        && request.resource.data.usedBy == uid()
+        && resource.data.ownerId != uid();
+      allow delete: if signedIn() && resource.data.ownerId == uid();
     }
 
     // Everything else is closed.

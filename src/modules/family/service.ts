@@ -32,6 +32,13 @@ export interface ChildInput {
   extraFields?: MemberField[];
   importantInfo?: string | null;
   notes?: string | null;
+  /**
+   * An existing calendar to use as the member's calendar (e.g. one created
+   * before in Calendarios). Without it, a new calendar is created.
+   */
+  calendarId?: string | null;
+  /** AUN account of this person (set when they accept a family invitation). */
+  accountUid?: string | null;
 }
 
 export interface ActivityInput {
@@ -148,7 +155,8 @@ export class FamilyService {
   async createChild(input: ChildInput): Promise<Member> {
     const name = input.name.trim();
     if (!name) throw new Error('Name is required');
-    const calendarId = this.calendar ? await this.calendar.createCalendar(name, input.color) : null;
+    const linked = !!input.calendarId;
+    const calendarId = input.calendarId || (this.calendar ? await this.calendar.createCalendar(name, input.color) : null);
     const created = await this.children.create({
       name,
       relation: input.relation ?? 'child',
@@ -167,12 +175,19 @@ export class FamilyService {
       notes: clean(input.notes),
       photo: null,
       calendarId,
+      calendarLinked: linked,
     });
     return normalizeMember(created);
   }
 
   async updateChild(id: string, input: Partial<ChildInput>): Promise<Member> {
-    const patch: Partial<Child> = { ...input };
+    const { calendarId: newCalendar, ...rest } = input;
+    const patch: Partial<Child> = { ...rest };
+    // Another existing calendar assigned to the member.
+    if (newCalendar) {
+      patch.calendarId = newCalendar;
+      patch.calendarLinked = true;
+    }
     if (input.name !== undefined) {
       const name = input.name.trim();
       if (!name) throw new Error('Name is required');
@@ -183,8 +198,8 @@ export class FamilyService {
     if (input.sizes) patch.sizes = cleanList(input.sizes);
     if (input.extraFields) patch.extraFields = cleanList(input.extraFields);
     const updated = await this.children.update(id, patch);
-    // The member's calendar follows the name and colour.
-    if (this.calendar && updated.calendarId && (input.name !== undefined || input.color !== undefined)) {
+    // A calendar AUN created for the member follows their name and colour (an assigned one is left as it is).
+    if (this.calendar && updated.calendarId && !updated.calendarLinked && (input.name !== undefined || input.color !== undefined)) {
       await this.calendar.updateCalendar(updated.calendarId, { name: updated.name, color: updated.color });
     }
     return normalizeMember(updated);
@@ -244,7 +259,8 @@ export class FamilyService {
     for (const item of (await this.items.list()).filter((i) => i.childId === id)) {
       await this.items.update(item.id, { childId: null });
     }
-    if (this.calendar && child?.calendarId) await this.calendar.updateCalendar(child.calendarId, { isActive: false });
+    if (this.calendar && child?.calendarId && !child.calendarLinked)
+      await this.calendar.updateCalendar(child.calendarId, { isActive: false });
     await this.children.remove(id);
     return child;
   }

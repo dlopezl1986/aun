@@ -40,6 +40,10 @@ export interface SyncableRepository<T extends BaseEntity = BaseEntity> extends R
   markClean(rows: { id: string; updatedAt: string }[]): Promise<void>;
   /** Adds rows from elsewhere (data migration) as local changes; existing ids are kept. */
   importRows(rows: T[]): Promise<number>;
+  /** Marks every row (tombstones included) as changed, to upload everything again. */
+  markAllDirty(): Promise<void>;
+  /** Replaces rows with the server's version, whatever their local state (rejected changes). */
+  restoreRemote(rows: T[]): Promise<void>;
 }
 
 export class LocalRepository<T extends BaseEntity> implements SyncableRepository<T> {
@@ -143,6 +147,20 @@ export class LocalRepository<T extends BaseEntity> implements SyncableRepository
       const known = new Set(rows.map((r) => r.id));
       const added = incoming.filter((r) => !known.has(r.id)).map((r) => ({ ...r, ownerId: this.userId, dirty: true }) as T);
       return { rows: added.length ? [...rows, ...added] : rows, result: added.length };
+    });
+  }
+
+  markAllDirty(): Promise<void> {
+    return this.mutate((rows) => ({ rows: rows.map((r) => ({ ...r, dirty: true })), result: undefined }));
+  }
+
+  restoreRemote(incoming: T[]): Promise<void> {
+    const byId = new Map(incoming.map((r) => [r.id, r]));
+    return this.mutate((rows) => {
+      const known = new Set(rows.map((r) => r.id));
+      const next = rows.map((r) => (byId.has(r.id) ? ({ ...byId.get(r.id)!, dirty: false } as T) : r));
+      for (const r of incoming) if (!known.has(r.id)) next.push({ ...r, dirty: false } as T);
+      return { rows: next, result: undefined };
     });
   }
 

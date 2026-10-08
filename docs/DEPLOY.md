@@ -109,3 +109,11 @@ npm start
 Las cuentas creadas con el servidor local (`npm run local`), incluidas las que usan nombre de usuario,
 NO existen en Firebase: Firebase usa email. Crea una cuenta nueva; los datos locales se pueden copiar a
 la nueva cuenta desde Configuración → Cuenta.
+
+## Probar reglas y compartir en local (emulador)
+
+Necesita Java 11+ (se usa un JRE en `~/.local/java` si existe).
+
+```bash
+npm run test:rules
+```

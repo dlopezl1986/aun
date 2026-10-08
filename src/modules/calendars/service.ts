@@ -77,17 +77,38 @@ export interface DayNoteInput {
   remindAt?: string | null;
 }
 
+/** Show/hide on this device the calendars other people share with me. */
+export interface LocalVisibility {
+  isHidden(calendarId: string): boolean;
+  setHidden(calendarId: string, hidden: boolean): void;
+  clear(): void;
+}
+
 export class CalendarService {
   constructor(
     private readonly calendars: Repository<Calendar>,
     private readonly events: Repository<CalendarEvent>,
     private readonly notes?: Repository<DayNote>,
+    /** The signed-in user: calendars owned by someone else are shared with me. */
+    private readonly me?: string,
+    private readonly localVisibility?: LocalVisibility,
   ) {}
+
+  /** Someone else's calendar (shared): its visibility is mine only, kept on this device. */
+  private shared(c: Calendar): boolean {
+    return !!this.me && !!this.localVisibility && !!c.ownerId && c.ownerId !== this.me;
+  }
+
+  private shown(c: Calendar): boolean {
+    return this.shared(c) ? !this.localVisibility!.isHidden(c.id) : c.isVisible;
+  }
 
   // ---------- Calendars ----------
 
   async listCalendars(): Promise<Calendar[]> {
-    return (await this.calendars.list()).sort((a, b) => a.order - b.order);
+    return (await this.calendars.list())
+      .map((c) => (this.shared(c) ? { ...c, isVisible: this.shown(c) } : c))
+      .sort((a, b) => Number(this.shared(a)) - Number(this.shared(b)) || a.order - b.order);
   }
 
   async createCalendar(input: CalendarInput): Promise<Calendar> {
@@ -115,12 +136,18 @@ export class CalendarService {
     await this.calendars.remove(id);
   }
 
-  setVisible(id: string, isVisible: boolean): Promise<Calendar> {
+  async setVisible(id: string, isVisible: boolean): Promise<Calendar> {
+    const c = await this.calendars.get(id);
+    if (c && this.shared(c)) {
+      this.localVisibility!.setHidden(id, !isVisible);
+      return { ...c, isVisible };
+    }
     return this.calendars.update(id, { isVisible });
   }
 
   async showAll(): Promise<void> {
-    const hidden = (await this.calendars.list()).filter((c) => !c.isVisible);
+    this.localVisibility?.clear();
+    const hidden = (await this.calendars.list()).filter((c) => !c.isVisible && !this.shared(c));
     for (const c of hidden) await this.calendars.update(c.id, { isVisible: true });
   }
 
@@ -244,7 +271,7 @@ export class CalendarService {
   async occurrencesBetween(from: Date, to: Date, opts: { includeHidden?: boolean } = {}): Promise<EventOccurrence[]> {
     // Hidden calendars still notify (visibility is a display filter); archived ones don't.
     const calendars = new Map(
-      (await this.calendars.list()).filter((c) => c.isActive && (opts.includeHidden || c.isVisible)).map((c) => [c.id, c]),
+      (await this.calendars.list()).filter((c) => c.isActive && (opts.includeHidden || this.shown(c))).map((c) => [c.id, c]),
     );
     const result: EventOccurrence[] = [];
     for (const event of await this.events.list()) {

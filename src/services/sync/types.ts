@@ -22,8 +22,18 @@ export interface PullPage {
  * Backend contract for sync. Implemented by SupabaseRemoteStore (REST); a
  * custom API or another BaaS only needs these two calls.
  */
+/** What a push could not store: the server's version of those rows (or their removal). */
+export interface PushResult {
+  restored: RemoteRecord[];
+}
+
 export interface RemoteStore {
   readonly id: string;
+  /**
+   * Version of the server-side row format. When it changes, the next sync
+   * uploads every row once (e.g. to stamp new fields such as the space).
+   */
+  readonly schema?: number;
   /**
    * Rows changed after `cursor`. `overlapMs` re-reads a small window before it
    * (first page of a sync) so rows committed late by concurrent writers are
@@ -31,7 +41,7 @@ export interface RemoteStore {
    */
   pull(cursor: string | null, opts?: { overlapMs?: number }): Promise<PullPage>;
   /** Idempotent upsert; the server keeps the newest `updatedAt` per row. */
-  push(records: RemoteRecord[]): Promise<void>;
+  push(records: RemoteRecord[]): Promise<void | PushResult>;
 }
 
 export interface SyncState {
@@ -39,6 +49,8 @@ export interface SyncState {
   cursor: string | null;
   lastSyncAt: string | null;
   lastError: string | null;
+  /** RemoteStore.schema of the last full upload. */
+  schema?: number;
 }
 
 export interface SyncResult {

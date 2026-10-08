@@ -183,3 +183,15 @@ Asistente sobre `AIContextSource`/`AIAction`, ejecutado en backend.
   Un evento que se repite pregunta «Solo este día» o «Toda la serie» (los días de la semana, los días
   saltados y la fecha final se desplazan con la serie). Solo web; en apps nativas se edita como siempre.
 - Color **amarillo** añadido a la paleta.
+
+## Compartir entre cuentas — familia y calendarios (2026-10-08)
+- Al crear un miembro se puede usar un **calendario que ya existe** (no se renombra, recolorea ni archiva).
+- **Espacios compartidos** en Firebase: cada calendario (`cal_<dueño>_<id>`) y la familia (`fam_<dueño>`:
+  Familia + Compras). Roles **ver / editar**. Tareas, documentos, notas del día y correo siempre privados.
+- **Invitación por enlace** (7 días, un solo uso): «quién es», «su calendario» (asignado, con edición),
+  Familia y Compras, y permisos sobre otros calendarios. Si no tiene cuenta, la crea y la invitación aparece.
+- Gestión posterior: Familia → Compartir (permisos por persona, quitar acceso) y Calendarios → Compartir.
+- La interfaz respeta permisos (solo lectura sin botones de editar/arrastrar). Visibilidad de calendarios
+  ajenos solo en tu dispositivo. Cambios rechazados por el servidor vuelven a la versión del servidor.
+- Reglas de seguridad probadas con el emulador (`npm run test:rules`, 20 casos) y prueba completa con dos
+  cuentas de prueba en el emulador.

@@ -16,6 +16,7 @@ import type { Area, Project, Section, Tag, Task } from '@/modules/todo/types';
 import { asyncKeyValueStore, type KeyValueStore } from '@/storage/keyValueStore';
 import { LocalRepository, type Repository, type SyncableRepository } from '@/storage/repository';
 import type { BaseEntity } from '@/types/entity';
+import { useAppPreferences } from '@/state/appPreferences';
 import { useUserSettings } from '@/state/userSettingsStore';
 import { backend, backendKind } from './backend';
 import { memberCalendarBridge } from './bridges/memberCalendarBridge';
@@ -24,15 +25,22 @@ import { StorageService } from './storage/StorageService';
 import { SyncEngine } from './sync/engine';
 import { SupabaseRemoteStore } from './sync/supabaseRemote';
 import type { RemoteStore } from './sync/types';
+import type { FirebaseSharingService } from './sharing/firebaseSharing';
 
-function defaultRemote(userId: string): RemoteStore | null {
+/** Backend sync + sharing for a user. Sharing between accounts exists on Firebase only. */
+function defaultBackend(
+  userId: string,
+  calendarOwner: (calendarId: string) => Promise<string | null>,
+): { remote: RemoteStore | null; sharing: FirebaseSharingService | null } {
   if (backendKind === 'firebase') {
-    // Dynamic so Firestore is not bundled in Supabase/local builds.
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { FirebaseRemoteStore } = require('./sync/firebaseRemote') as typeof import('./sync/firebaseRemote');
-    return new FirebaseRemoteStore(userId);
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { FirebaseSharingService } = require('./sharing/firebaseSharing') as typeof import('./sharing/firebaseSharing');
+    const remote = new FirebaseRemoteStore(userId, calendarOwner);
+    return { remote, sharing: new FirebaseSharingService(userId, () => void remote.loadSpaces(true).catch(() => undefined)) };
   }
-  return backend ? new SupabaseRemoteStore(backend) : null;
+  return { remote: backend ? new SupabaseRemoteStore(backend) : null, sharing: null };
 }
 
 export interface Services {
@@ -49,6 +57,8 @@ export interface Services {
   collections: Map<string, SyncableRepository>;
   /** Backend sync; `null` in local-only mode. */
   sync: SyncEngine | null;
+  /** Sharing with other accounts (family, calendars); `null` unless the backend is Firebase. */
+  sharing: FirebaseSharingService | null;
 }
 
 /**
@@ -84,7 +94,8 @@ export const SYNCED_COLLECTIONS = [
 export function createServices(
   userId: string,
   store: KeyValueStore = asyncKeyValueStore,
-  remote: RemoteStore | null = defaultRemote(userId),
+  /** `undefined` = the configured backend; `null` = local only (tests). */
+  remote?: RemoteStore | null,
 ): Services {
   const collections = new Map<string, SyncableRepository>();
   // One instance per collection: services and the sync engine share the same cache.
@@ -97,7 +108,11 @@ export function createServices(
     return r as unknown as Repository<T>;
   };
 
-  const calendars = new CalendarService(repo<Calendar>('calendars'), repo<CalendarEvent>('events'), repo<DayNote>('dayNotes'));
+  const calendars = new CalendarService(repo<Calendar>('calendars'), repo<CalendarEvent>('events'), repo<DayNote>('dayNotes'), userId, {
+    isHidden: (id) => useAppPreferences.getState().hiddenSharedCalendars.includes(id),
+    setHidden: (id, hidden) => useAppPreferences.getState().setSharedCalendarHidden(id, hidden),
+    clear: () => useAppPreferences.getState().clearHiddenSharedCalendars(),
+  });
   const services = {
     userId,
     calendars,
@@ -130,9 +145,14 @@ export function createServices(
     relations: new RelationService(repo<Relation>('relations')),
   };
   const synced = new Map(SYNCED_COLLECTIONS.map((c) => [c, collections.get(c) ?? (repo(c) as unknown as SyncableRepository)]));
+  // Events are stored in their calendar's space: the calendar owner comes from local data.
+  const calendarOwner = async (calendarId: string) =>
+    (await collections.get('calendars')!.listAllRaw()).find((c) => c.id === calendarId)?.ownerId ?? null;
+  const backendParts = remote === undefined ? defaultBackend(userId, calendarOwner) : { remote, sharing: null };
   return {
     ...services,
     collections: synced,
-    sync: remote ? new SyncEngine(synced, remote, store, userId) : null,
+    sync: backendParts.remote ? new SyncEngine(synced, backendParts.remote, store, userId) : null,
+    sharing: backendParts.sharing,
   };
 }

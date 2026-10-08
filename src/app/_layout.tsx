@@ -71,6 +71,8 @@ function RootNavigator() {
       <Stack.Protected guard={!signedIn}>
         <Stack.Screen name="(auth)" />
       </Stack.Protected>
+      {/* Invitation links work signed in or out (the code is kept until you have an account). */}
+      <Stack.Screen name="join" />
     </Stack>
   );
 }

@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { Tabs } from 'expo-router/js-tabs';
 import { useEffect, useMemo } from 'react';
 import { View } from 'react-native';
@@ -8,6 +9,7 @@ import { ErrorState, LoadingState } from '@/components/ui/States';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { getModuleRegistry } from '@/modules/registry';
 import { useAlertScheduler } from '@/services/notifications/useAlertScheduler';
+import { pendingInvite } from '@/services/sharing/pendingInvite';
 import { ServicesProvider } from '@/services/ServicesProvider';
 import { useAutoSync } from '@/services/sync/useAutoSync';
 import { useAuthStore } from '@/state/authStore';
@@ -57,6 +59,16 @@ function AlertScheduler() {
   return null;
 }
 
+/** An invitation opened before signing in: show it now. */
+function PendingInvite() {
+  useEffect(() => {
+    void pendingInvite.get().then((code) => {
+      if (code) router.push({ pathname: '/join', params: { code } });
+    });
+  }, []);
+  return null;
+}
+
 /** Background sync with the AUN backend (no-op in local-only mode). */
 function AutoSync() {
   useAutoSync();
@@ -98,6 +110,7 @@ export default function AppLayout() {
     <ServicesProvider userId={userId}>
       <AlertScheduler />
       <AutoSync />
+      <PendingInvite />
       <AppTabs />
     </ServicesProvider>
   );

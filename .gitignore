@@ -48,3 +48,9 @@ server/data/
 
 # Local QA credentials (never published)
 dev/test-account.json
+
+# Firebase emulator
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+dev/emulator-accounts.json

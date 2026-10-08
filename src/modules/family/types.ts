@@ -71,6 +71,13 @@ export interface Child extends BaseEntity {
   notes?: string | null;
   /** The member's own calendar in Calendarios. */
   calendarId?: string | null;
+  /**
+   * The calendar already existed and was assigned by the user: AUN does not
+   * rename, recolour or archive it (it only does that with calendars it created).
+   */
+  calendarLinked?: boolean;
+  /** AUN account of this person once they joined the family (shared cloud data). */
+  accountUid?: string | null;
 }
 
 export type Member = Omit<Child, 'activities'> & { relation: MemberRelation; activities: MemberActivity[] };

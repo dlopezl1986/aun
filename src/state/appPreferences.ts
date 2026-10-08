@@ -20,6 +20,8 @@ interface AppPreferencesState {
   shiftHours: Partial<Record<ShiftId, ShiftHours>>;
   /** Colours the user picked for each shift. */
   shiftColors: Partial<Record<ShiftId, string>>;
+  /** Calendars shared with me that I hide on this device. */
+  hiddenSharedCalendars: string[];
   hydrated: boolean;
   setThemeMode: (mode: ThemeMode) => void;
   setPalette: (palette: PaletteId) => void;
@@ -27,6 +29,8 @@ interface AppPreferencesState {
   toggleSidebar: () => void;
   setShiftHours: (id: ShiftId, hours: ShiftHours) => void;
   setShiftColor: (id: ShiftId, color: string) => void;
+  setSharedCalendarHidden: (id: string, hidden: boolean) => void;
+  clearHiddenSharedCalendars: () => void;
 }
 
 export const useAppPreferences = create<AppPreferencesState>()(
@@ -38,6 +42,7 @@ export const useAppPreferences = create<AppPreferencesState>()(
       sidebarCollapsed: false,
       shiftHours: {},
       shiftColors: {},
+      hiddenSharedCalendars: [],
       hydrated: false,
       setThemeMode: (themeMode) => set({ themeMode }),
       setPalette: (palette) => set({ palette }),
@@ -45,18 +50,24 @@ export const useAppPreferences = create<AppPreferencesState>()(
       toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
       setShiftHours: (id, hours) => set((s) => ({ shiftHours: { ...s.shiftHours, [id]: hours } })),
       setShiftColor: (id, color) => set((s) => ({ shiftColors: { ...s.shiftColors, [id]: color } })),
+      setSharedCalendarHidden: (id, hidden) =>
+        set((s) => ({
+          hiddenSharedCalendars: hidden ? [...new Set([...s.hiddenSharedCalendars, id])] : s.hiddenSharedCalendars.filter((x) => x !== id),
+        })),
+      clearHiddenSharedCalendars: () => set({ hiddenSharedCalendars: [] }),
     }),
     {
       name: storageKeys.device('preferences'),
       storage: createJSONStorage(() => AsyncStorage),
       version: 1,
-      partialize: ({ themeMode, palette, language, sidebarCollapsed, shiftHours, shiftColors }) => ({
+      partialize: ({ themeMode, palette, language, sidebarCollapsed, shiftHours, shiftColors, hiddenSharedCalendars }) => ({
         themeMode,
         palette,
         language,
         sidebarCollapsed,
         shiftHours,
         shiftColors,
+        hiddenSharedCalendars,
       }),
       onRehydrateStorage: () => () => {
         useAppPreferences.setState({ hydrated: true });

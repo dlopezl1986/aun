@@ -4,6 +4,8 @@ import { Pressable, View, useWindowDimensions } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { useDialog } from '@/components/feedback/DialogProvider';
+import { useToast } from '@/components/feedback/ToastProvider';
+import { useCalendarAccess } from '@/services/sharing/hooks';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Screen } from '@/components/layout/Screen';
 import { AppText } from '@/components/ui/AppText';
@@ -89,11 +91,17 @@ export function CalendarsScreen() {
   const occurrences = useOccurrences(range.start, range.days);
   const notesQuery = useDayNotes(range.start, range.days);
   const dialog = useDialog();
+  const toast = useToast();
+  const access = useCalendarAccess();
   const moveOccurrence = useMoveOccurrence();
   const moveDayNote = useMoveDayNote();
 
   // Drag & drop: a repeating event asks whether to move just that day or the whole series.
   const moveEvent = async (o: EventOccurrence, from: string, to: string, toTime: string | null = null) => {
+    if (!access.canEdit(o.calendar)) {
+      toast.show(t('sharing.readOnly'), 'info');
+      return;
+    }
     let scope: MoveScope = 'series';
     if (o.event.recurrence) {
       const choice = await dialog.choose({

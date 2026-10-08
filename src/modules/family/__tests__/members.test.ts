@@ -80,6 +80,29 @@ describe('family members ⇄ calendars', () => {
     expect((await a.calendars.listCalendars()).filter((c) => c.name === 'Elisa')).toHaveLength(1);
   });
 
+  it('uses an existing calendar when assigned, and leaves it as it is', async () => {
+    const s = createServices('u', memoryStore(), null);
+    const work = await s.calendars.createCalendar({ name: 'Turnos Soraya', color: '#8B5CF6' });
+    const before = (await s.calendars.listCalendars()).length;
+    const soraya = await s.family.createChild({ name: 'Soraya', color: '#EC4899', relation: 'partner', calendarId: work.id });
+    expect(soraya.calendarId).toBe(work.id);
+    expect((await s.calendars.listCalendars()).length).toBe(before); // no extra calendar
+    // Renaming / recolouring the member does not touch an assigned calendar…
+    await s.family.updateChild(soraya.id, { name: 'Sora', color: '#000000' });
+    expect((await s.calendars.listCalendars()).find((c) => c.id === work.id)).toMatchObject({ name: 'Turnos Soraya', color: '#8B5CF6' });
+    // …and removing the member keeps it active.
+    await s.family.removeChild(soraya.id);
+    expect((await s.calendars.listCalendars()).find((c) => c.id === work.id)?.isActive).toBe(true);
+  });
+
+  it('can switch a member to another existing calendar', async () => {
+    const s = createServices('u', memoryStore(), null);
+    const javi = await s.family.createChild({ name: 'Javi', color: '#16A34A' });
+    const school = await s.calendars.createCalendar({ name: 'Cole Javi', color: '#F59E0B' });
+    const updated = await s.family.updateChild(javi.id, { calendarId: school.id });
+    expect(updated).toMatchObject({ calendarId: school.id, calendarLinked: true });
+  });
+
   it('starts weekly activities on the first matching day', () => {
     // 2026-10-08 is a Thursday (index 3).
     expect(firstMatchingDay([3], new Date('2026-10-08T12:00:00'))).toBe('2026-10-08');

@@ -16,6 +16,7 @@ import { TextField } from '@/components/ui/TextField';
 import { Toggle } from '@/components/ui/Toggle';
 import { useLocale } from '@/hooks/useLocale';
 import { useAppPreferences } from '@/state/appPreferences';
+import { useCalendarAccess } from '@/services/sharing/hooks';
 import { useTheme } from '@/theme';
 import type { EntityRef } from '@/types/entity';
 import type { RecurrenceRule } from '@/types/recurrence';
@@ -73,7 +74,11 @@ function initialState(event: CalendarEvent | null | undefined, date: DateKey, ti
   return { startDate: date, startTime: timeOf(start), endDate: toDateKey(end), endTime: timeOf(end) };
 }
 
-function EventForm({ onClose, calendars, event, date, time, initialLinks, initialCalendarId }: Props) {
+function EventForm({ onClose, calendars: allCalendars, event, date, time, initialLinks, initialCalendarId }: Props) {
+  // Only calendars I can write to (shared calendars may be read-only); "my calendar" first.
+  const access = useCalendarAccess();
+  const calendars = allCalendars.filter((c) => access.canEdit(c) || c.id === event?.calendarId);
+  const assigned = calendars.find((c) => c.id === access.assignedToMe)?.id ?? null;
   const { t } = useTranslation();
   const { spacing, radius, colors } = useTheme();
   const create = useCreateEvent();
@@ -93,6 +98,7 @@ function EventForm({ onClose, calendars, event, date, time, initialLinks, initia
   const [calendarId, setCalendarId] = useState<string | null>(
     event?.calendarId ??
       (initialCalendarId && calendars.some((c) => c.id === initialCalendarId) ? initialCalendarId : null) ??
+      assigned ??
       calendars[0]?.id ??
       null,
   );

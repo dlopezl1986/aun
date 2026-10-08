@@ -10,6 +10,7 @@
     "@types/jest": "29.5.14",
     "expo": "~57.0.27",
     "expo-auth-session": "~57.0.14",
+    "expo-clipboard": "~57.0.2",
     "expo-constants": "~57.0.21",
     "expo-crypto": "~57.0.3",
     "expo-document-picker": "~57.0.3",
@@ -41,6 +42,7 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^6.0.0",
     "@types/react": "~19.2.2",
     "eslint": "^9.0.0",
     "eslint-config-expo": "~57.0.2",
@@ -61,7 +63,8 @@
     "check": "tsc --noEmit && expo lint && node scripts/check-i18n.mjs && prettier --check src scripts && jest --silent",
     "test": "jest",
     "server": "node server/aun-local-server.mjs",
-    "local": "node server/aun-local-server.mjs & expo start --web --port 8090"
+    "local": "node server/aun-local-server.mjs & expo start --web --port 8090",
+    "test:rules": "sh scripts/with-emulators.sh 'node scripts/test-rules.mjs'"
   },
   "private": true,
   "jest": {

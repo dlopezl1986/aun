@@ -1,7 +1,7 @@
 import { readJson, storageKeys, writeJson, type KeyValueStore } from '@/storage/keyValueStore';
 import type { SyncableRepository } from '@/storage/repository';
 import type { BaseEntity } from '@/types/entity';
-import type { RemoteRecord, RemoteStore, SyncResult, SyncState } from './types';
+import type { PushResult, RemoteRecord, RemoteStore, SyncResult, SyncState } from './types';
 
 const PUSH_BATCH = 200;
 const MAX_PULL_PAGES = 50;
@@ -70,14 +70,28 @@ export class SyncEngine {
   private async run(): Promise<SyncResult> {
     const state = await this.getState();
     try {
+      // 0. New server row format: upload everything once.
+      const upgrading = !!this.remote.schema && state.schema !== this.remote.schema;
+      if (upgrading) for (const repo of this.collections.values()) await repo.markAllDirty();
+
       // 1. Push.
       const outgoing = await this.pending();
       for (let i = 0; i < outgoing.length; i += PUSH_BATCH) {
         const batch = outgoing.slice(i, i + PUSH_BATCH);
-        await this.remote.push(batch);
+        const result = (await this.remote.push(batch)) as PushResult | void;
         const byCollection = new Map<string, { id: string; updatedAt: string }[]>();
         for (const r of batch) byCollection.set(r.collection, [...(byCollection.get(r.collection) ?? []), r]);
         for (const [collection, rows] of byCollection) await this.collections.get(collection)!.markClean(rows);
+        // Changes the server did not accept (no permission): back to the server's version.
+        const restored = new Map<string, BaseEntity[]>();
+        for (const r of result?.restored ?? []) {
+          if (!this.collections.has(r.collection)) continue;
+          restored.set(r.collection, [
+            ...(restored.get(r.collection) ?? []),
+            { ...r.data, updatedAt: r.updatedAt, deletedAt: r.deletedAt },
+          ]);
+        }
+        for (const [collection, rows] of restored) await this.collections.get(collection)!.restoreRemote(rows);
       }
 
       // 2. Pull + merge.
@@ -99,7 +113,7 @@ export class SyncEngine {
       }
 
       const at = new Date().toISOString();
-      await this.setState({ ...state, lastSyncAt: at, lastError: null });
+      await this.setState({ ...state, lastSyncAt: at, lastError: null, ...(this.remote.schema ? { schema: this.remote.schema } : {}) });
       return { pushed: outgoing.length, pulled, at };
     } catch (e) {
       await this.setState({ ...state, lastError: e instanceof Error ? e.message : String(e) });

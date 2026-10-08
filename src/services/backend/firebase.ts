@@ -7,6 +7,7 @@
 import { initializeApp, type FirebaseApp } from 'firebase/app';
 import {
   browserLocalPersistence,
+  connectAuthEmulator,
   createUserWithEmailAndPassword,
   getAuth,
   GoogleAuthProvider,
@@ -22,6 +23,7 @@ import {
   type User,
 } from 'firebase/auth';
 import {
+  connectFirestoreEmulator,
   collection,
   doc,
   getDocs,
@@ -46,6 +48,8 @@ export interface FirebaseConfig {
   storageBucket?: string;
   messagingSenderId?: string;
   appId: string;
+  /** Host of the local Firebase emulators (tests / development only). */
+  emulatorHost?: string;
 }
 
 let _app: FirebaseApp | null = null;
@@ -59,6 +63,10 @@ export function initFirebase(cfg: FirebaseConfig) {
     experimentalForceLongPolling: false,
   });
   _auth = getAuth(_app);
+  if (cfg.emulatorHost) {
+    connectAuthEmulator(_auth, `http://${cfg.emulatorHost}:9099`, { disableWarnings: true });
+    connectFirestoreEmulator(_db, cfg.emulatorHost, 8080);
+  }
   setPersistence(_auth, browserLocalPersistence).catch(() => undefined);
 }
 

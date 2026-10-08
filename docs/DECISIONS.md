@@ -150,3 +150,10 @@ actividades guardan el `eventId` de su evento semanal para actualizarlo o borrar
 Supabase (`AuthGateway`, `RemoteStore`). La elección es automática a partir de las variables de entorno
 (`EXPO_PUBLIC_FIREBASE_*`). Firebase > Supabase > local. El SDK de Firebase solo se carga si Firebase
 está configurado (import dinámico). Las reglas de Firestore aplican RLS equivalente a las de Supabase.
+
+## 29. Compartir con espacios y reglas, no copiando datos
+Cada fila de Firestore lleva `spaceId` (null = privada). El id del espacio incluye al dueño
+(`cal_<uid>_<calendario>`, `fam_<uid>`), así las reglas impiden crear espacios en nombre de otro. Unirse
+exige una invitación válida, sin caducar y de un solo uso reclamada en el mismo lote (`getAfter`), y solo
+con el rol concedido. El cliente sincroniza sus filas + una consulta por espacio (cursor por consulta,
+empaquetado en el cursor opaco). Al cambiar el formato (`schema` 2) se re-sube todo una vez.

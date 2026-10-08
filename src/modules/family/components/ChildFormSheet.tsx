@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
@@ -9,12 +9,14 @@ import { AppText } from '@/components/ui/AppText';
 import { Button } from '@/components/ui/Button';
 import { ColorPicker } from '@/components/ui/ColorPicker';
 import { IconButton } from '@/components/ui/IconButton';
+import { RadioRow } from '@/components/ui/RadioRow';
 import { Sheet } from '@/components/ui/Sheet';
 import { TextField } from '@/components/ui/TextField';
+import { useDataQuery } from '@/state/queryClient';
 import type { UploadSource } from '@/storage/providers/types';
 import { accentPalette, useTheme } from '@/theme';
 import { formatDateInput, parseDateInput } from '@/utils/date';
-import { useCreateChild, useSetChildPhoto, useUpdateChild } from '../hooks';
+import { useChildren, useCreateChild, useSetChildPhoto, useUpdateChild } from '../hooks';
 import { pickProfilePhoto } from '../photo';
 import { SIZE_PRESETS, type Member, type MemberField, type MemberRelation, type MemberSize } from '../types';
 import { ChildAvatar } from './ChildAvatar';
@@ -96,6 +98,52 @@ function PairRows({
   );
 }
 
+/**
+ * "Su calendario": a new one, or a calendar that already exists in
+ * Calendarios (only those not assigned to another member).
+ */
+function CalendarChoice({
+  value,
+  onChange,
+  memberId,
+  name,
+}: {
+  value: string | null;
+  onChange: (id: string | null, calendar?: { name: string; color: string }) => void;
+  memberId: string | null;
+  name: string;
+}) {
+  const { t } = useTranslation();
+  const calendars = useDataQuery('calendars', [], (s) => s.calendars.listCalendars());
+  const members = useChildren();
+  const available = useMemo(() => {
+    const taken = new Set((members.data ?? []).filter((m) => m.id !== memberId && m.calendarId).map((m) => m.calendarId));
+    return (calendars.data ?? []).filter((c) => c.isActive && !taken.has(c.id));
+  }, [calendars.data, members.data, memberId]);
+  return (
+    <View style={{ gap: 4 }}>
+      {memberId ? null : (
+        <RadioRow
+          selected={value === null}
+          onSelect={() => onChange(null)}
+          label={t('family.form.calendarNew', { name: name.trim() || t('family.form.calendarNewFallback') })}
+          description={t('family.calendarNote')}
+        />
+      )}
+      {available.map((c) => (
+        <RadioRow
+          key={c.id}
+          selected={value === c.id}
+          onSelect={() => onChange(c.id, c)}
+          label={c.name}
+          description={t('family.form.calendarExisting')}
+          right={<View style={{ width: 14, height: 14, borderRadius: 7, backgroundColor: c.color }} />}
+        />
+      ))}
+    </View>
+  );
+}
+
 function MemberForm({ onClose, child, onCreated }: Props) {
   const { t } = useTranslation();
   const { spacing, radius } = useTheme();
@@ -130,6 +178,14 @@ function MemberForm({ onClose, child, onCreated }: Props) {
   const [info, setInfo] = useState(child?.importantInfo ?? '');
   const [notes, setNotes] = useState(child?.notes ?? '');
   const [pendingPhoto, setPendingPhoto] = useState<UploadSource | null>(null);
+  const [calendarId, setCalendarId] = useState<string | null>(child?.calendarId ?? null);
+  const chooseCalendar = (id: string | null, cal?: { name: string; color: string }) => {
+    setCalendarId(id);
+    if (!cal || child) return;
+    // An existing calendar brings its colour, and its name when none was typed.
+    setColor(cal.color);
+    if (!name.trim()) setName(cal.name);
+  };
 
   const birthKey = birth.trim() ? parseDateInput(birth) : null;
   const birthError = birth.trim() && !birthKey ? t('forms.invalidDate') : null;
@@ -157,6 +213,7 @@ function MemberForm({ onClose, child, onCreated }: Props) {
       extraFields: extra.filter((f) => f.label.trim() && f.value.trim()),
       importantInfo: info,
       notes,
+      ...(calendarId && calendarId !== child?.calendarId ? { calendarId } : {}),
     };
     if (child) update.mutate({ id: child.id, input }, { onSuccess: onClose });
     else
@@ -183,7 +240,7 @@ function MemberForm({ onClose, child, onCreated }: Props) {
       visible
       onClose={onClose}
       title={child ? t('family.editChild') : t('family.addMember')}
-      subtitle={child ? undefined : t('family.calendarNote')}
+      subtitle={child ? undefined : calendarId ? t('family.form.calendarLinkedNote') : t('family.calendarNote')}
       footer={
         <>
           <Button label={t('common.cancel')} variant="ghost" onPress={onClose} />
@@ -253,6 +310,10 @@ function MemberForm({ onClose, child, onCreated }: Props) {
         </View>
       </View>
       <ColorPicker value={color} onChange={setColor} />
+
+      <Section title={t('family.form.calendar')} hint={t('family.form.calendarHint')}>
+        <CalendarChoice value={calendarId} onChange={chooseCalendar} memberId={child?.id ?? null} name={name} />
+      </Section>
 
       <Section title={t('family.form.contact')}>
         <View style={{ flexDirection: 'row', gap: spacing.md }}>

@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import { Sheet } from '@/components/ui/Sheet';
 import { useLocale } from '@/hooks/useLocale';
+import { useCalendarAccess } from '@/services/sharing/hooks';
 import { useTheme } from '@/theme';
 import { addDays, formatLongDate, formatTime, isSameDay, toDateKey } from '@/utils/date';
 import { describeRecurrence, describeReminder } from '@/utils/recurrenceText';
@@ -65,6 +66,7 @@ function Detail({
   const duplicate = useDuplicateEvent();
   const [confirming, setConfirming] = useState(false);
   const { event, calendar } = o;
+  const canEdit = useCalendarAccess().canEdit(calendar);
   const recurring = !!event.recurrence;
   const when = useWhenLabel(o);
   const links = eventLinks(event);
@@ -78,7 +80,11 @@ function Detail({
       onClose={onClose}
       title={event.title}
       footer={
-        confirming ? (
+        !canEdit ? (
+          <AppText variant="small" tone="textMuted" style={{ flex: 1 }}>
+            {t('sharing.readOnly')}
+          </AppText>
+        ) : confirming ? (
           <View style={{ flex: 1, gap: spacing.sm }}>
             <AppText variant="smallStrong">{recurring ? t('calendars.deleteRecurringTitle') : t('calendars.deleteEventTitle')}</AppText>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, justifyContent: 'flex-end' }}>

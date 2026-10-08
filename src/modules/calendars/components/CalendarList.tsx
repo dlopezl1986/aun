@@ -13,10 +13,12 @@ import { IconButton } from '@/components/ui/IconButton';
 import { InfoNote } from '@/components/ui/InfoNote';
 import { ListRow } from '@/components/ui/ListRow';
 import { Sheet } from '@/components/ui/Sheet';
+import { useCalendarAccess, useSharing } from '@/services/sharing/hooks';
 import { useTheme } from '@/theme';
 import { useDeleteCalendar, useSetCalendarVisible, useShowAllCalendars, useUpdateCalendar } from '../hooks';
 import { calendarsMeta } from '../meta';
 import type { Calendar } from '../types';
+import { CalendarShareSheet } from './CalendarShareSheet';
 
 interface Props {
   /** All calendars (active and archived). */
@@ -64,6 +66,11 @@ export function CalendarList({ calendars, onEdit, onCreate }: Props) {
   const del = useDeleteCalendar();
   const update = useUpdateCalendar();
   const [sharing, setSharing] = useState<Calendar | null>(null);
+  const { enabled: canShare } = useSharing();
+  const access = useCalendarAccess();
+  /** "De David · puede editar" for calendars other people share with me. */
+  const sharedLabel = (c: Calendar) =>
+    t('sharing.calendar.from', { name: access.ownerName(c) || t('sharing.someone'), role: t(`sharing.roles.${access.role(c) ?? 'view'}`) });
   const [showArchived, setShowArchived] = useState(false);
   const active = calendars.filter((c) => c.isActive);
   const archived = calendars.filter((c) => !c.isActive);
@@ -96,13 +103,24 @@ export function CalendarList({ calendars, onEdit, onCreate }: Props) {
             checked={c.isVisible}
             onChange={(visible) => setVisible.mutate({ id: c.id, visible })}
             label={c.name}
-            description={c.description ?? undefined}
+            description={access.isMine(c) ? (c.description ?? undefined) : sharedLabel(c)}
             color={c.color}
             right={
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 {c.icon ? <Icon name={c.icon as IconName} size={14} color={c.color} /> : null}
-                <IconButton icon="share-2" size={15} label={`${t('calendars.share.action')}: ${c.name}`} onPress={() => setSharing(c)} />
-                <IconButton icon="edit-2" size={15} label={`${t('common.edit')}: ${c.name}`} onPress={() => onEdit(c)} />
+                {access.isMine(c) ? (
+                  <>
+                    <IconButton
+                      icon="share-2"
+                      size={15}
+                      label={`${t('calendars.share.action')}: ${c.name}`}
+                      onPress={() => setSharing(c)}
+                    />
+                    <IconButton icon="edit-2" size={15} label={`${t('common.edit')}: ${c.name}`} onPress={() => onEdit(c)} />
+                  </>
+                ) : (
+                  <Icon name={access.canEdit(c) ? 'edit-3' : 'eye'} size={14} color={colors.textMuted} />
+                )}
               </View>
             }
           />
@@ -141,7 +159,11 @@ export function CalendarList({ calendars, onEdit, onCreate }: Props) {
             : null}
         </View>
       ) : null}
-      <ShareSheet calendar={sharing} onClose={() => setSharing(null)} />
+      {canShare ? (
+        <CalendarShareSheet calendar={sharing} onClose={() => setSharing(null)} />
+      ) : (
+        <ShareSheet calendar={sharing} onClose={() => setSharing(null)} />
+      )}
     </Card>
   );
 }

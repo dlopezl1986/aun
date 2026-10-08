@@ -23,6 +23,7 @@ if (backendKind === 'firebase') {
     storageBucket: appConfig.firebaseStorageBucket,
     messagingSenderId: appConfig.firebaseMessagingSenderId,
     appId: appConfig.firebaseAppId,
+    emulatorHost: appConfig.firebaseEmulatorHost || undefined,
   });
 }
 
