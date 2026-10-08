@@ -99,4 +99,26 @@ describe('drag & drop moves', () => {
     await s.calendars.moveDayNote(n.id, '2026-10-12');
     expect((await s.calendars.notesBetween('2026-10-12', '2026-10-12')).map((x) => x.text)).toEqual(['Pediatra']);
   });
+
+  it('duplicates a calendar, empty or with all its events', async () => {
+    const { s, calendarId } = await setup();
+    await s.calendars.createEvent({
+      calendarId,
+      title: 'Tarde',
+      allDay: false,
+      startDate: '2026-10-12',
+      startTime: '15:00',
+      endDate: '2026-10-12',
+      endTime: '23:00',
+      color: '#8B5CF6',
+      recurrence: { freq: 'weekly', interval: 1, byWeekday: [0, 2], until: '2026-10-21' },
+    });
+    const empty = await s.calendars.duplicateCalendar(calendarId, { withEvents: false, name: 'Soraya 2' });
+    const full = await s.calendars.duplicateCalendar(calendarId, { withEvents: true, name: 'Soraya (copia)' });
+    expect(empty).toMatchObject({ name: 'Soraya 2', color: '#EC4899' });
+    const occ = await s.calendars.occurrencesBetween(combine('2026-10-01'), combine('2026-11-01'));
+    const count = (id: string) => occ.filter((o) => o.calendar.id === id).length;
+    expect([count(calendarId), count(empty.id), count(full.id)]).toEqual([4, 0, 4]);
+    expect(occ.find((o) => o.calendar.id === full.id)?.event.color).toBe('#8B5CF6');
+  });
 });

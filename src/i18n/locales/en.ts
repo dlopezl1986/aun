@@ -3,6 +3,7 @@ import type { Translation } from './es';
 /** English. Typed against Spanish so a missing key is a compile error. */
 export const en: Translation = {
   common: {
+    continue: 'Continue',
     done: 'Done',
     refresh: 'Refresh',
     loading: 'Loading…',
@@ -31,6 +32,12 @@ export const en: Translation = {
     hidePassword: 'Hide password',
   },
   forms: {
+    picker: {
+      open: 'Open calendar: {{label}}',
+      previous: 'Previous',
+      next: 'Next',
+      changeView: '{{label}}: change month or year',
+    },
     invalidDate: 'Invalid date (DD/MM/YYYY)',
     invalidTime: 'Invalid time (HH:MM)',
     datePlaceholder: 'DD/MM/YYYY',
@@ -259,6 +266,16 @@ export const en: Translation = {
     },
   },
   calendars: {
+    duplicateCal: {
+      action: 'Duplicate',
+      title: 'Duplicate “{{name}}”',
+      copyName: '{{name}} (copy)',
+      whatTitle: 'What do you want to copy?',
+      whatMessage: 'You can create the calendar empty or also copy all the events of “{{name}}” (repeating ones included).',
+      onlyCalendar: 'Just the calendar (empty)',
+      withEvents: 'Calendar and its events',
+      done: 'Calendar duplicated',
+    },
     move: {
       hint: 'Press and hold, then drag to move it to another day',
       moved: 'Event moved',

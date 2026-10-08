@@ -12,7 +12,7 @@ import { ColorPicker } from '@/components/ui/ColorPicker';
 import { Sheet } from '@/components/ui/Sheet';
 import { TextField } from '@/components/ui/TextField';
 import { accentPalette, useTheme } from '@/theme';
-import { useCreateCalendar, useDeleteCalendar, useUpdateCalendar } from '../hooks';
+import { useCreateCalendar, useDeleteCalendar, useDuplicateCalendar, useUpdateCalendar } from '../hooks';
 import type { Calendar } from '../types';
 
 /** Optional calendar icons (person, family, work, school…). */
@@ -31,6 +31,7 @@ function CalendarForm({ onClose, calendar }: Props) {
   const create = useCreateCalendar();
   const update = useUpdateCalendar();
   const del = useDeleteCalendar();
+  const duplicate = useDuplicateCalendar();
   const dialog = useDialog();
   const [name, setName] = useState(calendar?.name ?? '');
   const [description, setDescription] = useState(calendar?.description ?? '');
@@ -49,6 +50,27 @@ function CalendarForm({ onClose, calendar }: Props) {
     if (ok) del.mutate(calendar.id, { onSuccess: onClose });
   };
 
+  const duplicateCal = async () => {
+    if (!calendar) return;
+    const newName = await dialog.prompt({
+      title: t('calendars.duplicateCal.title', { name: calendar.name }),
+      label: t('calendars.form.name'),
+      initialValue: t('calendars.duplicateCal.copyName', { name: calendar.name }),
+      confirmLabel: t('common.continue'),
+    });
+    if (!newName) return;
+    const what = await dialog.choose({
+      title: t('calendars.duplicateCal.whatTitle'),
+      message: t('calendars.duplicateCal.whatMessage', { name: calendar.name }),
+      choices: [
+        { value: 'empty', label: t('calendars.duplicateCal.onlyCalendar') },
+        { value: 'events', label: t('calendars.duplicateCal.withEvents') },
+      ],
+    });
+    if (!what) return;
+    duplicate.mutate({ id: calendar.id, name: newName, withEvents: what === 'events' }, { onSuccess: onClose });
+  };
+
   const save = () => {
     if (!name.trim()) return;
     const done = { onSuccess: onClose };
@@ -64,6 +86,15 @@ function CalendarForm({ onClose, calendar }: Props) {
       footer={
         <>
           {calendar ? <Button label={t('common.delete')} variant="ghost" icon="trash-2" onPress={() => void remove()} /> : null}
+          {calendar ? (
+            <Button
+              label={t('calendars.duplicateCal.action')}
+              variant="ghost"
+              icon="copy"
+              onPress={() => void duplicateCal()}
+              loading={duplicate.isPending}
+            />
+          ) : null}
           <Button label={t('common.cancel')} variant="ghost" onPress={onClose} />
           <Button label={t('common.save')} onPress={save} disabled={!name.trim()} loading={create.isPending || update.isPending} />
         </>

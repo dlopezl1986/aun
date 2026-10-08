@@ -1,6 +1,7 @@
 /** Spanish — default language. `en.ts` must match this shape (type-checked). */
 export const es = {
   common: {
+    continue: 'Continuar',
     done: 'Listo',
     refresh: 'Actualizar',
     loading: 'Cargando…',
@@ -29,6 +30,12 @@ export const es = {
     hidePassword: 'Ocultar contraseña',
   },
   forms: {
+    picker: {
+      open: 'Abrir calendario: {{label}}',
+      previous: 'Anterior',
+      next: 'Siguiente',
+      changeView: '{{label}}: cambiar mes o año',
+    },
     invalidDate: 'Fecha no válida (DD/MM/AAAA)',
     invalidTime: 'Hora no válida (HH:MM)',
     datePlaceholder: 'DD/MM/AAAA',
@@ -257,6 +264,16 @@ export const es = {
     },
   },
   calendars: {
+    duplicateCal: {
+      action: 'Duplicar',
+      title: 'Duplicar «{{name}}»',
+      copyName: '{{name}} (copia)',
+      whatTitle: '¿Qué quieres copiar?',
+      whatMessage: 'Puedes crear el calendario vacío o copiar también todos los eventos de «{{name}}» (incluidos los que se repiten).',
+      onlyCalendar: 'Solo el calendario (vacío)',
+      withEvents: 'Calendario y sus eventos',
+      done: 'Calendario duplicado',
+    },
     move: {
       hint: 'Mantén pulsado y arrastra para cambiarlo de día',
       moved: 'Evento movido',

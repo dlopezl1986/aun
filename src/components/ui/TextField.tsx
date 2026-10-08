@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 
 import { makeStyles, SurfaceScope, useTheme } from '@/theme';
 import { AppText } from './AppText';
+import { interaction } from './interaction';
 import { Icon, type IconName } from './Icon';
 
 interface TextFieldProps extends Omit<TextInputProps, 'style'> {
@@ -11,13 +12,30 @@ interface TextFieldProps extends Omit<TextInputProps, 'style'> {
   error?: string | null;
   hint?: string;
   leftIcon?: IconName;
+  /** Makes the left icon a button (e.g. the calendar of a date field). */
+  onLeftIconPress?: () => void;
+  leftIconLabel?: string;
   /** Shows an eye toggle for password fields. */
   revealable?: boolean;
   compact?: boolean;
 }
 
 const TextFieldBase = forwardRef<TextInput, TextFieldProps>(function TextFieldBase(
-  { label, error, hint, leftIcon, revealable, secureTextEntry, compact, onFocus, onBlur, autoFocus, ...input },
+  {
+    label,
+    error,
+    hint,
+    leftIcon,
+    onLeftIconPress,
+    leftIconLabel,
+    revealable,
+    secureTextEntry,
+    compact,
+    onFocus,
+    onBlur,
+    autoFocus,
+    ...input
+  },
   ref,
 ) {
   const inputRef = useRef<TextInput>(null);
@@ -44,7 +62,27 @@ const TextFieldBase = forwardRef<TextInput, TextFieldProps>(function TextFieldBa
         </AppText>
       ) : null}
       <View style={[styles.field, compact && styles.compact, { borderColor }, focused && styles.focused]}>
-        {leftIcon ? <Icon name={leftIcon} size={18} color={colors.textSubtle} /> : null}
+        {leftIcon && onLeftIconPress ? (
+          <Pressable
+            onPress={onLeftIconPress}
+            accessibilityRole="button"
+            accessibilityLabel={leftIconLabel}
+            hitSlop={10}
+            style={(s) => ({
+              width: 30,
+              height: 30,
+              marginLeft: -6,
+              borderRadius: 8,
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: interaction(s).hovered || interaction(s).pressed ? colors.primarySoft : 'transparent',
+            })}
+          >
+            <Icon name={leftIcon} size={19} color={colors.primary} />
+          </Pressable>
+        ) : leftIcon ? (
+          <Icon name={leftIcon} size={18} color={colors.textSubtle} />
+        ) : null}
         <TextInput
           ref={inputRef}
           placeholderTextColor={colors.textSubtle}

@@ -82,4 +82,10 @@ export const accentPalette = [
   '#EC4899',
   '#8B5CF6',
   '#64748B',
+  // More choices (appended so existing defaults keep their colour).
+  '#4F46E5',
+  '#06B6D4',
+  '#C026D3',
+  '#92400E',
+  '#1F2937',
 ] as const;

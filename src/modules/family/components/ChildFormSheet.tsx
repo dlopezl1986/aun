@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 
 import { useToast } from '@/components/feedback/ToastProvider';
 import { ChipGroup } from '@/components/forms/Chips';
+import { DatePickerPopup } from '@/components/forms/DatePickerPopup';
 import { AppText } from '@/components/ui/AppText';
 import { Button } from '@/components/ui/Button';
 import { ColorPicker } from '@/components/ui/ColorPicker';
@@ -178,6 +179,7 @@ function MemberForm({ onClose, child, onCreated }: Props) {
   const [info, setInfo] = useState(child?.importantInfo ?? '');
   const [notes, setNotes] = useState(child?.notes ?? '');
   const [pendingPhoto, setPendingPhoto] = useState<UploadSource | null>(null);
+  const [pickingBirth, setPickingBirth] = useState(false);
   const [calendarId, setCalendarId] = useState<string | null>(child?.calendarId ?? null);
   const chooseCalendar = (id: string | null, cal?: { name: string; color: string }) => {
     setCalendarId(id);
@@ -304,8 +306,20 @@ function MemberForm({ onClose, child, onCreated }: Props) {
             onChangeText={setBirth}
             placeholder={t('forms.datePlaceholder')}
             error={birthError}
-            leftIcon="gift"
+            leftIcon="calendar"
+            onLeftIconPress={() => setPickingBirth(true)}
+            leftIconLabel={t('forms.picker.open', { label: t('family.form.birthDate') })}
             inputMode="numeric"
+          />
+          <DatePickerPopup
+            visible={pickingBirth}
+            title={t('family.form.birthDate')}
+            value={birthKey}
+            onClose={() => setPickingBirth(false)}
+            onSelect={(key) => {
+              setPickingBirth(false);
+              setBirth(formatDateInput(key));
+            }}
           />
         </View>
       </View>

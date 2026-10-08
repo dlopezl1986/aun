@@ -130,6 +130,28 @@ export class CalendarService {
     return this.calendars.update(id, { ...patch, ...(patch.name !== undefined ? { name: patch.name.trim() } : {}) });
   }
 
+  /**
+   * Copies a calendar ("Turnos (copia)"), optionally with all its events
+   * (recurrences, skipped days, reminders, colours and links included).
+   */
+  async duplicateCalendar(id: string, opts: { withEvents: boolean; name?: string }): Promise<Calendar> {
+    const source = await this.calendars.get(id);
+    if (!source) throw new Error('Calendar not found');
+    const copy = await this.createCalendar({
+      name: opts.name?.trim() || source.name,
+      color: source.color,
+      icon: source.icon ?? null,
+      description: source.description ?? null,
+    });
+    if (opts.withEvents) {
+      for (const e of (await this.events.list()).filter((x) => x.calendarId === id)) {
+        const { id: _id, ownerId: _o, createdAt: _c, updatedAt: _u, deletedAt: _d, dirty: _dirty, ...rest } = e;
+        await this.events.create({ ...rest, calendarId: copy.id });
+      }
+    }
+    return copy;
+  }
+
   async deleteCalendar(id: string): Promise<void> {
     const ids = (await this.events.list()).filter((e) => e.calendarId === id).map((e) => e.id);
     await this.events.removeMany(ids);

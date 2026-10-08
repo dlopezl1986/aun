@@ -147,3 +147,11 @@ export function useMoveDayNote() {
     successMessage: t('calendars.move.noteMoved'),
   });
 }
+
+export function useDuplicateCalendar() {
+  const { t } = useTranslation();
+  return useDataMutation((s, v: { id: string; withEvents: boolean; name: string }) => s.calendars.duplicateCalendar(v.id, v), {
+    invalidate: [...invalidateAll],
+    successMessage: t('calendars.duplicateCal.done'),
+  });
+}

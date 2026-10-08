@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 
 import { AppText } from '@/components/ui/AppText';
 import { TextField } from '@/components/ui/TextField';
+import { DatePickerPopup } from './DatePickerPopup';
 import { useTheme } from '@/theme';
 import { formatDateInput, parseDateInput, parseTime, todayKey, tomorrowKey, type DateKey } from '@/utils/date';
 
@@ -23,6 +24,7 @@ export function DateField({ label, value, onChange, onValidityChange }: DateFiel
   const { spacing, radius, colors } = useTheme();
   const [text, setText] = useState(formatDateInput(value));
   const [error, setError] = useState<string | null>(null);
+  const [picking, setPicking] = useState(false);
   // Re-sync when the value changes from outside (derived state, no effect).
   const [synced, setSynced] = useState(value);
   if (synced !== value) {
@@ -55,7 +57,19 @@ export function DateField({ label, value, onChange, onValidityChange }: DateFiel
         placeholder={t('forms.datePlaceholder')}
         error={error}
         leftIcon="calendar"
+        onLeftIconPress={() => setPicking(true)}
+        leftIconLabel={t('forms.picker.open', { label })}
         inputMode="numeric"
+      />
+      <DatePickerPopup
+        visible={picking}
+        title={label}
+        value={parseDateInput(text) ?? value}
+        onClose={() => setPicking(false)}
+        onSelect={(key) => {
+          setPicking(false);
+          commit(formatDateInput(key));
+        }}
       />
       <View style={{ flexDirection: 'row', gap: spacing.sm }}>
         {quick.map((q) => (
