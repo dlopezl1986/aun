@@ -30,6 +30,8 @@ interface UserSettingsState {
   /** `visibleOnly` skips hidden widgets (used when editing on the dashboard). */
   moveWidget: (widgetId: string, direction: -1 | 1, visibleOnly?: boolean) => Promise<void>;
   setWidgetSize: (widgetId: string, size: WidgetSize) => Promise<void>;
+  /** Shows / hides a module's tile in the "Hoy" panel. */
+  setTodayItemVisible: (moduleId: string, visible: boolean) => Promise<void>;
   resetDashboard: () => Promise<void>;
   setStorageProvider: (provider: StorageProviderId) => Promise<void>;
   setNotificationPrefs: (patch: Partial<NotificationPrefs>) => Promise<void>;
@@ -76,7 +78,7 @@ export const useUserSettings = create<UserSettingsState>()((set, get) => {
       const s = current();
       await commit({
         ...s,
-        dashboard: { widgets: s.dashboard.widgets.map((w) => (w.id === widgetId ? { ...w, visible } : w)) },
+        dashboard: { ...s.dashboard, widgets: s.dashboard.widgets.map((w) => (w.id === widgetId ? { ...w, visible } : w)) },
       });
     },
     async moveWidget(widgetId, direction, visibleOnly = false) {
@@ -91,14 +93,21 @@ export const useUserSettings = create<UserSettingsState>()((set, get) => {
       if (from < 0 || to < 0 || to >= list.length) return;
       const [item] = list.splice(from, 1);
       list.splice(to, 0, item);
-      await commit({ ...s, dashboard: { widgets: list } });
+      await commit({ ...s, dashboard: { ...s.dashboard, widgets: list } });
     },
     async setWidgetSize(widgetId, size) {
       const s = current();
       await commit({
         ...s,
-        dashboard: { widgets: s.dashboard.widgets.map((w) => (w.id === widgetId ? { ...w, size } : w)) },
+        dashboard: { ...s.dashboard, widgets: s.dashboard.widgets.map((w) => (w.id === widgetId ? { ...w, size } : w)) },
       });
+    },
+    async setTodayItemVisible(moduleId, visible) {
+      const s = current();
+      const hidden = new Set(s.dashboard.todayHidden);
+      if (visible) hidden.delete(moduleId);
+      else hidden.add(moduleId);
+      await commit({ ...s, dashboard: { ...s.dashboard, todayHidden: [...hidden] } });
     },
     async resetDashboard() {
       await commit({ ...current(), dashboard: defaultDashboard(get().modules) });

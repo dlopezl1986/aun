@@ -18,6 +18,8 @@ export interface UserSettings {
   dashboard: {
     /** Ordered list. Order = display order. */
     widgets: WidgetPreference[];
+    /** Modules whose tile is hidden in the "Hoy" panel (e.g. 'email'). */
+    todayHidden: string[];
   };
   secondBrain: {
     storageProvider: StorageProviderId;
@@ -63,7 +65,7 @@ export function normalizeSettings(raw: Partial<UserSettings> | null, modules: Ap
   return {
     schemaVersion: 1,
     modules: moduleEntries,
-    dashboard: { widgets },
+    dashboard: { widgets, todayHidden: raw?.dashboard?.todayHidden ?? [] },
     secondBrain: { storageProvider: raw?.secondBrain?.storageProvider ?? 'local' },
     notifications: { ...defaultNotificationPrefs(), ...(raw?.notifications ?? {}) },
   };
@@ -72,5 +74,6 @@ export function normalizeSettings(raw: Partial<UserSettings> | null, modules: Ap
 export function defaultDashboard(modules: AppModule[]): UserSettings['dashboard'] {
   return {
     widgets: modules.flatMap((m) => (m.widgets ?? []).map((w) => ({ id: w.id, visible: w.defaultVisible }))),
+    todayHidden: [],
   };
 }

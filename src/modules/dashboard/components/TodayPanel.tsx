@@ -1,12 +1,14 @@
 import { View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
+import { ChipGroup } from '@/components/forms/Chips';
 import { AppText } from '@/components/ui/AppText';
 import { Card } from '@/components/ui/Card';
 import { useLocale } from '@/hooks/useLocale';
-import { useEnabledModules } from '@/state/userSettingsStore';
+import { useEnabledModules, useUserSettings } from '@/state/userSettingsStore';
 import { useTheme } from '@/theme';
 import { formatLongDate } from '@/utils/date';
+import { useDashboardEditMode } from '../editMode';
 
 /**
  * "HOY" — the heart of the command centre (section 8). Each enabled module
@@ -17,7 +19,13 @@ export function TodayPanel() {
   const locale = useLocale();
   const { spacing } = useTheme();
   const modules = useEnabledModules();
-  const contributors = modules.filter((m) => m.todaySummary).sort((a, b) => a.nav.order - b.nav.order);
+  const all = modules.filter((m) => m.todaySummary).sort((a, b) => a.nav.order - b.nav.order);
+  // What to show inside "Hoy" is chosen while customising Inicio.
+  const hiddenIds = useUserSettings((s) => s.settings?.dashboard.todayHidden);
+  const setVisible = useUserSettings((s) => s.setTodayItemVisible);
+  const editing = useDashboardEditMode((s) => s.editing);
+  const hidden = new Set(hiddenIds ?? []);
+  const contributors = all.filter((m) => !hidden.has(m.id));
 
   return (
     <Card style={{ gap: spacing.lg }}>
@@ -27,6 +35,21 @@ export function TodayPanel() {
           {formatLongDate(new Date(), locale)}
         </AppText>
       </View>
+      {editing && all.length ? (
+        <View style={{ gap: spacing.xs }}>
+          <AppText variant="smallStrong">{t('dashboard.todayPick')}</AppText>
+          <AppText variant="caption" tone="textMuted">
+            {t('dashboard.todayPickHint')}
+          </AppText>
+          <ChipGroup<string>
+            multi
+            accessibilityLabel={t('dashboard.todayPick')}
+            selected={contributors.map((m) => m.id)}
+            onToggle={(id) => void setVisible(id, hidden.has(id))}
+            options={all.map((m) => ({ value: m.id, label: t(m.titleKey) }))}
+          />
+        </View>
+      ) : null}
       {contributors.length ? (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md }}>
           {contributors.map((m) => {
@@ -36,7 +59,7 @@ export function TodayPanel() {
         </View>
       ) : (
         <AppText variant="body" tone="textMuted">
-          {t('dashboard.noModules')}
+          {all.length ? t('dashboard.todayEmpty') : t('dashboard.noModules')}
         </AppText>
       )}
     </Card>

@@ -59,6 +59,9 @@ export const es = {
     settings: { title: 'Configuración', description: 'Cuenta, módulos y preferencias.' },
   },
   dashboard: {
+    todayPick: 'Qué mostrar en Hoy',
+    todayPickHint: 'Toca para quitar o añadir. Lo que quites sigue funcionando en su sección.',
+    todayEmpty: 'No has elegido nada para Hoy. Pulsa Personalizar para añadir secciones.',
     greeting: {
       morning: 'Buenos días, {{name}}',
       afternoon: 'Buenas tardes, {{name}}',
@@ -588,8 +591,8 @@ export const es = {
     },
     stats: { toBuy: 'cosas por comprar', tomorrow: 'para mañana' },
     quick: {
-      title: 'Añadir a Familia',
-      action: 'Añadir a la compra',
+      title: 'Añadir para mañana',
+      action: 'Añadir para mañana',
       listLabel: 'Lista',
       what: '¿Qué hay que añadir?',
       shoppingPlaceholder: 'Ej. Pañales',

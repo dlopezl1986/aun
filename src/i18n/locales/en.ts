@@ -61,6 +61,9 @@ export const en: Translation = {
     settings: { title: 'Settings', description: 'Account, modules and preferences.' },
   },
   dashboard: {
+    todayPick: 'What to show in Today',
+    todayPickHint: 'Tap to remove or add. What you remove keeps working in its own section.',
+    todayEmpty: 'Nothing chosen for Today. Tap Customize to add sections.',
     greeting: {
       morning: 'Good morning, {{name}}',
       afternoon: 'Good afternoon, {{name}}',
@@ -588,8 +591,8 @@ export const en: Translation = {
     },
     stats: { toBuy: 'things to buy', tomorrow: 'for tomorrow' },
     quick: {
-      title: 'Add to Family',
-      action: 'Add to shopping',
+      title: 'Add for tomorrow',
+      action: 'Add for tomorrow',
       listLabel: 'List',
       what: 'What needs adding?',
       shoppingPlaceholder: 'e.g. Nappies',
