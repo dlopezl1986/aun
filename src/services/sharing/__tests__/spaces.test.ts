@@ -120,4 +120,32 @@ describe('sync engine with a sharing backend', () => {
     await s.sync!.sync();
     expect(await s.calendars.getEvent(e2.id)).toBeNull();
   });
+
+  it('a hung connection does not block later syncs, and "full" downloads everything again', async () => {
+    jest.useFakeTimers();
+    const kv = memoryStore();
+    let hang = true;
+    const cursors: (string | null)[] = [];
+    const remote: RemoteStore = {
+      id: 'fake',
+      pull: async (cursor): Promise<PullPage> => {
+        cursors.push(cursor);
+        if (hang) return new Promise<PullPage>(() => undefined); // never answers
+        return { records: [], cursor: 'c1', hasMore: false };
+      },
+      push: async () => ({ restored: [] }),
+    };
+    const s = createServices('u', kv, remote);
+    const first = s.sync!.sync();
+    const firstFailed = expect(first).rejects.toMatchObject({ code: 'offline' });
+    await jest.advanceTimersByTimeAsync(91_000);
+    await firstFailed;
+    jest.useRealTimers();
+    hang = false;
+    await s.sync!.sync(); // runs instead of waiting forever on the hung one
+    await s.sync!.sync();
+    expect(cursors.slice(-1)[0]).toBe('c1');
+    await s.sync!.sync({ full: true });
+    expect(cursors.slice(-1)[0]).toBeNull();
+  });
 });

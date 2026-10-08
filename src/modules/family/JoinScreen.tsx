@@ -62,8 +62,8 @@ export function JoinScreen() {
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
       // Full reload: the app starts again and syncs everything just shared with you.
       const base = (Constants.expoConfig?.experiments as { baseUrl?: string } | undefined)?.baseUrl ?? '';
-      window.location.assign(`${base}/family`);
-    } else router.replace('/family');
+      window.location.assign(`${base}/family?joined=1`);
+    } else router.replace({ pathname: '/family', params: { joined: '1' } });
   };
 
   const accept = async () => {

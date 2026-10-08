@@ -1,10 +1,12 @@
 import { readJson, storageKeys, writeJson, type KeyValueStore } from '@/storage/keyValueStore';
 import type { SyncableRepository } from '@/storage/repository';
 import type { BaseEntity } from '@/types/entity';
-import type { PushResult, RemoteRecord, RemoteStore, SyncResult, SyncState } from './types';
+import { SyncError, type PushResult, type RemoteRecord, type RemoteStore, type SyncResult, type SyncState } from './types';
 
 const PUSH_BATCH = 200;
 const MAX_PULL_PAGES = 50;
+/** A sync that takes longer is given up (a hung connection must not block every later sync). */
+const SYNC_TIMEOUT_MS = 90_000;
 
 export const emptySyncState = (): SyncState => ({ cursor: null, lastSyncAt: null, lastError: null });
 
@@ -57,18 +59,29 @@ export class SyncEngine {
     return out.sort((a, b) => a.updatedAt.localeCompare(b.updatedAt));
   }
 
-  /** Concurrent calls share the same run. */
-  sync(): Promise<SyncResult> {
+  /**
+   * Concurrent calls share the same run. `full` downloads everything again
+   * (repair, or right after joining a family). A run that hangs is abandoned
+   * after SYNC_TIMEOUT_MS so the next sync can start.
+   */
+  sync(opts: { full?: boolean } = {}): Promise<SyncResult> {
     if (!this.running) {
-      this.running = this.run().finally(() => {
-        this.running = null;
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const timeout = new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new SyncError('offline', 'Sync timed out')), SYNC_TIMEOUT_MS);
       });
+      const run = Promise.race([this.run(opts.full ?? false), timeout]).finally(() => {
+        clearTimeout(timer);
+        if (this.running === run) this.running = null;
+      });
+      this.running = run;
     }
     return this.running;
   }
 
-  private async run(): Promise<SyncResult> {
+  private async run(full: boolean): Promise<SyncResult> {
     const state = await this.getState();
+    if (full) state.cursor = null;
     try {
       // 0. New server row format: upload everything once.
       const upgrading = !!this.remote.schema && state.schema !== this.remote.schema;

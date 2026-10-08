@@ -59,8 +59,10 @@ let _db: Firestore | null = null;
 export function initFirebase(cfg: FirebaseConfig) {
   _app = initializeApp(cfg);
   _db = initializeFirestore(_app, {
-    // Reduce cold-start latency for short-lived sessions (web PWA).
-    experimentalForceLongPolling: false,
+    // Plain HTTP long polling: AUN only makes one-shot reads/writes (no live
+    // listeners), and the default streaming connection can hang inside in-app
+    // browsers (WhatsApp, Instagram…) and on some mobile networks/proxies.
+    experimentalForceLongPolling: true,
   });
   _auth = getAuth(_app);
   if (cfg.emulatorHost) {

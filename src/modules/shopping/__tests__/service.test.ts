@@ -1,3 +1,4 @@
+import { createServices } from '@/services/container';
 import { LocalRepository } from '@/storage/repository';
 import { memoryStore } from '@/test/memoryStore';
 import type { FamilyItem } from '@/modules/family/types';
@@ -85,5 +86,39 @@ describe('ShoppingService', () => {
     const item = await s.addItem({ listId: main.id, title: 'Globos', categoryId: cat.id });
     await s.deleteCategory(cat.id);
     expect((await s.listItems()).find((i) => i.id === item.id)?.categoryId).toBeNull();
+  });
+
+  it('drops extra empty "Compra" lists (joining a family / new device) but never lists in use', async () => {
+    const s = createServices('u', memoryStore(), null);
+    const [mine] = await s.shopping.listLists('Compra');
+    expect(mine.auto).toBe(true);
+    // The family's list arrives later with items.
+    const family = await s.collections.get('shoppingLists')!.importRows([
+      {
+        id: 'fam',
+        ownerId: 'david',
+        name: 'Compra',
+        color: '#0D9488',
+        order: 0,
+        createdAt: '2026-10-01T00:00:00.000Z',
+        updatedAt: '2026-10-01T00:00:00.000Z',
+        deletedAt: null,
+      } as never,
+    ]);
+    expect(family).toBe(1);
+    await s.shopping.addItem({ listId: 'fam', title: 'Leche' });
+    const lists = await s.shopping.listLists('Compra');
+    expect(lists.map((l) => l.id)).toEqual(['fam']);
+    // Other lists are never touched, even empty; nor is the only default list.
+    const party = await s.shopping.createList('Cumple', '#f00');
+    expect((await s.shopping.listLists('Compra')).map((l) => l.id)).toEqual(['fam', party.id]);
+  });
+
+  it('keeps your only (empty) default list even when another list has items', async () => {
+    const s = createServices('u2', memoryStore(), null);
+    const [compra] = await s.shopping.listLists('Compra');
+    const farmacia = await s.shopping.createList('Farmacia', '#f00');
+    await s.shopping.addItem({ listId: farmacia.id, title: 'Ibuprofeno' });
+    expect((await s.shopping.listLists('Compra')).map((l) => l.id)).toEqual([compra.id, farmacia.id]);
   });
 });

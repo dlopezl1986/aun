@@ -89,10 +89,29 @@ export class ShoppingService {
   async listLists(defaultName = 'Compra'): Promise<ShoppingList[]> {
     let all = (await this.lists.list()).sort((a, b) => a.order - b.order || a.createdAt.localeCompare(b.createdAt));
     if (!all.length) {
-      all = [await this.lists.create({ name: defaultName, color: '#16A34A', order: 0 })];
+      all = [await this.lists.create({ name: defaultName, color: '#16A34A', order: 0, auto: true })];
     }
+    all = await this.dropDuplicateDefaults(all, defaultName);
     await this.migrateLegacy(all[0].id);
     return all;
+  }
+
+  /**
+   * Joining a family (or opening AUN on a new device before the first sync)
+   * can leave several automatic, empty "Compra" lists: keep the family's and
+   * remove the empty extra ones. Lists with items or renamed are never touched.
+   */
+  private async dropDuplicateDefaults(all: ShoppingList[], defaultName: string): Promise<ShoppingList[]> {
+    const defaults = all.filter((l) => l.auto || l.name === defaultName);
+    if (defaults.length < 2) return all;
+    const used = new Set((await this.items.list()).map((i) => i.listId));
+    // Keep one default list: the oldest one in use, or the oldest one.
+    const byAge = [...defaults].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    const keeper = byAge.find((l) => used.has(l.id)) ?? byAge[0];
+    const drop = defaults.filter((l) => l !== keeper && !used.has(l.id));
+    if (!drop.length) return all;
+    await this.lists.removeMany(drop.map((l) => l.id));
+    return all.filter((l) => !drop.includes(l));
   }
 
   async createList(name: string, color: string): Promise<ShoppingList> {

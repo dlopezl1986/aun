@@ -5,6 +5,8 @@ export interface ShoppingList extends BaseEntity {
   name: string;
   color: string;
   order: number;
+  /** Created automatically as the first list (may be merged away when joining a family). */
+  auto?: boolean;
 }
 
 /** A user-made category (the built-in ones live in BUILTIN_CATEGORIES). */

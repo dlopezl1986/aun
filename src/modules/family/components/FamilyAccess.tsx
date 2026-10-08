@@ -27,6 +27,7 @@ import { useTheme } from '@/theme';
 import { formatShortDate } from '@/utils/date';
 import { useChildren, useUpdateChild } from '../hooks';
 import { familyMeta } from '../meta';
+import { SharingSyncStatus } from './SharingSyncStatus';
 import type { Member } from '../types';
 
 type Access = 'none' | ShareRole;
@@ -362,10 +363,37 @@ function PersonEditor({ person, onClose }: { person: { uid: string; name: string
 // The card in Familia
 // ---------------------------------------------------------------------------
 
-export function FamilyAccess({ openInvite = false, onInviteClosed }: { openInvite?: boolean; onInviteClosed?: () => void }) {
+/** Own component: it must read the card's palette (inside Card), not the dark canvas one. */
+function SharedWithMe({ spaces, me }: { spaces: Space[]; me: string }) {
+  const { t } = useTranslation();
+  const { spacing, colors, radius } = useTheme();
+  const owner = spaces[0];
+  return (
+    <View style={{ gap: spacing.xs, padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.primarySoft }}>
+      <AppText variant="bodyStrong">{t('sharing.youAreIn', { name: owner.names[owner.ownerId] || t('sharing.someone') })}</AppText>
+      {spaces.map((s) => (
+        <AppText key={s.id} variant="small" tone="textMuted">
+          {`• ${s.kind === 'family' ? t('sharing.familyAndShopping') : s.name} — ${t(`sharing.roles.${s.roles[me] ?? 'view'}`)}${
+            s.assignee === me ? ` · ${t('sharing.yourCalendar')}` : ''
+          }`}
+        </AppText>
+      ))}
+    </View>
+  );
+}
+
+export function FamilyAccess({
+  openInvite = false,
+  onInviteClosed,
+  justJoined = false,
+}: {
+  openInvite?: boolean;
+  onInviteClosed?: () => void;
+  justJoined?: boolean;
+}) {
   const { t } = useTranslation();
   const locale = useLocale();
-  const { spacing, colors, radius } = useTheme();
+  const { spacing } = useTheme();
   const toast = useToast();
   const { me, spaces } = useSharing();
   const invites = useMyInvites();
@@ -413,20 +441,7 @@ export function FamilyAccess({ openInvite = false, onInviteClosed }: { openInvit
         accent={familyMeta.accent}
         right={<Button label={t('sharing.invite')} icon="user-plus" size="sm" variant="soft" onPress={() => setInviting(true)} />}
       />
-      {sharedWithMe.length ? (
-        <View style={{ gap: spacing.xs, padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.primarySoft }}>
-          <AppText variant="bodyStrong">
-            {t('sharing.youAreIn', { name: sharedWithMe[0].names[sharedWithMe[0].ownerId] || t('sharing.someone') })}
-          </AppText>
-          {sharedWithMe.map((s) => (
-            <AppText key={s.id} variant="small" tone="textMuted">
-              {`• ${s.kind === 'family' ? t('sharing.familyAndShopping') : s.name} — ${t(`sharing.roles.${s.roles[me] ?? 'view'}`)}${
-                s.assignee === me ? ` · ${t('sharing.yourCalendar')}` : ''
-              }`}
-            </AppText>
-          ))}
-        </View>
-      ) : null}
+      {sharedWithMe.length ? <SharedWithMe spaces={sharedWithMe} me={me} /> : null}
 
       {people.length ? (
         <View style={{ gap: spacing.xs }}>
@@ -472,6 +487,9 @@ export function FamilyAccess({ openInvite = false, onInviteClosed }: { openInvit
         </View>
       ) : null}
 
+      {sharedWithMe.length || people.length || justJoined ? (
+        <SharingSyncStatus justJoined={justJoined} ownerName={sharedWithMe[0]?.names[sharedWithMe[0].ownerId]} />
+      ) : null}
       <InfoNote icon="shield" title={t('sharing.privacyTitle')} description={t('sharing.privacy')} />
       {inviting || openInvite ? (
         <InviteSheet

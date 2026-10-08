@@ -28,20 +28,23 @@ const AFTER_CHANGE_MS = 3_000;
 export function useSyncNow() {
   const services = useServices();
   const client = useQueryClient();
-  return useCallback(async () => {
-    if (!services.sync) return null;
-    const status = useSyncStatus.getState();
-    status.set({ running: true });
-    try {
-      const result = await services.sync.sync();
-      status.set({ running: false, last: result, error: null });
-      if (result.pulled > 0) await client.invalidateQueries({ queryKey: ['u', services.userId] });
-      return result;
-    } catch (e) {
-      status.set({ running: false, error: e instanceof SyncError ? e.code : 'unknown' });
-      return null;
-    }
-  }, [services, client]);
+  return useCallback(
+    async (opts: { full?: boolean } = {}) => {
+      if (!services.sync) return null;
+      const status = useSyncStatus.getState();
+      status.set({ running: true });
+      try {
+        const result = await services.sync.sync(opts);
+        status.set({ running: false, last: result, error: null });
+        if (result.pulled > 0) await client.invalidateQueries({ queryKey: ['u', services.userId] });
+        return result;
+      } catch (e) {
+        status.set({ running: false, error: e instanceof SyncError ? e.code : 'unknown' });
+        return null;
+      }
+    },
+    [services, client],
+  );
 }
 
 /**

@@ -985,6 +985,20 @@ export const es = {
     stats: { toBuy: 'por comprar' },
   },
   sharing: {
+    sync: {
+      joining: 'Trayendo los datos de la familia de {{name}}…',
+      running: 'Sincronizando…',
+      ok: 'Todo al día (última sincronización a las {{time}}).',
+      pending: 'Aún no se ha sincronizado en este dispositivo.',
+      now: 'Sincronizar ahora',
+      errors: {
+        offline: 'No se ha podido conectar. Revisa la conexión y pulsa «Sincronizar ahora».',
+        unauthorized: 'Tu sesión ha caducado: cierra sesión y vuelve a entrar.',
+        server: 'El servidor ha dado un error. Pulsa «Sincronizar ahora» para reintentar.',
+        'not-configured': 'La sincronización no está configurada.',
+        unknown: 'No se ha podido sincronizar. Pulsa «Sincronizar ahora» para reintentar.',
+      },
+    },
     title: 'Compartir con tu familia',
     invite: 'Invitar',
     someone: 'alguien',

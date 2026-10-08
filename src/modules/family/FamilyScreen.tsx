@@ -21,7 +21,7 @@ export function FamilyScreen() {
   const openMember = (m: Member) => router.navigate({ pathname: '/family/child/[id]', params: { id: m.id } });
   // Sharing between accounts needs the cloud (Firebase); in local mode the old explanation stays.
   const cloudSharing = !!useServices().sharing;
-  const { invite } = useLocalSearchParams<{ invite?: string }>();
+  const { invite, joined } = useLocalSearchParams<{ invite?: string; joined?: string }>();
 
   return (
     <Screen>
@@ -35,7 +35,11 @@ export function FamilyScreen() {
       <MembersCard onOpen={openMember} onAdd={() => setSheet({ open: true, child: null })} />
       <FamilyChecklist list="tomorrow" />
       {cloudSharing ? (
-        <FamilyAccess openInvite={invite === '1'} onInviteClosed={() => router.setParams({ invite: undefined })} />
+        <FamilyAccess
+          openInvite={invite === '1'}
+          onInviteClosed={() => router.setParams({ invite: undefined })}
+          justJoined={joined === '1'}
+        />
       ) : (
         <FamilySharing />
       )}

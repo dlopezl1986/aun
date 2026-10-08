@@ -985,6 +985,20 @@ export const en: Translation = {
     stats: { toBuy: 'to buy' },
   },
   sharing: {
+    sync: {
+      joining: 'Getting {{name}}’s family data…',
+      running: 'Syncing…',
+      ok: 'Up to date (last synced at {{time}}).',
+      pending: 'Not synced on this device yet.',
+      now: 'Sync now',
+      errors: {
+        offline: 'Could not connect. Check your connection and tap “Sync now”.',
+        unauthorized: 'Your session expired: sign out and sign in again.',
+        server: 'The server returned an error. Tap “Sync now” to retry.',
+        'not-configured': 'Sync is not configured.',
+        unknown: 'Could not sync. Tap “Sync now” to retry.',
+      },
+    },
     title: 'Share with your family',
     invite: 'Invite',
     someone: 'someone',
