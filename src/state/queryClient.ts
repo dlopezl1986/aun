@@ -19,7 +19,7 @@ export const queryClient = new QueryClient({
 
 /** Domain scopes used as query keys; mutations invalidate whole scopes. */
 export type DataScope =
-  'calendars' | 'events' | 'tasks' | 'folders' | 'family' | 'shopping' | 'email' | 'notifications' | 'storage' | 'sharing';
+  'calendars' | 'events' | 'tasks' | 'folders' | 'family' | 'shopping' | 'email' | 'notifications' | 'storage' | 'sharing' | 'notify';
 
 export function useDataQuery<T>(scope: DataScope, key: unknown[], fn: (s: Services) => Promise<T>) {
   const services = useServices();

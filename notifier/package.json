@@ -1,0 +1,18 @@
+{
+  "name": "aun-notifier",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Sends AUN notices outside the app (e-mail daily summary, Telegram alerts). Run by GitHub Actions every 5 minutes.",
+  "type": "module",
+  "main": "run.mjs",
+  "scripts": {
+    "start": "node run.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "firebase-admin": "^14.5.0",
+    "nodemailer": "^10.0.16"
+  }
+}

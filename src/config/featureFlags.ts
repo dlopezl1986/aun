@@ -53,4 +53,6 @@ export const appConfig = {
   firebaseAppId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID ?? '',
   /** Local Firebase emulators host (development / tests only, never in production builds). */
   firebaseEmulatorHost: process.env.EXPO_PUBLIC_FIREBASE_EMULATOR_HOST ?? '',
+  /** Telegram bot username (public), for "Conectar Telegram". */
+  telegramBot: (process.env.EXPO_PUBLIC_TELEGRAM_BOT ?? '').replace(/^@/, ''),
 };

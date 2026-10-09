@@ -199,6 +199,36 @@ await test('an expired invite cannot be used', async () => {
   await assertFails(join(db('carol'), 'carol', 'expired-code-0123456789ab', [['cal_alice_kids', 'view']]));
 });
 
+console.log('Notices outside the app');
+await test('my notice settings are mine: nobody else reads or writes them', async () => {
+  await assertSucceeds(setDoc(doc(db('alice'), 'notify', 'alice'), { email: null, emailDaily: true }));
+  await assertFails(getDoc(doc(db('bob'), 'notify', 'alice')));
+  await assertFails(setDoc(doc(db('bob'), 'notify', 'alice'), { email: null }));
+});
+await test('the summary e-mail can only be my own account e-mail', async () => {
+  const alice = env.authenticatedContext('alice', { email: 'alice@x.com' }).firestore();
+  await assertSucceeds(setDoc(doc(alice, 'notify', 'alice'), { email: 'alice@x.com', emailDaily: true }));
+  await assertFails(setDoc(doc(alice, 'notify', 'alice'), { email: 'victim@x.com', emailDaily: true }));
+});
+await test('the Telegram chat cannot be set from the app (only the bot), but can be kept or cleared', async () => {
+  await assertFails(setDoc(doc(db('alice'), 'notify', 'alice'), { telegramChatId: '12345' }));
+  await env.withSecurityRulesDisabled((ctx) =>
+    setDoc(doc(ctx.firestore(), 'notify', 'alice'), { telegramChatId: '999', telegramName: 'Ali' }),
+  );
+  await assertSucceeds(setDoc(doc(db('alice'), 'notify', 'alice'), { telegramChatId: '999', telegramName: 'Ali', telegramDaily: true }));
+  await assertFails(setDoc(doc(db('alice'), 'notify', 'alice'), { telegramChatId: '12345', telegramName: 'Ali' }));
+  await assertSucceeds(setDoc(doc(db('alice'), 'notify', 'alice'), { telegramChatId: null, telegramName: null }));
+});
+await test('alerts and summaries to send are private to their owner', async () => {
+  await assertSucceeds(setDoc(doc(db('alice'), 'outbox', 'alice_abc'), { uid: 'alice', title: 'Dentista', sent: false }));
+  await assertFails(setDoc(doc(db('bob'), 'outbox', 'alice_x'), { uid: 'bob', title: 'spam', sent: false }));
+  await assertFails(setDoc(doc(db('bob'), 'outbox', 'bob_x'), { uid: 'alice', title: 'spam', sent: false }));
+  await assertFails(getDoc(doc(db('bob'), 'outbox', 'alice_abc')));
+  await assertSucceeds(getDocs(query(collection(db('alice'), 'outbox'), where('uid', '==', 'alice'))));
+  await assertSucceeds(setDoc(doc(db('alice'), 'digests', 'alice_2026-10-09'), { uid: 'alice', title: 'Hoy' }));
+  await assertFails(getDoc(doc(db('bob'), 'digests', 'alice_2026-10-09')));
+});
+
 await env.cleanup();
 if (failures) {
   console.log(`\n${failures} rule test(s) FAILED`);

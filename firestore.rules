@@ -121,6 +121,40 @@ service cloud.firestore {
       allow delete: if signedIn() && resource.data.ownerId == uid();
     }
 
+    // ---------------------------------------------------------------------
+    // Notices outside the app (e-mail / Telegram). The notifier job uses the
+    // Admin SDK (bypasses these rules); users only touch their own documents.
+    // ---------------------------------------------------------------------
+    function sameOrNull(field) {
+      return request.resource.data.get(field, null) == null
+        || (resource != null && request.resource.data.get(field, null) == resource.data.get(field, null));
+    }
+
+    match /notify/{userId} {
+      allow read, delete: if signedIn() && uid() == userId;
+      // Your own account e-mail only (no sending summaries to someone else), and
+      // the Telegram chat is set only by the bot when you press Start: here it
+      // can just stay as it is or be cleared.
+      allow create, update: if signedIn() && uid() == userId
+        && (request.resource.data.get('email', null) == null || request.resource.data.email == request.auth.token.email)
+        && sameOrNull('telegramChatId')
+        && sameOrNull('telegramName');
+    }
+
+    match /outbox/{id} {
+      allow read, delete: if signedIn() && resource.data.uid == uid();
+      allow create, update: if signedIn()
+        && request.resource.data.uid == uid()
+        && id.matches(uid() + '_.+');
+    }
+
+    match /digests/{id} {
+      allow read, delete: if signedIn() && resource.data.uid == uid();
+      allow create, update: if signedIn()
+        && request.resource.data.uid == uid()
+        && id.matches(uid() + '_.+');
+    }
+
     // Everything else is closed.
     match /{document=**} {
       allow read, write: if false;

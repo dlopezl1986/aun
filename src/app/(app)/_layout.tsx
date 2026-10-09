@@ -9,6 +9,7 @@ import { ErrorState, LoadingState } from '@/components/ui/States';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { getModuleRegistry } from '@/modules/registry';
 import { useAlertScheduler } from '@/services/notifications/useAlertScheduler';
+import { useRemoteNotifyPublisher } from '@/services/remoteNotify/hooks';
 import { pendingInvite } from '@/services/sharing/pendingInvite';
 import { ServicesProvider } from '@/services/ServicesProvider';
 import { useAutoSync } from '@/services/sync/useAutoSync';
@@ -69,6 +70,12 @@ function PendingInvite() {
   return null;
 }
 
+/** Publishes the e-mail / Telegram notices (no-op until a channel is switched on). */
+function RemoteNotify() {
+  useRemoteNotifyPublisher();
+  return null;
+}
+
 /** Background sync with the AUN backend (no-op in local-only mode). */
 function AutoSync() {
   useAutoSync();
@@ -111,6 +118,7 @@ export default function AppLayout() {
       <AlertScheduler />
       <AutoSync />
       <PendingInvite />
+      <RemoteNotify />
       <AppTabs />
     </ServicesProvider>
   );

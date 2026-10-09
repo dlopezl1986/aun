@@ -195,3 +195,10 @@ Asistente sobre `AIContextSource`/`AIAction`, ejecutado en backend.
   ajenos solo en tu dispositivo. Cambios rechazados por el servidor vuelven a la versión del servidor.
 - Reglas de seguridad probadas con el emulador (`npm run test:rules`, 20 casos) y prueba completa con dos
   cuentas de prueba en el emulador.
+
+## Avisos fuera de la app — email y Telegram (2026-10-09)
+- Configuración → Notificaciones → «Avisos fuera de la app»: resumen diario por email (hora elegible) y
+  Telegram (conectar con un toque; avisos a su hora y resumen opcional).
+- La app publica `notify` / `outbox` / `digests`; el robot `notifier/` (GitHub Actions cada 5 min, gratis)
+  los envía. Reglas: email solo el de tu cuenta, el chat de Telegram solo lo fija el bot. Guía:
+  `docs/NOTIFICACIONES.md`. Probado con emulador (`npm run test:notifier`) y de punta a punta.

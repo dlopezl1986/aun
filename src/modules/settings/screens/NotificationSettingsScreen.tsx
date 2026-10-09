@@ -14,6 +14,7 @@ import { Toggle } from '@/components/ui/Toggle';
 import { getPermission, requestPermission, type PermissionState } from '@/services/notifications/scheduler';
 import { useEnabledModules, useNotificationPrefs, useUserSettings } from '@/state/userSettingsStore';
 import { useTheme } from '@/theme';
+import { RemoteNotifySettings } from '../components/RemoteNotifySettings';
 import { SettingsPage } from '../components/SettingsPage';
 
 /** Settings → Notificaciones: device permission, sources and times. */
@@ -71,6 +72,8 @@ export function NotificationSettingsScreen() {
           }
         />
       </Card>
+
+      <RemoteNotifySettings />
       {permission === 'denied' ? (
         <InfoNote
           tone="warning"

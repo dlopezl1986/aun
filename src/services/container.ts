@@ -25,22 +25,29 @@ import { StorageService } from './storage/StorageService';
 import { SyncEngine } from './sync/engine';
 import { SupabaseRemoteStore } from './sync/supabaseRemote';
 import type { RemoteStore } from './sync/types';
+import type { FirebaseNotifyService } from './remoteNotify/firebaseNotify';
 import type { FirebaseSharingService } from './sharing/firebaseSharing';
 
 /** Backend sync + sharing for a user. Sharing between accounts exists on Firebase only. */
 function defaultBackend(
   userId: string,
   calendarOwner: (calendarId: string) => Promise<string | null>,
-): { remote: RemoteStore | null; sharing: FirebaseSharingService | null } {
+): { remote: RemoteStore | null; sharing: FirebaseSharingService | null; notify: FirebaseNotifyService | null } {
   if (backendKind === 'firebase') {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { FirebaseRemoteStore } = require('./sync/firebaseRemote') as typeof import('./sync/firebaseRemote');
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { FirebaseSharingService } = require('./sharing/firebaseSharing') as typeof import('./sharing/firebaseSharing');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { FirebaseNotifyService } = require('./remoteNotify/firebaseNotify') as typeof import('./remoteNotify/firebaseNotify');
     const remote = new FirebaseRemoteStore(userId, calendarOwner);
-    return { remote, sharing: new FirebaseSharingService(userId, () => void remote.loadSpaces(true).catch(() => undefined)) };
+    return {
+      remote,
+      sharing: new FirebaseSharingService(userId, () => void remote.loadSpaces(true).catch(() => undefined)),
+      notify: new FirebaseNotifyService(userId),
+    };
   }
-  return { remote: backend ? new SupabaseRemoteStore(backend) : null, sharing: null };
+  return { remote: backend ? new SupabaseRemoteStore(backend) : null, sharing: null, notify: null };
 }
 
 export interface Services {
@@ -59,6 +66,8 @@ export interface Services {
   sync: SyncEngine | null;
   /** Sharing with other accounts (family, calendars); `null` unless the backend is Firebase. */
   sharing: FirebaseSharingService | null;
+  /** E-mail / Telegram notices; `null` unless the backend is Firebase. */
+  notify: FirebaseNotifyService | null;
 }
 
 /**
@@ -148,11 +157,12 @@ export function createServices(
   // Events are stored in their calendar's space: the calendar owner comes from local data.
   const calendarOwner = async (calendarId: string) =>
     (await collections.get('calendars')!.listAllRaw()).find((c) => c.id === calendarId)?.ownerId ?? null;
-  const backendParts = remote === undefined ? defaultBackend(userId, calendarOwner) : { remote, sharing: null };
+  const backendParts = remote === undefined ? defaultBackend(userId, calendarOwner) : { remote, sharing: null, notify: null };
   return {
     ...services,
     collections: synced,
     sync: backendParts.remote ? new SyncEngine(synced, backendParts.remote, store, userId) : null,
     sharing: backendParts.sharing,
+    notify: backendParts.notify,
   };
 }

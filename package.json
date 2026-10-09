@@ -64,7 +64,8 @@
     "test": "jest",
     "server": "node server/aun-local-server.mjs",
     "local": "node server/aun-local-server.mjs & expo start --web --port 8090",
-    "test:rules": "sh scripts/with-emulators.sh 'node scripts/test-rules.mjs'"
+    "test:rules": "sh scripts/with-emulators.sh 'node scripts/test-rules.mjs'",
+    "test:notifier": "sh scripts/with-emulators.sh 'node notifier/test.mjs'"
   },
   "private": true,
   "jest": {
