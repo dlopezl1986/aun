@@ -1097,6 +1097,10 @@ export const es = {
   },
   remote: {
     settings: {
+      manualHint: '¿No se conecta? Abre el chat de {{bot}} y envíale este mensaje (cópialo y pégalo tal cual):',
+      copyCode: 'Copiar mensaje',
+      copied: 'Mensaje copiado: pégalo en el chat del bot',
+      openBot: 'Abrir el bot',
       title: 'Avisos fuera de la app',
       intro: 'Recibe tus avisos aunque AUN esté cerrada: un resumen del día por email y los avisos al momento por Telegram.',
       emailDaily: 'Resumen diario por email',

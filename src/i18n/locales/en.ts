@@ -1097,6 +1097,10 @@ export const en: Translation = {
   },
   remote: {
     settings: {
+      manualHint: 'Not connecting? Open the {{bot}} chat and send it this message (copy and paste it as is):',
+      copyCode: 'Copy message',
+      copied: 'Message copied: paste it in the bot chat',
+      openBot: 'Open the bot',
       title: 'Notices outside the app',
       intro: 'Get your alerts even when AUN is closed: a daily summary by e-mail and instant alerts on Telegram.',
       emailDaily: 'Daily summary by e-mail',

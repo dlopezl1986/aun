@@ -2,13 +2,17 @@ import { useState } from 'react';
 import { Linking, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
+import * as Clipboard from 'expo-clipboard';
+
 import { TimeField } from '@/components/forms/DateTimeFields';
+import { useToast } from '@/components/feedback/ToastProvider';
 import { AppText } from '@/components/ui/AppText';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Divider } from '@/components/ui/Divider';
 import { InfoNote } from '@/components/ui/InfoNote';
 import { LoadingState } from '@/components/ui/States';
+import { TextField } from '@/components/ui/TextField';
 import { Toggle } from '@/components/ui/Toggle';
 import { appConfig } from '@/config/featureFlags';
 import { useNotifySettings, useSaveNotifySettings } from '@/services/remoteNotify/hooks';
@@ -42,6 +46,7 @@ function Body({ settings }: { settings: NotifySettings }) {
   const client = useQueryClient();
   const save = useSaveNotifySettings();
   const [waiting, setWaiting] = useState(false);
+  const toast = useToast();
   const linked = !!settings.telegramChatId;
   const bot = appConfig.telegramBot;
   const refresh = () => client.invalidateQueries({ queryKey: ['u', services.userId, 'notify'] });
@@ -118,10 +123,35 @@ function Body({ settings }: { settings: NotifySettings }) {
           </AppText>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
             <Button label={t('remote.settings.connectTelegram')} icon="send" onPress={() => void connectTelegram()} />
-            {waiting ? (
+            {waiting || settings.telegramLinkCode ? (
               <Button label={t('remote.settings.check')} icon="refresh-cw" variant="secondary" onPress={() => void refresh()} />
             ) : null}
           </View>
+          {settings.telegramLinkCode ? (
+            // Backup: if Telegram opened the chat without sending the code (chat already open), send it by hand.
+            <View style={{ gap: spacing.sm }}>
+              <AppText variant="small" tone="textMuted">
+                {t('remote.settings.manualHint', { bot: `@${bot}` })}
+              </AppText>
+              <TextField value={`/start ${settings.telegramLinkCode}`} editable={false} selectTextOnFocus />
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+                <Button
+                  label={t('remote.settings.copyCode')}
+                  icon="copy"
+                  variant="secondary"
+                  onPress={() =>
+                    void Clipboard.setStringAsync(`/start ${settings.telegramLinkCode}`).then(() => toast.show(t('remote.settings.copied')))
+                  }
+                />
+                <Button
+                  label={t('remote.settings.openBot')}
+                  icon="send"
+                  variant="ghost"
+                  onPress={() => void Linking.openURL(`https://t.me/${bot}`)}
+                />
+              </View>
+            </View>
+          ) : null}
         </>
       )}
 
