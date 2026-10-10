@@ -285,6 +285,15 @@ export function createNotifier({
 // ---------------------------------------------------------------------------
 if (import.meta.url === `file://${process.argv[1]}`) {
   const env = process.env;
+  // Configuration check (logs the bot name only, never the token).
+  if (env.TELEGRAM_BOT_TOKEN && !env.FIRESTORE_EMULATOR_HOST) {
+    try {
+      const me = await (await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/getMe`)).json();
+      console.log(me.ok ? `Telegram bot OK: @${me.result.username}` : `Telegram bot token rejected: ${me.description}`);
+    } catch (e) {
+      console.log(`Telegram check failed: ${e.message}`);
+    }
+  }
   if (!env.FIREBASE_SERVICE_ACCOUNT && !env.FIRESTORE_EMULATOR_HOST) {
     console.log('FIREBASE_SERVICE_ACCOUNT is not set: nothing to do (see docs/NOTIFICACIONES.md).');
     process.exit(0);
