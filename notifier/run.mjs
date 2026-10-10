@@ -127,6 +127,7 @@ export function createNotifier({
     const stateRef = db.collection('system').doc('notifier');
     const offset = (await stateRef.get()).data()?.telegramOffset ?? 0;
     const updates = await tg('getUpdates', { offset, timeout: 0, allowed_updates: ['message'] });
+    log(`telegram updates: ${updates.length}`);
     let linked = 0;
     for (const u of updates) {
       const m = u.message;
