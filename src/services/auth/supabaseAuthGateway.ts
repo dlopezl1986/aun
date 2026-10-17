@@ -183,6 +183,18 @@ export class SupabaseAuthGateway implements AuthGateway {
     }
   }
 
+  async changePassword(): Promise<void> {
+    throw new AuthError('requires-backend');
+  }
+
+  async sendEmailVerification(): Promise<void> {
+    throw new AuthError('requires-backend');
+  }
+
+  async reloadUser(): Promise<AuthUser | null> {
+    return (await this.restoreSession())?.user ?? null;
+  }
+
   async deleteAccount(): Promise<void> {
     // Needs a server function (service role) to delete a Supabase user: not offered on this backend.
     throw new AuthError('requires-backend');

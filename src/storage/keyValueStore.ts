@@ -1,22 +1,18 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { platformKeyValueStore } from './platformKeyValue';
 
 /**
- * Minimal key/value contract used by every local persistence adapter.
- * AsyncStorage works on iOS, Android and Web (localStorage), so the MVP
- * shares one implementation everywhere. Swapping to SQLite/MMKV later only
- * requires a new implementation of this interface.
+ * Minimal key/value contract used by every local persistence adapter:
+ * IndexedDB on the web and SQLite on iOS / Android (platformKeyValue*.ts).
  */
 export interface KeyValueStore {
   getItem(key: string): Promise<string | null>;
   setItem(key: string, value: string): Promise<void>;
   removeItem(key: string): Promise<void>;
+  /** Keys starting with `prefix` (to delete everything of a user). */
+  keys?(prefix: string): Promise<string[]>;
 }
 
-export const asyncKeyValueStore: KeyValueStore = {
-  getItem: (key) => AsyncStorage.getItem(key),
-  setItem: (key, value) => AsyncStorage.setItem(key, value),
-  removeItem: (key) => AsyncStorage.removeItem(key),
-};
+export const asyncKeyValueStore: KeyValueStore = platformKeyValueStore;
 
 /** Namespacing helpers so data never collides between users or schema versions. */
 export const storageKeys = {

@@ -19,5 +19,5 @@ export async function deleteAccountData(services: Services, kv: KeyValueStore): 
     const { deleteFirebaseAccountData } = require('./firebaseAccountData') as typeof import('./firebaseAccountData');
     await deleteFirebaseAccountData(services.userId);
   }
-  await deleteLocalUserData(services.userId);
+  await deleteLocalUserData(services.userId, kv);
 }

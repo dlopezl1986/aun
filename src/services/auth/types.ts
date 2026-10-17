@@ -7,6 +7,8 @@ export interface AuthUser {
   avatarUrl?: string | null;
   methods: AuthMethod[];
   createdAt: string;
+  /** false = the e-mail address is not confirmed yet; undefined = not applicable (local accounts). */
+  emailVerified?: boolean;
 }
 
 export interface AuthSession {
@@ -76,4 +78,10 @@ export interface AuthGateway {
    * account itself.
    */
   deleteAccount(password: string, cleanup: () => Promise<void>): Promise<void>;
+  /** Changes the password, checking the current one first. */
+  changePassword(current: string, next: string): Promise<void>;
+  /** Sends (again) the link that confirms the e-mail address. */
+  sendEmailVerification(language: string): Promise<void>;
+  /** Re-reads the signed-in user from the backend (e.g. after confirming the e-mail). */
+  reloadUser(): Promise<AuthUser | null>;
 }

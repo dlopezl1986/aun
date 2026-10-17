@@ -11,6 +11,7 @@ export function memoryStore(): KeyValueStore & { dump: () => Record<string, stri
     removeItem: async (k) => {
       data.delete(k);
     },
+    keys: async (prefix) => [...data.keys()].filter((k) => k.startsWith(prefix)),
     dump: () => Object.fromEntries(data),
   };
 }

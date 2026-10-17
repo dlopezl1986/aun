@@ -55,4 +55,7 @@ export const appConfig = {
   firebaseEmulatorHost: process.env.EXPO_PUBLIC_FIREBASE_EMULATOR_HOST ?? '',
   /** Telegram bot username (public), for "Conectar Telegram". */
   telegramBot: (process.env.EXPO_PUBLIC_TELEGRAM_BOT ?? '').replace(/^@/, ''),
+  /** Who offers AUN and how to reach them (privacy policy and terms). */
+  legalOwner: process.env.EXPO_PUBLIC_LEGAL_OWNER ?? '',
+  contactEmail: process.env.EXPO_PUBLIC_CONTACT_EMAIL ?? '',
 };

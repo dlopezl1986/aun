@@ -20,7 +20,7 @@ import { TextField } from '@/components/ui/TextField';
 import { Toggle } from '@/components/ui/Toggle';
 import { useLocale } from '@/hooks/useLocale';
 import { useNow } from '@/hooks/useNow';
-import { useCreateInvite, useDeleteInvite, useMyInvites, useSetAccess, useSharing } from '@/services/sharing/hooks';
+import { useCreateInvite, useDeleteInvite, useLeaveSpaces, useMyInvites, useSetAccess, useSharing } from '@/services/sharing/hooks';
 import { calendarSpaceId, familySpaceId, peopleOf, type Invite, type ShareRole, type Space } from '@/services/sharing/spaces';
 import { useDataQuery } from '@/state/queryClient';
 import { useTheme } from '@/theme';
@@ -367,10 +367,22 @@ function PersonEditor({ person, onClose }: { person: { uid: string; name: string
 function SharedWithMe({ spaces, me }: { spaces: Space[]; me: string }) {
   const { t } = useTranslation();
   const { spacing, colors, radius } = useTheme();
+  const dialog = useDialog();
+  const leave = useLeaveSpaces();
   const owner = spaces[0];
+  const ownerName = owner.names[owner.ownerId] || t('sharing.someone');
+  const onLeave = async () => {
+    const ok = await dialog.confirm({
+      title: t('sharing.leave.title', { name: ownerName }),
+      message: t('sharing.leave.message'),
+      confirmLabel: t('sharing.leave.confirm'),
+      destructive: true,
+    });
+    if (ok) leave.mutate(spaces.filter((s) => s.ownerId === owner.ownerId).map((s) => s.id));
+  };
   return (
     <View style={{ gap: spacing.xs, padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.primarySoft }}>
-      <AppText variant="bodyStrong">{t('sharing.youAreIn', { name: owner.names[owner.ownerId] || t('sharing.someone') })}</AppText>
+      <AppText variant="bodyStrong">{t('sharing.youAreIn', { name: ownerName })}</AppText>
       {spaces.map((s) => (
         <AppText key={s.id} variant="small" tone="textMuted">
           {`• ${s.kind === 'family' ? t('sharing.familyAndShopping') : s.name} — ${t(`sharing.roles.${s.roles[me] ?? 'view'}`)}${
@@ -378,6 +390,16 @@ function SharedWithMe({ spaces, me }: { spaces: Space[]; me: string }) {
           }`}
         </AppText>
       ))}
+      <View style={{ flexDirection: 'row', marginTop: spacing.xs }}>
+        <Button
+          label={t('sharing.leave.button')}
+          icon="log-out"
+          variant="ghost"
+          size="sm"
+          loading={leave.isPending}
+          onPress={() => void onLeave()}
+        />
+      </View>
     </View>
   );
 }

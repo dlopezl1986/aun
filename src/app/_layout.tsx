@@ -73,6 +73,8 @@ function RootNavigator() {
       </Stack.Protected>
       {/* Invitation links work signed in or out (the code is kept until you have an account). */}
       <Stack.Screen name="join" />
+      {/* Privacy policy and terms: public. */}
+      <Stack.Screen name="legal/[doc]" />
     </Stack>
   );
 }

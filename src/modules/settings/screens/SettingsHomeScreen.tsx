@@ -142,6 +142,10 @@ export function SettingsHomeScreen() {
           title="AUN · All You Need"
           subtitle={`${t('settings.version')} ${Constants.expoConfig?.version ?? '—'} · ${Platform.OS}`}
         />
+        <Divider inset={58} />
+        <ListRow icon="shield" title={t('legal.privacy')} chevron onPress={() => router.push('/legal/privacy')} />
+        <Divider inset={58} />
+        <ListRow icon="file-text" title={t('legal.terms')} chevron onPress={() => router.push('/legal/terms')} />
         {authGateway.isLocalOnly ? (
           <>
             <Divider inset={58} />

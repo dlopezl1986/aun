@@ -256,10 +256,20 @@ export function createNotifier({
       .where('at', '<', Timestamp.fromMillis(t - KEEP_SENT_MS))
       .limit(400)
       .get();
+    // Invitations a week past their expiry (used or not: they hold who accepted them),
+    // and daily summaries of past days.
+    const invites = await db
+      .collection('invites')
+      .where('expiresAt', '<', Timestamp.fromMillis(t - 7 * 86_400_000))
+      .limit(200)
+      .get();
+    const yesterday = new Date(t - 2 * 86_400_000).toISOString().slice(0, 10);
+    const digests = await db.collection('digests').where('date', '<', yesterday).limit(200).get();
+    const docs = [...old.docs, ...invites.docs, ...digests.docs];
     const batch = db.batch();
-    old.docs.forEach((d) => batch.delete(d.ref));
-    if (!old.empty) await batch.commit();
-    return old.size;
+    docs.forEach((d) => batch.delete(d.ref));
+    if (docs.length) await batch.commit();
+    return docs.length;
   }
 
   return {

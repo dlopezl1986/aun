@@ -13,7 +13,9 @@ import { useSignOut } from '@/hooks/useSignOut';
 import { authGateway } from '@/services/auth';
 import { useAuthStore, useCurrentUser } from '@/state/authStore';
 import { useTheme } from '@/theme';
+import { ChangePasswordCard } from '../components/ChangePasswordCard';
 import { SettingsPage } from '../components/SettingsPage';
+import { VerifyEmailNotice } from '../components/VerifyEmailNotice';
 
 export function ProfileSettingsScreen() {
   const { t } = useTranslation();
@@ -40,6 +42,7 @@ export function ProfileSettingsScreen() {
 
   return (
     <SettingsPage title={t('settings.profile.title')} subtitle={t('settings.profile.subtitle')}>
+      <VerifyEmailNotice />
       <Card style={{ gap: spacing.lg }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.lg }}>
           <Avatar name={name || user.email} size={64} />
@@ -53,6 +56,7 @@ export function ProfileSettingsScreen() {
         <TextField label={t('auth.email')} value={user.email} editable={false} hint={t('settings.profile.emailHint')} />
         <Button label={t('common.save')} onPress={() => void save()} disabled={!dirty} loading={saving} />
       </Card>
+      {user.methods.includes('password') ? <ChangePasswordCard /> : null}
       {authGateway.isLocalOnly ? (
         <InfoNote title={t('settings.localData.title')} description={t('settings.profile.localAccount')} icon="smartphone" />
       ) : null}

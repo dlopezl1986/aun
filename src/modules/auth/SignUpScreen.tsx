@@ -99,6 +99,21 @@ export function SignUpScreen() {
         </AppText>
       ) : null}
       <Button label={t('auth.createAccount')} onPress={() => void submit()} loading={loading} fullWidth size="lg" />
+      <AppText variant="caption" tone="textMuted" style={{ textAlign: 'center' }}>
+        {t('legal.acceptPrefix')}
+        <Link href="/legal/terms" accessibilityRole="link">
+          <AppText variant="caption" tone="primary">
+            {t('legal.terms')}
+          </AppText>
+        </Link>
+        {t('legal.acceptAnd')}
+        <Link href="/legal/privacy" accessibilityRole="link">
+          <AppText variant="caption" tone="primary">
+            {t('legal.privacy')}
+          </AppText>
+        </Link>
+        .
+      </AppText>
       <ProviderButtons />
       <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 6 }}>
         <AppText variant="small" tone="textMuted">

@@ -49,7 +49,7 @@ async function test(name, fn) {
 }
 
 async function clear() {
-  for (const c of ['notify', 'outbox', 'digests', 'system']) {
+  for (const c of ['notify', 'outbox', 'digests', 'system', 'invites']) {
     const snap = await db.collection(c).get();
     await Promise.all(snap.docs.map((d) => d.ref.delete()));
   }
@@ -178,14 +178,27 @@ await test('a summary many hours late is skipped (no 11 pm "good morning"), but 
   clock = new Date('2026-10-09T06:00:00Z');
 });
 
-await test('sent alerts older than 2 days are cleaned up', async () => {
+await test('old sent alerts, long-expired invitations and past summaries are cleaned up', async () => {
   await db
     .collection('outbox')
     .doc('u1_old')
     .set({ uid: 'u1', at: Timestamp.fromMillis(clock.getTime() - 3 * 86_400_000), title: 'x', sent: true });
+  await db
+    .collection('invites')
+    .doc('expired-long-ago')
+    .set({ ownerId: 'u1', usedByName: 'Bea', expiresAt: Timestamp.fromMillis(clock.getTime() - 8 * 86_400_000) });
+  await db
+    .collection('invites')
+    .doc('still-valid')
+    .set({ ownerId: 'u1', expiresAt: Timestamp.fromMillis(clock.getTime() + 86_400_000) });
+  await db.collection('digests').doc('u1_2026-10-01').set({ uid: 'u1', date: '2026-10-01' });
   const removed = await make().cleanup();
-  assert.ok(removed >= 1);
+  assert.ok(removed >= 3);
   assert.equal((await db.collection('outbox').doc('u1_old').get()).exists, false);
+  assert.equal((await db.collection('invites').doc('expired-long-ago').get()).exists, false);
+  assert.equal((await db.collection('invites').doc('still-valid').get()).exists, true);
+  assert.equal((await db.collection('digests').doc('u1_2026-10-01').get()).exists, false);
+  assert.equal((await db.collection('digests').doc('u1_2026-10-09').get()).exists, true);
 });
 
 server.close();

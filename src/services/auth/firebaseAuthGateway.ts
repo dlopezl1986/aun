@@ -22,7 +22,15 @@ import {
   type PasswordResetResult,
 } from './types';
 
-import { deleteUser, EmailAuthProvider, reauthenticateWithCredential, type User, type UserCredential } from 'firebase/auth';
+import {
+  deleteUser,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+  sendEmailVerification,
+  updatePassword,
+  type User,
+  type UserCredential,
+} from 'firebase/auth';
 
 // ---------------------------------------------------------------------------
 // Mapping helpers
@@ -45,6 +53,7 @@ function toAuthUser(u: User): AuthUser {
     avatarUrl: u.photoURL ?? null,
     methods: providers,
     createdAt: u.metadata.creationTime ?? new Date().toISOString(),
+    emailVerified: u.emailVerified,
   };
 }
 
@@ -103,6 +112,8 @@ export class FirebaseAuthGateway implements AuthGateway {
     try {
       const cred = await createUserWithEmailAndPassword(firebaseAuth(), input.email.trim().toLowerCase(), input.password);
       await fbUpdateProfile(cred.user, { displayName: input.displayName.trim() });
+      // Confirmation link; not blocking (the app works meanwhile and reminds the user).
+      await sendEmailVerification(cred.user).catch(() => undefined);
       return toAuthSession(cred.user, 'password');
     } catch (e) {
       throw mapError(e);
@@ -151,6 +162,39 @@ export class FirebaseAuthGateway implements AuthGateway {
 
   async signOut(): Promise<void> {
     await fbSignOut(firebaseAuth());
+  }
+
+  async changePassword(current: string, next: string): Promise<void> {
+    const user = firebaseAuth().currentUser;
+    if (!user?.email) throw new AuthError('unknown');
+    try {
+      await reauthenticateWithCredential(user, EmailAuthProvider.credential(user.email, current));
+      await updatePassword(user, next);
+    } catch (e) {
+      throw mapError(e);
+    }
+  }
+
+  async sendEmailVerification(language: string): Promise<void> {
+    const user = firebaseAuth().currentUser;
+    if (!user) throw new AuthError('unknown');
+    firebaseAuth().languageCode = language;
+    try {
+      await sendEmailVerification(user);
+    } catch (e) {
+      throw mapError(e);
+    }
+  }
+
+  async reloadUser(): Promise<AuthUser | null> {
+    const user = firebaseAuth().currentUser;
+    if (!user) return null;
+    try {
+      await user.reload();
+    } catch (e) {
+      throw mapError(e);
+    }
+    return toAuthUser(firebaseAuth().currentUser ?? user);
   }
 
   async deleteAccount(password: string, cleanup: () => Promise<void>): Promise<void> {

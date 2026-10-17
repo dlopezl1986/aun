@@ -1010,6 +1010,14 @@ export const en: Translation = {
     stats: { toBuy: 'to buy' },
   },
   sharing: {
+    leave: {
+      button: 'Leave this family',
+      title: 'Leave {{name}}’s family?',
+      message:
+        'You will stop seeing their family, lists and the calendars they share with you. What you added stays in their family. They can invite you again.',
+      confirm: 'Leave',
+      done: 'You left the family',
+    },
     sync: {
       joining: 'Getting {{name}}’s family data…',
       running: 'Syncing…',
@@ -1336,6 +1344,17 @@ export const en: Translation = {
     empty: 'Nothing yet.',
   },
   settings: {
+    password: {
+      title: 'Password',
+      current: 'Current password',
+      new: 'New password',
+      repeat: 'Repeat the new password',
+      save: 'Change password',
+      changed: 'Password changed',
+      wrongCurrent: 'The current password is not correct.',
+      tooShort: 'At least {{count}} characters.',
+      mismatch: 'The passwords do not match.',
+    },
     danger: {
       title: 'Danger zone',
       wipe: 'Delete all content',
@@ -1533,6 +1552,17 @@ export const en: Translation = {
       expoGo: 'Requires the installed app',
     },
   },
+  legal: {
+    privacy: 'Privacy policy',
+    terms: 'Terms of use',
+    acceptPrefix: 'By creating the account you accept the ',
+    acceptAnd: ' and the ',
+    ownerPending: 'the owner of AUN',
+    contactPending: 'the contact e-mail that will be published with the app',
+    draftTitle: 'Draft',
+    draft:
+      'The owner and contact e-mail (EXPO_PUBLIC_LEGAL_OWNER and EXPO_PUBLIC_CONTACT_EMAIL) must be set before publishing in the stores.',
+  },
   auth: {
     emailOrUsername: 'Email or username',
     providerNotEnabled: 'Google and Apple are not enabled yet: sign in with your email and password.',
@@ -1574,6 +1604,16 @@ export const en: Translation = {
     continueWith: { google: 'Continue with Google', apple: 'Continue with Apple' },
     providerRequiresBackend: 'Google and Apple will be available once the AUN backend is enabled.',
     methods: { password: 'Email & password', google: 'Google', apple: 'Apple' },
+    verify: {
+      title: 'Confirm your e-mail',
+      description: 'We sent a link to {{email}}. Confirming it lets you recover the account if you forget the password.',
+      check: 'I have confirmed it',
+      resend: 'Resend link',
+      sent: 'Link sent to {{email}}. Check spam too.',
+      sendFailed: 'Could not send it now. Try again in a few minutes.',
+      done: 'E-mail confirmed. Thanks!',
+      notYet: 'Not confirmed yet. Open the link in the e-mail and tap again.',
+    },
     errors: {
       'invalid-credentials': 'Incorrect email or password.',
       'email-in-use': 'An account with that email already exists.',

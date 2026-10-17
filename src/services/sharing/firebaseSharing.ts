@@ -156,6 +156,28 @@ export class FirebaseSharingService {
     this.onSpacesChanged();
   }
 
+  /** Leaves spaces someone else shares with me (removes only myself; see `leaving` in the rules). */
+  async leave(spaceIds: string[]): Promise<void> {
+    for (const id of spaceIds) {
+      const ref = doc(this.db, 'spaces', id);
+      try {
+        const snap = await getDoc(ref);
+        if (!snap.exists()) continue;
+        const data = snap.data() as { ownerId: string; memberIds: string[]; assignee?: string | null };
+        if (data.ownerId === this.me || !data.memberIds.includes(this.me)) continue;
+        await updateDoc(ref, {
+          memberIds: data.memberIds.filter((m) => m !== this.me),
+          [`roles.${this.me}`]: deleteField(),
+          [`names.${this.me}`]: deleteField(),
+          ...(data.assignee === this.me ? { assignee: null } : {}),
+        });
+      } catch (e) {
+        mapError(e);
+      }
+    }
+    this.onSpacesChanged();
+  }
+
   async createInvite(input: InviteInput): Promise<Invite> {
     for (const [id, def] of Object.entries(input.spaces)) if (input.grants[id]) await this.ensureSpace(id, def);
     const code = `${createId()}${createId()}`.replace(/-/g, '').slice(0, 40);

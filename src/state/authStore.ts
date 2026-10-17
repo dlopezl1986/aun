@@ -14,6 +14,8 @@ interface AuthState {
   updateProfile: (patch: { displayName?: string }) => Promise<AuthUser>;
   signOut: () => Promise<void>;
   deleteAccount: (password: string, cleanup: () => Promise<void>) => Promise<void>;
+  /** Re-reads the user (e.g. the e-mail was just confirmed). */
+  refreshUser: () => Promise<AuthUser | null>;
 }
 
 export const useAuthStore = create<AuthState>()((set, get) => ({
@@ -49,6 +51,12 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
   async signOut() {
     await authGateway.signOut();
     set({ session: null, status: 'signedOut' });
+  },
+  async refreshUser() {
+    const current = get().session;
+    const user = await authGateway.reloadUser();
+    if (current && user) set({ session: { ...current, user } });
+    return user;
   },
   async deleteAccount(password, cleanup) {
     await authGateway.deleteAccount(password, cleanup);

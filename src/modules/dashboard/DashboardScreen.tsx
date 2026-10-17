@@ -19,6 +19,7 @@ import { useServices } from '@/services/ServicesProvider';
 import { useAuthStore } from '@/state/authStore';
 import { useDashboardWidgets, useUserSettings } from '@/state/userSettingsStore';
 import { formatLongDate, greetingKey } from '@/utils/date';
+import { VerifyEmailNotice } from '@/modules/settings/components/VerifyEmailNotice';
 import { GlobalSearch } from './components/GlobalSearch';
 import { HiddenWidgets } from './components/HiddenWidgets';
 import { WidgetGrid } from './components/WidgetGrid';
@@ -100,6 +101,7 @@ export function DashboardScreen() {
         actions={actions}
       />
 
+      {editing ? null : <VerifyEmailNotice />}
       {editing ? null : <GlobalSearch />}
 
       {visible.length ? (

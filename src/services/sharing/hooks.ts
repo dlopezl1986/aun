@@ -50,6 +50,19 @@ export function useDeleteInvite() {
   });
 }
 
+/** Leave every space of one person (their family and the calendars they share with me). */
+export function useLeaveSpaces() {
+  const { t } = useTranslation();
+  const syncNow = useSyncNow();
+  return useDataMutation(
+    async (s, spaceIds: string[]) => {
+      await s.sharing!.leave(spaceIds);
+      await syncNow();
+    },
+    { invalidate: ['sharing', 'calendars', 'events', 'family', 'shopping'], successMessage: t('sharing.leave.done') },
+  );
+}
+
 export function useSetAccess() {
   const { t } = useTranslation();
   const syncNow = useSyncNow();

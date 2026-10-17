@@ -143,6 +143,36 @@ export class LocalAuthGateway implements AuthGateway {
     await this.secure.removeItem(SESSION_KEY);
   }
 
+  async changePassword(current: string, next: string): Promise<void> {
+    if (next.length < MIN_PASSWORD_LENGTH) throw new AuthError('weak-password');
+    const raw = await this.secure.getItem(SESSION_KEY);
+    const userId = raw ? (JSON.parse(raw) as { userId: string }).userId : null;
+    const accounts = await this.accounts();
+    const index = accounts.findIndex((a) => a.user.id === userId);
+    if (index < 0) throw new AuthError('unknown');
+    const account = accounts[index];
+    const hash = await hashPassword(current, account.salt, account.iterations ?? PASSWORD_ITERATIONS);
+    if (!safeEqual(hash, account.passwordHash)) throw new AuthError('invalid-credentials');
+    const salt = createSalt();
+    const updated = accounts.slice();
+    updated[index] = {
+      ...account,
+      salt,
+      passwordHash: await hashPassword(next, salt, PASSWORD_ITERATIONS),
+      iterations: PASSWORD_ITERATIONS,
+    };
+    await writeJson(this.kv, ACCOUNTS_KEY, updated);
+  }
+
+  async sendEmailVerification(): Promise<void> {
+    // Local accounts have no mail server.
+    throw new AuthError('requires-backend');
+  }
+
+  async reloadUser(): Promise<AuthUser | null> {
+    return (await this.restoreSession())?.user ?? null;
+  }
+
   async deleteAccount(password: string, cleanup: () => Promise<void>): Promise<void> {
     const raw = await this.secure.getItem(SESSION_KEY);
     const userId = raw ? (JSON.parse(raw) as { userId: string }).userId : null;
