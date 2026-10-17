@@ -39,6 +39,9 @@ jobs:
       - run: npm ci --prefix notifier
       - run: npm install -g firebase-tools@15.33.0
 
+      # Expo's ambient types (git-ignored file that `expo start` creates locally).
+      - run: echo '/// <reference types="expo/types" />' > expo-env.d.ts
+
       - name: Types, lint, i18n, format and unit tests
         run: npm run check
 
