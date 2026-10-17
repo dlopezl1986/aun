@@ -53,6 +53,33 @@ Prueba real con dos cuentas (Ana y Bea) en el emulador de Firebase, con clics re
 - **Red de seguridad:** al abrir la app, al volver a ella, al recuperar conexión y cada 10 min.
 - **Permisos:** si cambia lo que te comparten (te invitan o te quitan), se sincroniza al momento.
 
+## 2 bis. Hecho después de la auditoría (17 oct, gratis)
+
+- ✅ **Almacenamiento sin límite.**
+  - Web: de `localStorage` (~5 MB) a IndexedDB, con migración automática probada sobre una cuenta con datos, sin pérdidas.
+  - Móvil: de AsyncStorage (6 MB en Android) a SQLite.
+- ✅ **Verificación del email** al registrarse, con aviso en Inicio y Perfil y botones para reenviar o comprobar.
+- ✅ **Cambiar contraseña** (Perfil) y **salir de una familia** (Familia). Probado con dos cuentas en el emulador.
+- ✅ **Política de privacidad y condiciones de uso** en `/legal/privacy` y `/legal/terms`.
+  - Son públicas y están enlazadas al crear la cuenta y en Ajustes.
+  - Falta poner el titular y el email de contacto (`EXPO_PUBLIC_LEGAL_OWNER`, `EXPO_PUBLIC_CONTACT_EMAIL`). Hasta entonces se muestran como borrador.
+- ✅ **Protección contra borrado** de la base de datos de producción, activada.
+- ✅ **Invitaciones caducadas y resúmenes pasados** se borran solos. Lo hace el notificador, porque la política TTL de Firestore exige facturación.
+- ✅ **El despliegue no publica si falla algún test** (tipos, lint, unitarios, reglas y notificador con emuladores). En la primera ejecución ya frenó un error de tipos.
+
+### Lo que queda y por qué no es gratis (o no puedo hacerlo yo)
+
+| Pendiente                       | Motivo                                                                                                                                                                                                                                                                                                 |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Repo privado                    | En privado, GitHub Pages es de pago (Pro, 4 $/mes). Además, el notificador (cada 5 min) agotaría los 2.000 min/mes gratis de Actions. Alternativa gratis: app en un repo privado con Firebase Hosting y notificador en uno público. Requiere que crees una clave de servicio nueva para el despliegue. |
+| Base de datos en Europa         | Requiere un proyecto Firebase nuevo y migrar cuentas. Las contraseñas no se pueden migrar sin los parámetros de hash de la consola, así que habría que pedir a cada uno que la restablezca. Mejor decidirlo antes de tener clientes.                                                                   |
+| PITR / copias de seguridad, TTL | Requieren activar facturación (plan Blaze).                                                                                                                                                                                                                                                            |
+| App Check                       | Hay que registrar la web en reCAPTCHA y en la consola de Firebase (tu cuenta). Es gratis pero lo tienes que hacer tú.                                                                                                                                                                                  |
+| Notificaciones push             | En la web hace falta generar la clave VAPID en la consola (tú). En iPhone hace falta la cuenta de Apple Developer (99 $/año).                                                                                                                                                                          |
+| Build de iPhone / TestFlight    | Cuenta de Apple Developer (99 $/año) y cuenta de Expo (gratis, pero la creas tú).                                                                                                                                                                                                                      |
+| Cobro (RevenueCat)              | Necesita las tiendas configuradas.                                                                                                                                                                                                                                                                     |
+| Avisos fiables cada 5 min       | Pendiente de que configures cron-job.org (gratis) o Cloud Functions (Blaze).                                                                                                                                                                                                                           |
+
 ## 3. Bloqueantes para la App Store (P0)
 
 1. **Cobrar.** No existe nada de pago.
@@ -119,7 +146,7 @@ Prueba real con dos cuentas (Ana y Bea) en el emulador de Firebase, con clics re
 - **Calidad en el despliegue.** El despliegue (`deploy.yml`) **no pasa los tests** antes de publicar. Hay que añadir `npm run check` y los tests de reglas al flujo.
 - **Pruebas de extremo a extremo.** No hay automáticas: Maestro para móvil, Playwright para web. Hoy se prueba a mano.
 - **Errores y uso.** Falta un sistema de errores (Sentry) para enterarte de los fallos de los clientes, y analítica respetuosa con la privacidad para saber qué se usa.
-- **Código muerto de Supabase** (backend anterior). Conviene quitarlo para reducir superficie y tamaño.
+- **Cliente «tipo Supabase»** (`services/backend/supabase.ts`). No es código muerto: lo usa el servidor local de desarrollo (`server/aun-local-server.mjs`). Se queda.
 - **Versión y nombre.** Versión `0.1.0` e identificador `com.aun.allyouneed`. Comprobar que "AUN" está libre como marca en la App Store y en la OEPM/EUIPO.
 - **Funcionalidad que falta para un producto.** Hoy, salvo eliminando la cuenta, no se puede:
   - "Salir de una familia" por iniciativa propia. La regla del servidor ya existe; falta el botón.
