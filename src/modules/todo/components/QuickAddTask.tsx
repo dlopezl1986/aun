@@ -32,6 +32,8 @@ interface QuickAddTaskProps {
   /** Called after a task is saved (e.g. to close a sheet). */
   onAdded?: () => void;
   compact?: boolean;
+  /** Just the input line until something is typed (keeps the list in view). */
+  collapsible?: boolean;
 }
 
 /**
@@ -48,6 +50,7 @@ export function QuickAddTask({
   autoFocus,
   onAdded,
   compact,
+  collapsible,
 }: QuickAddTaskProps) {
   const { t } = useTranslation();
   const locale = useLocale();
@@ -63,6 +66,7 @@ export function QuickAddTask({
   const parsed = useMemo(() => parseQuickTask(text, { today, projects }), [text, today, projects]);
   const parsedProject = parsed.projectId ? projects.find((p) => p.id === parsed.projectId) : undefined;
   const hasTokens = !!(parsed.dueDate || parsed.priority || parsed.tagNames.length || parsed.projectId);
+  const showOptions = !collapsible || text.length > 0;
 
   const submit = () => {
     if (!parsed.title) return;
@@ -130,7 +134,7 @@ export function QuickAddTask({
         </View>
         <Button label={t('common.add')} onPress={submit} loading={add.isPending} disabled={!parsed.title} />
       </View>
-      {hasTokens ? (
+      {!showOptions ? null : hasTokens ? (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: spacing.xs }} accessibilityLiveRegion="polite">
           <AppText variant="caption" tone="textSubtle">
             {t('todo.quickAdd.detected')}
@@ -147,15 +151,17 @@ export function QuickAddTask({
           {t('todo.quickAdd.hint')}
         </AppText>
       )}
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }} accessibilityRole="radiogroup">
-        {chip('none', t('todo.quickAdd.noDate'), when === 'none' && !parsed.dueDate, () => setWhen('none'))}
-        {chip('today', t('common.today'), when === 'today' && !parsed.dueDate, () => setWhen('today'))}
-        {chip('tomorrow', t('common.tomorrow'), when === 'tomorrow' && !parsed.dueDate, () => setWhen('tomorrow'))}
-        <View style={{ width: 1, backgroundColor: colors.border, marginHorizontal: spacing.xs }} />
-        {PRIORITIES.map((p) =>
-          chip(`p${p}`, t(`todo.priority.short${p}`), (parsed.priority ?? priority) === p, () => setPriority(p), priorityColors[p]),
-        )}
-      </View>
+      {showOptions ? (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }} accessibilityRole="radiogroup">
+          {chip('none', t('todo.quickAdd.noDate'), when === 'none' && !parsed.dueDate, () => setWhen('none'))}
+          {chip('today', t('common.today'), when === 'today' && !parsed.dueDate, () => setWhen('today'))}
+          {chip('tomorrow', t('common.tomorrow'), when === 'tomorrow' && !parsed.dueDate, () => setWhen('tomorrow'))}
+          <View style={{ width: 1, backgroundColor: colors.border, marginHorizontal: spacing.xs }} />
+          {PRIORITIES.map((p) =>
+            chip(`p${p}`, t(`todo.priority.short${p}`), (parsed.priority ?? priority) === p, () => setPriority(p), priorityColors[p]),
+          )}
+        </View>
+      ) : null}
     </View>
   );
 }

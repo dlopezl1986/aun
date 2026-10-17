@@ -108,3 +108,22 @@ export function openCounts(tasks: Task[]): { byProject: Map<string, number>; byT
   }
   return { byProject, byTag };
 }
+
+export type PendingGroupKey = 'overdue' | 'today' | 'upcoming' | 'someday';
+
+/**
+ * "Pendientes" (the ToDo landing view): every open top-level task, grouped by
+ * when it is due — overdue, today, next dates (in date order) and no date.
+ * Empty groups are omitted.
+ */
+export function pendingGroups(tasks: Task[], today: DateKey): { key: PendingGroupKey; tasks: Task[] }[] {
+  const open = sortTasks(tasks.filter((t) => !t.parentTaskId && isOpen(t)));
+  const byDate = (a: Task, b: Task) => (`${a.dueDate}${a.dueTime ?? '99'}` < `${b.dueDate}${b.dueTime ?? '99'}` ? -1 : 1);
+  const groups: { key: PendingGroupKey; tasks: Task[] }[] = [
+    { key: 'overdue', tasks: open.filter((t) => !!t.dueDate && t.dueDate < today).sort(byDate) },
+    { key: 'today', tasks: open.filter((t) => t.dueDate === today) },
+    { key: 'upcoming', tasks: open.filter((t) => !!t.dueDate && t.dueDate > today).sort(byDate) },
+    { key: 'someday', tasks: open.filter((t) => !t.dueDate) },
+  ];
+  return groups.filter((g) => g.tasks.length > 0);
+}

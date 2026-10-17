@@ -1,4 +1,4 @@
-import { filterTasks, taskCounts } from '../selectors';
+import { filterTasks, pendingGroups, taskCounts } from '../selectors';
 import type { Task } from '../types';
 
 let n = 0;
@@ -51,5 +51,30 @@ describe('task views', () => {
     expect(c.overdue).toBe(1);
     expect(c.upcoming).toBe(1);
     expect(c.completed).toBe(1);
+  });
+});
+
+describe('pending landing view', () => {
+  it('groups every open task by when it is due, in a useful order', () => {
+    const late = task({ dueDate: '2026-10-03' });
+    const later = task({ dueDate: '2026-10-05', priority: 1 });
+    const now = task({ dueDate: today, priority: 3 });
+    const now1 = task({ dueDate: today, priority: 1 });
+    const soon = task({ dueDate: '2026-10-09' });
+    const next = task({ dueDate: '2026-10-08', priority: 4 });
+    const someday = task({});
+    const done = task({ status: 'completed' });
+    const sub = task({ parentTaskId: someday.id });
+    const groups = pendingGroups([late, later, now, now1, soon, next, someday, done, sub], today);
+    expect(groups.map((g) => [g.key, g.tasks.map((t) => t.id)])).toEqual([
+      ['overdue', [late.id, later.id]],
+      ['today', [now1.id, now.id]],
+      ['upcoming', [next.id, soon.id]],
+      ['someday', [someday.id]],
+    ]);
+  });
+
+  it('omits empty groups', () => {
+    expect(pendingGroups([task({})], today).map((g) => g.key)).toEqual(['someday']);
   });
 });

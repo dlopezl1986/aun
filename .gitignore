@@ -54,3 +54,4 @@ firebase-debug.log
 firestore-debug.log
 ui-debug.log
 dev/emulator-accounts.json
+dev/qa-todo-account.json

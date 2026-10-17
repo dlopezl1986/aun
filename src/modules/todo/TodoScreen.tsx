@@ -1,5 +1,5 @@
-import { router, useLocalSearchParams } from 'expo-router';
-import { useMemo, useState, type ReactNode } from 'react';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ScrollView, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
@@ -11,11 +11,10 @@ import { AppText } from '@/components/ui/AppText';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Divider } from '@/components/ui/Divider';
-import { Icon } from '@/components/ui/Icon';
+import { Icon, type IconName } from '@/components/ui/Icon';
 import { IconButton } from '@/components/ui/IconButton';
 import { ListRow } from '@/components/ui/ListRow';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
-import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { useLocale } from '@/hooks/useLocale';
 import { useTheme } from '@/theme';
 import { addDays, formatLongDate, fromDateKey, toDateKey } from '@/utils/date';
@@ -40,7 +39,16 @@ import {
 } from './hooks';
 import { todoMeta } from './meta';
 import { usePriorityColors } from './priority';
-import { filterTasks, groupByDate, groupByPriority, openCounts, projectGroups, tagTasks } from './selectors';
+import {
+  filterTasks,
+  groupByDate,
+  groupByPriority,
+  openCounts,
+  pendingGroups,
+  projectGroups,
+  tagTasks,
+  type PendingGroupKey,
+} from './selectors';
 import type { Project, Task, TaskView, TodoTarget } from './types';
 
 const VIEWS: TaskView[] = SMART_VIEWS.map((v) => v.view);
@@ -51,7 +59,8 @@ function targetFromParams(p: { view?: string; project?: string; tag?: string }):
   if (p.view === 'projects') return { kind: 'projects' };
   if (p.view === 'tags') return { kind: 'tags' };
   if (p.view && (VIEWS as string[]).includes(p.view)) return { kind: 'view', view: p.view as TaskView };
-  return { kind: 'view', view: 'today' };
+  // Landing: everything that is pending, grouped by when it is due.
+  return { kind: 'view', view: 'all' };
 }
 
 function select(target: TodoTarget) {
@@ -62,8 +71,34 @@ function select(target: TodoTarget) {
   });
 }
 
-function GroupHeader({ title, color, right, count }: { title: string; color?: string; right?: ReactNode; count?: number }) {
-  const { spacing } = useTheme();
+const PENDING_ICONS: Record<PendingGroupKey, IconName> = {
+  overdue: 'alert-circle',
+  today: 'sun',
+  upcoming: 'calendar',
+  someday: 'inbox',
+};
+
+/** Filters shown under the header ("Pendientes" first; the rest is secondary). */
+const FILTERS = ['all', 'today', 'priorities', 'projects', 'tags', 'completed'] as const;
+
+function GroupHeader({
+  title,
+  color,
+  icon = 'flag',
+  tone,
+  right,
+  count,
+}: {
+  title: string;
+  color?: string;
+  icon?: IconName;
+  /** Theme colour resolved here (inside the card palette). */
+  tone?: 'danger' | 'primary' | 'textMuted';
+  right?: ReactNode;
+  count?: number;
+}) {
+  const { spacing, colors } = useTheme();
+  if (tone) color = colors[tone];
   return (
     <View
       style={{
@@ -75,7 +110,7 @@ function GroupHeader({ title, color, right, count }: { title: string; color?: st
         minHeight: 40,
       }}
     >
-      {color ? <Icon name="flag" size={14} color={color} /> : null}
+      {color ? <Icon name={icon} size={14} color={color} /> : null}
       <AppText variant="smallStrong" style={{ flex: 1 }} accessibilityRole="header">
         {title}
         {count !== undefined ? (
@@ -96,10 +131,26 @@ export function TodoScreen() {
   const { spacing } = useTheme();
   const dialog = useDialog();
   const priorityColors = usePriorityColors();
-  const { breakpoint } = useBreakpoint();
   const params = useLocalSearchParams<{ view?: string; project?: string; tag?: string; task?: string }>();
   const target = targetFromParams(params);
-  const sideNav = breakpoint === 'expanded' || breakpoint === 'wide';
+
+  // Coming back to the ToDo tab always lands on "Pendientes" (filters are per visit),
+  // unless we arrive to open a specific task.
+  const left = useRef(false);
+  const openingTask = useRef(false);
+  const taskParam = typeof params.task === 'string';
+  useEffect(() => {
+    openingTask.current = taskParam;
+  }, [taskParam]);
+  useFocusEffect(
+    useCallback(() => {
+      if (left.current && !openingTask.current) router.setParams({ view: undefined, project: undefined, tag: undefined });
+      left.current = false;
+      return () => {
+        left.current = true;
+      };
+    }, []),
+  );
 
   const { counts, today, isLoading, isError, refetch, data } = useTaskView('all');
   const all = useMemo(() => data ?? [], [data]);
@@ -161,6 +212,8 @@ export function TodoScreen() {
   let title = t('modules.todo.title');
   let subtitle = t('todo.subtitle');
   if (target.kind === 'view') title = t(`todo.views.${target.view}`);
+  if (target.kind === 'view' && target.view === 'all')
+    subtitle = counts.all ? t('todo.pending.subtitle', { count: counts.all }) : t('todo.pending.allDone');
   if (target.kind === 'projects') title = t('todo.views.projects');
   if (target.kind === 'tags') title = t('todo.views.tags');
   if (project) {
@@ -183,7 +236,20 @@ export function TodoScreen() {
   if (target.kind === 'view') {
     const list = filterTasks(all, target.view, today);
     if (!list.length) content = empty(target.view);
-    else if (target.view === 'upcoming') {
+    else if (target.view === 'all') {
+      const groupTones = { overdue: 'danger', today: 'primary', upcoming: 'textMuted', someday: 'textMuted' } as const;
+      content = pendingGroups(list, today).map(({ key, tasks }) => (
+        <View key={key}>
+          <GroupHeader
+            title={key === 'today' ? `${t('common.today')} · ${formatLongDate(fromDateKey(today), locale)}` : t(`todo.pending.${key}`)}
+            icon={PENDING_ICONS[key]}
+            tone={groupTones[key]}
+            count={tasks.length}
+          />
+          {rows(tasks)}
+        </View>
+      ));
+    } else if (target.view === 'upcoming') {
       const tomorrow = toDateKey(addDays(fromDateKey(today), 1));
       content = groupByDate(list).map(([date, items]) => (
         <View key={date}>
@@ -407,9 +473,10 @@ export function TodoScreen() {
       <QuickAddTask
         key={JSON.stringify(target)}
         today={today}
-        defaultWhen={target.kind === 'view' && (target.view === 'today' || target.view === 'all') ? 'today' : 'none'}
+        defaultWhen={target.kind === 'view' && target.view === 'today' ? 'today' : 'none'}
         projectId={project?.id}
         tagId={tag?.id}
+        collapsible
       />
     </Card>
   ) : null;
@@ -442,25 +509,13 @@ export function TodoScreen() {
     </View>
   ) : undefined;
 
-  const mobileTargets: { value: string; label: string }[] = [
-    ...SMART_VIEWS.map(({ view }) => ({
-      value: view,
-      label: counts[view] && view !== 'completed' ? `${t(`todo.views.${view}`)} · ${counts[view]}` : t(`todo.views.${view}`),
-    })),
-    { value: 'projects', label: t('todo.views.projects') },
-    { value: 'tags', label: t('todo.views.tags') },
-  ];
-  const mobileSelected =
+  const filterOptions = FILTERS.map((value) => {
+    const label = t(`todo.views.${value}`);
+    const count = value === 'all' || value === 'today' || value === 'priorities' ? counts[value] : 0;
+    return { value, label: count ? `${label} · ${count}` : label };
+  });
+  const selectedFilter =
     target.kind === 'view' ? target.view : target.kind === 'project' ? 'projects' : target.kind === 'tag' ? 'tags' : target.kind;
-
-  const main = (
-    <View style={{ flex: 1, gap: spacing.lg, minWidth: 0 }}>
-      {quickAdd}
-      <Card padded={false} style={{ paddingVertical: 8, paddingHorizontal: 8 }}>
-        {isLoading || structure.isLoading ? <LoadingState /> : isError ? <ErrorState onRetry={() => void refetch()} /> : content}
-      </Card>
-    </View>
-  );
 
   return (
     <Screen>
@@ -470,40 +525,27 @@ export function TodoScreen() {
         icon={project ? 'folder' : tag ? 'hash' : todoMeta.icon}
         accent={project?.color ?? tag?.color ?? todoMeta.accent}
         actions={headerActions}
-        onBack={!sideNav && (project || tag) ? () => select({ kind: project ? 'projects' : 'tags' }) : undefined}
+        onBack={project || tag ? () => select({ kind: project ? 'projects' : 'tags' }) : undefined}
       />
-      {sideNav ? (
-        <View style={{ flexDirection: 'row', gap: spacing.xl, alignItems: 'flex-start' }}>
-          <Card style={{ width: 270 }} padded={false}>
-            <View style={{ padding: spacing.sm }} accessibilityRole="menu" accessibilityLabel={t('todo.viewsLabel')}>
-              <TodoNav
-                target={target}
-                counts={counts}
-                onSelect={select}
-                onNewProject={(areaId) => setProjectSheet({ open: true, project: null, areaId })}
-              />
-            </View>
-          </Card>
-          {main}
-        </View>
-      ) : (
-        <>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={{ flexGrow: 0 }}
-            contentContainerStyle={{ paddingRight: spacing.md }}
-          >
-            <ChipGroup<string>
-              accessibilityLabel={t('todo.viewsLabel')}
-              options={mobileTargets}
-              selected={mobileSelected}
-              onToggle={(v) => select(v === 'projects' || v === 'tags' ? { kind: v } : { kind: 'view', view: v as TaskView })}
-            />
-          </ScrollView>
-          {main}
-        </>
-      )}
+      <View style={{ gap: spacing.lg, width: '100%', maxWidth: 860, alignSelf: 'center' }}>
+        {quickAdd}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={{ flexGrow: 0 }}
+          contentContainerStyle={{ paddingRight: spacing.md }}
+        >
+          <ChipGroup<string>
+            accessibilityLabel={t('todo.viewsLabel')}
+            options={filterOptions}
+            selected={selectedFilter}
+            onToggle={(v) => select(v === 'projects' || v === 'tags' ? { kind: v } : { kind: 'view', view: v as TaskView })}
+          />
+        </ScrollView>
+        <Card padded={false} style={{ paddingVertical: 8, paddingHorizontal: 8 }}>
+          {isLoading || structure.isLoading ? <LoadingState /> : isError ? <ErrorState onRetry={() => void refetch()} /> : content}
+        </Card>
+      </View>
       <ProjectFormSheet
         visible={projectSheet.open}
         project={projectSheet.project}

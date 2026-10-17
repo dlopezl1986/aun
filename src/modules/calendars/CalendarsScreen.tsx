@@ -1,5 +1,5 @@
-import { router, useLocalSearchParams } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useMemo, useState } from 'react';
 import { Pressable, View, useWindowDimensions } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
@@ -21,7 +21,17 @@ import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { useLocale } from '@/hooks/useLocale';
 import { useToday } from '@/hooks/useToday';
 import { accentPalette, useTheme } from '@/theme';
-import { addDays, addMonths, formatLongDate, formatMonthYear, formatShortDate, fromDateKey, monthMatrix, toDateKey } from '@/utils/date';
+import {
+  addDays,
+  addMonths,
+  formatLongDate,
+  formatMonthYear,
+  formatShortDate,
+  fromDateKey,
+  monthMatrix,
+  toDateKey,
+  todayKey,
+} from '@/utils/date';
 import { mondayIndex } from '@/utils/recurrence';
 import { CalendarFormSheet } from './components/CalendarFormSheet';
 import { CalendarList } from './components/CalendarList';
@@ -70,8 +80,18 @@ export function CalendarsScreen() {
   const today = useToday();
   const params = useLocalSearchParams<{ event?: string; day?: string }>();
 
-  const [mode, setMode] = useState<ViewMode>(isCompact ? 'agenda' : 'week');
+  const [mode, setMode] = useState<ViewMode>('month');
   const [selected, setSelected] = useState(today);
+  // Tabs stay mounted: every time the user comes back to Calendarios it opens on this month.
+  useFocusEffect(
+    useCallback(
+      () => () => {
+        setMode('month');
+        setSelected(todayKey());
+      },
+      [],
+    ),
+  );
   const [calendarSheet, setCalendarSheet] = useState<{ open: boolean; calendar: Calendar | null }>({ open: false, calendar: null });
   const [eventForm, setEventForm] = useState<{ open: boolean; event: CalendarEvent | null; date: string; time: string | null }>({
     open: false,
