@@ -47,6 +47,7 @@ export function useRemoteNotifyPublisher() {
     // Debounced: data changes come in bursts (sync, several edits).
     timer.current = setTimeout(() => {
       void (async () => {
+        if (services.sync?.isStopped) return; // account being deleted
         try {
           await notify.publishAlerts(telegramAlerts ? alerts : []);
           if (daily) {

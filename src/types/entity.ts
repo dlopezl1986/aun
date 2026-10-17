@@ -16,6 +16,11 @@ export interface BaseEntity {
    * pushed yet. Clock-independent, never sent to the server.
    */
   dirty?: boolean;
+  /**
+   * Local-only: the shared space the server keeps this row in (null = private,
+   * missing = not known yet). Used to forget rows we are no longer allowed to see.
+   */
+  space?: string | null;
 }
 
 export type EntityInput<T extends BaseEntity> = Omit<T, keyof BaseEntity>;

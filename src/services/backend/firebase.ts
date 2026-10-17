@@ -2,19 +2,17 @@
  * Firebase client for AUN.
  *
  * Uses the Firebase JS SDK (modular, tree-shakeable). Auth state persists in
- * `browserLocalPersistence` on web and `asyncStorage` on native.
+ * the browser's local storage on web and AsyncStorage on native
+ * (firebaseAuthInit.ts / .native.ts).
  */
 import { initializeApp, type FirebaseApp } from 'firebase/app';
 import {
-  browserLocalPersistence,
   connectAuthEmulator,
   createUserWithEmailAndPassword,
-  getAuth,
   GoogleAuthProvider,
   OAuthProvider,
   onAuthStateChanged,
   sendPasswordResetEmail,
-  setPersistence,
   signInWithEmailAndPassword,
   signInWithPopup,
   signOut as fbSignOut,
@@ -37,6 +35,8 @@ import {
   type Firestore,
 } from 'firebase/firestore';
 
+import { createFirebaseAuth } from './firebaseAuthInit';
+
 // ---------------------------------------------------------------------------
 // Init
 // ---------------------------------------------------------------------------
@@ -57,19 +57,19 @@ let _auth: Auth | null = null;
 let _db: Firestore | null = null;
 
 export function initFirebase(cfg: FirebaseConfig) {
+  if (_app) return; // once (initializeAuth cannot run twice)
   _app = initializeApp(cfg);
   _db = initializeFirestore(_app, {
-    // Plain HTTP long polling: AUN only makes one-shot reads/writes (no live
-    // listeners), and the default streaming connection can hang inside in-app
-    // browsers (WhatsApp, Instagram…) and on some mobile networks/proxies.
+    // Plain HTTP long polling: the default streaming connection can hang
+    // inside in-app browsers (WhatsApp, Instagram…) and on some mobile
+    // networks/proxies. Live listeners (sync watch) work over it too.
     experimentalForceLongPolling: true,
   });
-  _auth = getAuth(_app);
+  _auth = createFirebaseAuth(_app);
   if (cfg.emulatorHost) {
     connectAuthEmulator(_auth, `http://${cfg.emulatorHost}:9099`, { disableWarnings: true });
     connectFirestoreEmulator(_db, cfg.emulatorHost, 8080);
   }
-  setPersistence(_auth, browserLocalPersistence).catch(() => undefined);
 }
 
 export function firebaseAuth(): Auth {

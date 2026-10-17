@@ -31,4 +31,28 @@ describe('wipeUserContent', () => {
     expect(raw[0].deletedAt).toBeTruthy();
     expect((await other.tasks.list()).map((t) => t.title)).toEqual(['No es mío']);
   });
+
+  it('never deletes what someone else shares with me, nor my events in their calendar', async () => {
+    const kv = memoryStore();
+    const me = createServices('me', kv, null);
+    const at = '2026-10-01T10:00:00.000Z';
+    const base = { createdAt: at, updatedAt: at, deletedAt: null };
+    // Arrived by sync: the partner's calendar with one of their events and one of mine.
+    await me.collections
+      .get('calendars')!
+      .mergeRemote([{ id: 'cal-p', ownerId: 'partner', name: 'Niños', color: '#f00', ...base } as never]);
+    await me.collections
+      .get('events')!
+      .mergeRemote([
+        { id: 'ev-p', ownerId: 'partner', calendarId: 'cal-p', title: 'Natación', ...base } as never,
+        { id: 'ev-me', ownerId: 'me', calendarId: 'cal-p', title: 'Dentista', ...base } as never,
+      ]);
+    await me.tasks.quickAdd({ title: 'Mía' });
+
+    const r = await wipeUserContent(me, kv);
+    expect(r.rows).toBe(1);
+    expect((await me.collections.get('events')!.list()).map((e) => e.id).sort()).toEqual(['ev-me', 'ev-p']);
+    expect(await me.collections.get('calendars')!.list()).toHaveLength(1);
+    expect(await me.tasks.list()).toHaveLength(0);
+  });
 });

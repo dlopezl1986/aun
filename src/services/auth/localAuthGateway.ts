@@ -142,4 +142,21 @@ export class LocalAuthGateway implements AuthGateway {
   async signOut(): Promise<void> {
     await this.secure.removeItem(SESSION_KEY);
   }
+
+  async deleteAccount(password: string, cleanup: () => Promise<void>): Promise<void> {
+    const raw = await this.secure.getItem(SESSION_KEY);
+    const userId = raw ? (JSON.parse(raw) as { userId: string }).userId : null;
+    const accounts = await this.accounts();
+    const account = accounts.find((a) => a.user.id === userId);
+    if (!account) throw new AuthError('unknown');
+    const hash = await hashPassword(password, account.salt, account.iterations ?? PASSWORD_ITERATIONS);
+    if (!safeEqual(hash, account.passwordHash)) throw new AuthError('invalid-credentials');
+    await cleanup();
+    await writeJson(
+      this.kv,
+      ACCOUNTS_KEY,
+      accounts.filter((a) => a.user.id !== account.user.id),
+    );
+    await this.secure.removeItem(SESSION_KEY);
+  }
 }

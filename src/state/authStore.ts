@@ -13,6 +13,7 @@ interface AuthState {
   signInWithProvider: (method: Exclude<AuthMethod, 'password'>) => Promise<void>;
   updateProfile: (patch: { displayName?: string }) => Promise<AuthUser>;
   signOut: () => Promise<void>;
+  deleteAccount: (password: string, cleanup: () => Promise<void>) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>()((set, get) => ({
@@ -47,6 +48,10 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
   },
   async signOut() {
     await authGateway.signOut();
+    set({ session: null, status: 'signedOut' });
+  },
+  async deleteAccount(password, cleanup) {
+    await authGateway.deleteAccount(password, cleanup);
     set({ session: null, status: 'signedOut' });
   },
 }));

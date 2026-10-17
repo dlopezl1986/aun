@@ -149,3 +149,150 @@ describe('sync engine with a sharing backend', () => {
     expect(cursors.slice(-1)[0]).toBeNull();
   });
 });
+
+describe('fast, safe family sync', () => {
+  const at = (s: string) => `2026-10-0${s}T10:00:00.000Z`;
+  const row = (id: string, ownerId: string, extra: Record<string, unknown> = {}) =>
+    ({ id, ownerId, createdAt: at('1'), updatedAt: at('1'), deletedAt: null, title: id, ...extra }) as never;
+  const idle = (extra: Partial<RemoteStore> = {}): RemoteStore => ({
+    id: 'fake',
+    pull: async () => ({ records: [], cursor: null, hasMore: false }),
+    push: async () => ({ restored: [] }),
+    ...extra,
+  });
+
+  it('an edit right after receiving a row from a device whose clock runs ahead still wins', async () => {
+    const s = createServices('u', memoryStore(), null);
+    const tasks = s.collections.get('tasks')!;
+    const future = new Date(Date.now() + 3_600_000).toISOString();
+    await tasks.mergeRemote([{ ...(row('t1', 'u') as object), updatedAt: future } as never]);
+    const edited = await s.tasks.update('t1', { title: 'Mío, después' });
+    expect(edited.updatedAt > future).toBe(true);
+  });
+
+  it('every change made on this device is announced (to upload it at once), synced ones are not', async () => {
+    const s = createServices('u', memoryStore(), idle());
+    const seen: string[] = [];
+    const off = s.onLocalChange((c) => seen.push(c));
+    const t = await s.tasks.quickAdd({ title: 'Uno' });
+    await s.collections.get('events')!.mergeRemote([row('e1', 'other')]);
+    await s.sync!.sync();
+    await s.tasks.remove(t.id);
+    off();
+    await s.tasks.quickAdd({ title: 'Dos' });
+    expect(seen.filter((c) => c === 'tasks')).toHaveLength(2);
+    expect(seen).not.toContain('events');
+  });
+
+  it('a change made while a sync is running is uploaded right after it, not left behind', async () => {
+    const pushed: string[] = [];
+    let release: () => void = () => undefined;
+    let first = true;
+    const s = createServices(
+      'u',
+      memoryStore(),
+      idle({
+        push: async (records) => {
+          if (first) {
+            first = false;
+            await new Promise<void>((r) => (release = r));
+          }
+          pushed.push(...records.map((r) => (r.data as unknown as { title: string }).title));
+          return { restored: [] };
+        },
+      }),
+    );
+    await s.tasks.quickAdd({ title: 'Antes' });
+    const running = s.sync!.sync();
+    await new Promise((r) => setTimeout(r, 5));
+    await s.tasks.quickAdd({ title: 'Durante' });
+    const queued = s.sync!.sync();
+    release();
+    await running;
+    await queued;
+    expect(pushed).toEqual(['Antes', 'Durante']);
+    expect(await s.sync!.pending()).toHaveLength(0);
+  });
+
+  it('joining someone’s family uploads my own rows again (to move them there), never theirs', async () => {
+    const kv = memoryStore();
+    let household = 'u';
+    const pushed: string[] = [];
+    const remote = idle({
+      layout: async () => household,
+      push: async (records) => {
+        pushed.push(...records.map((r) => r.id));
+        return { restored: [] };
+      },
+    });
+    const s = createServices('u', kv, remote);
+    const mine = await s.tasks.quickAdd({ title: 'Mía' });
+    await s.collections.get('shoppingItems')!.mergeRemote([row('theirs', 'partner')]);
+    await s.sync!.sync();
+    expect(pushed).toEqual([mine.id]);
+    household = 'partner';
+    await s.sync!.sync();
+    expect(pushed).toEqual([mine.id, mine.id]);
+    await s.sync!.sync();
+    expect(pushed).toHaveLength(2); // once
+    household = 'u'; // leaving: what I added stays in that family
+    await s.sync!.sync();
+    expect(pushed).toHaveLength(2);
+  });
+
+  it('when someone stops sharing with me, their rows leave this device; mine stay', async () => {
+    const s = createServices('u', memoryStore(), idle({ isGone: (_c, r) => r.space === 'cal_partner_kids' && r.ownerId !== 'u' }));
+    const events = s.collections.get('events')!;
+    await events.mergeRemote([
+      row('theirs', 'partner', { space: 'cal_partner_kids' }),
+      row('mine-there', 'u', { space: 'cal_partner_kids' }),
+      row('still-shared', 'partner', { space: 'fam_partner' }),
+    ]);
+    await s.sync!.sync();
+    expect((await events.listAllRaw()).map((r) => r.id).sort()).toEqual(['mine-there', 'still-shared']);
+  });
+
+  it('live changes from the family are merged at once and the screens told to refresh', async () => {
+    let handlers: Parameters<NonNullable<RemoteStore['watch']>>[0] | null = null;
+    const s = createServices('u', memoryStore(), idle({ watch: (h) => ((handlers = h), () => undefined) }));
+    const onChanged = jest.fn();
+    const onAccess = jest.fn();
+    s.sync!.watch({ onChanged, onAccess });
+    const record: RemoteRecord = {
+      collection: 'shoppingItems',
+      id: 'milk',
+      data: row('milk', 'partner', { space: 'fam_partner' }),
+      updatedAt: at('2'),
+      deletedAt: null,
+    };
+    handlers!.onRecords([record]);
+    await new Promise((r) => setTimeout(r, 10));
+    expect(onChanged).toHaveBeenCalledTimes(1);
+    expect((await s.collections.get('shoppingItems')!.list()).map((r) => r.id)).toEqual(['milk']);
+    handlers!.onRecords([record]); // the same version again (e.g. our echo): nothing to refresh
+    await new Promise((r) => setTimeout(r, 10));
+    expect(onChanged).toHaveBeenCalledTimes(1);
+    handlers!.onAccess();
+    expect(onAccess).toHaveBeenCalled();
+  });
+
+  it('a pushed row never carries local-only fields (dirty, space)', async () => {
+    const pushed: RemoteRecord[] = [];
+    const s = createServices(
+      'u',
+      memoryStore(),
+      idle({
+        push: async (r) => {
+          pushed.push(...r);
+          return { restored: [] };
+        },
+      }),
+    );
+    await s.collections.get('tasks')!.mergeRemote([row('t', 'u', { space: null })]);
+    await s.tasks.update('t', { title: 'cambiada' });
+    await s.sync!.sync();
+    expect(pushed).toHaveLength(1);
+    expect('space' in pushed[0].data).toBe(false);
+    expect('dirty' in pushed[0].data).toBe(false);
+  });
+});

@@ -1339,7 +1339,8 @@ export const es = {
     danger: {
       title: 'Zona de peligro',
       wipe: 'Borrar todo el contenido',
-      wipeHint: 'Tareas, calendarios, documentos, familia, avisos y correo conectado. Tu cuenta y tus preferencias se mantienen.',
+      wipeHint:
+        'Tareas, calendarios, documentos, familia, avisos y correo conectado. Lo que otros comparten contigo no se toca. Tu cuenta y tus preferencias se mantienen.',
       wipeTitle: '¿Borrar todo el contenido?',
       wipeMessage:
         'Se eliminarán todas tus tareas, calendarios y eventos, carpetas y documentos de 2ndBrain (también sus archivos: los de este dispositivo se borran y los de Google Drive van a su papelera), hijos y listas de Familia, avisos y notificaciones, y se desconectarán tus cuentas de correo (sin borrar ningún correo). No se puede deshacer.',
@@ -1354,6 +1355,21 @@ export const es = {
       done_other: 'Contenido borrado ({{count}} elementos)',
       filesKept_one: '{{count}} archivo no se pudo borrar de su almacenamiento',
       filesKept_other: '{{count}} archivos no se pudieron borrar de su almacenamiento',
+      deleteAccount: 'Eliminar mi cuenta',
+      deleteAccountHint:
+        'Borra tu cuenta y todos tus datos, en este dispositivo y en la nube. Sales de las familias y calendarios compartidos.',
+      deleteTitle: '¿Eliminar tu cuenta para siempre?',
+      deleteMessage:
+        'Se borrarán tu cuenta y todos tus datos: tareas, calendarios y eventos, documentos, familia, listas, avisos y notificaciones por correo o Telegram. Las personas con las que compartes dejarán de ver lo tuyo, y tú lo suyo. No se puede deshacer.',
+      deleteWord: 'ELIMINAR',
+      passwordTitle: 'Confirma con tu contraseña',
+      passwordMessage: 'Por seguridad, escribe la contraseña de tu cuenta.',
+      passwordLabel: 'Contraseña',
+      deleting: 'Eliminando tu cuenta…',
+      deleted: 'Tu cuenta y tus datos se han eliminado.',
+      wrongPassword: 'La contraseña no es correcta: no se ha borrado nada.',
+      deleteUnavailable: 'Con este tipo de cuenta no se puede eliminar desde la app todavía.',
+      deleteFailed: 'No se pudo terminar de eliminar la cuenta. Comprueba la conexión e inténtalo otra vez.',
     },
     sync: {
       title: 'Cuenta y sincronización',

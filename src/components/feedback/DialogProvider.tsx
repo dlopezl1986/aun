@@ -28,6 +28,8 @@ interface PromptOptions {
   confirmLabel?: string;
   /** Red confirm button for irreversible actions. */
   destructive?: boolean;
+  /** Hidden text (a password). */
+  secure?: boolean;
 }
 
 interface ChooseOptions {
@@ -113,6 +115,9 @@ export function DialogProvider({ children }: PropsWithChildren) {
                     placeholder={active.options.placeholder}
                     value={text}
                     onChangeText={setText}
+                    secureTextEntry={active.options.secure}
+                    autoCapitalize={active.options.secure ? 'none' : undefined}
+                    autoComplete={active.options.secure ? 'current-password' : undefined}
                     autoFocus
                     returnKeyType="done"
                     onSubmitEditing={(e) => {

@@ -62,6 +62,8 @@ export interface Services {
   relations: RelationService;
   /** Every user-data collection, for the sync engine (Phase 9). */
   collections: Map<string, SyncableRepository>;
+  /** Subscribes to changes made on this device (any module). Returns unsubscribe. */
+  onLocalChange: (listener: (collection: string) => void) => () => void;
   /** Backend sync; `null` in local-only mode. */
   sync: SyncEngine | null;
   /** Sharing with other accounts (family, calendars); `null` unless the backend is Firebase. */
@@ -107,11 +109,13 @@ export function createServices(
   remote?: RemoteStore | null,
 ): Services {
   const collections = new Map<string, SyncableRepository>();
+  const changeListeners = new Set<(collection: string) => void>();
+  const emitChange = (collection: string) => changeListeners.forEach((l) => l(collection));
   // One instance per collection: services and the sync engine share the same cache.
   const repo = <T extends BaseEntity>(collection: string): Repository<T> => {
     let r = collections.get(collection);
     if (!r) {
-      r = new LocalRepository<BaseEntity>(store, userId, collection);
+      r = new LocalRepository<BaseEntity>(store, userId, collection, undefined, emitChange);
       collections.set(collection, r);
     }
     return r as unknown as Repository<T>;
@@ -161,6 +165,10 @@ export function createServices(
   return {
     ...services,
     collections: synced,
+    onLocalChange: (listener) => {
+      changeListeners.add(listener);
+      return () => void changeListeners.delete(listener);
+    },
     sync: backendParts.remote ? new SyncEngine(synced, backendParts.remote, store, userId) : null,
     sharing: backendParts.sharing,
     notify: backendParts.notify,

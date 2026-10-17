@@ -7,10 +7,13 @@
  * own cursor, all packed into the opaque sync cursor). Push stamps each row
  * with its space; rows the rules reject (e.g. no longer allowed to edit) are
  * replaced by the server version instead of blocking the sync forever.
+ *
+ * `watch` keeps live listeners on the same queries (only changes after it
+ * starts), so a change made by the family shows up in seconds.
  */
 import { collection, doc, firebaseDb, getDocs, limit, orderBy, query, where, writeBatch } from '@/services/backend/firebase';
-import { householdOwner, spaceForRecord, type Space } from '@/services/sharing/spaces';
-import { getDoc, serverTimestamp, setDoc, Timestamp } from 'firebase/firestore';
+import { familySpaceId, householdOwner, spaceForRecord, type Space } from '@/services/sharing/spaces';
+import { getDoc, onSnapshot, serverTimestamp, setDoc, Timestamp, type Unsubscribe } from 'firebase/firestore';
 import type { BaseEntity } from '@/types/entity';
 import { SyncError, type PullPage, type PushResult, type RemoteRecord, type RemoteStore } from './types';
 
@@ -59,7 +62,8 @@ function mapFirestoreError(e: unknown): never {
 const toRemote = (r: RecordDoc): RemoteRecord => ({
   collection: r.collection,
   id: r.id,
-  data: r.data,
+  // `space` is local-only (where the row is shared); the engine strips it before pushing.
+  data: { ...r.data, space: r.spaceId ?? null },
   updatedAt: r.updatedAt,
   deletedAt: r.deletedAt,
 });
@@ -68,6 +72,8 @@ export class FirebaseRemoteStore implements RemoteStore {
   readonly id = 'firebase';
   /** 2 = rows carry `spaceId`: the first sync re-uploads everything once. */
   readonly schema = 2;
+  /** 1 = pulled rows carry their space: the first sync downloads everything once. */
+  readonly pullSchema = 1;
   private spaces: Space[] = [];
   private spacesAt = 0;
 
@@ -90,6 +96,74 @@ export class FirebaseRemoteStore implements RemoteStore {
     return this.spaces;
   }
 
+  /**
+   * Spaces whose rows can come from other people. A space only exists once
+   * something was shared, so all of them: even with nobody else in it now,
+   * people who left can still update (or delete) the rows they added.
+   */
+  private sharedSpaces(spaces: Space[]): Space[] {
+    return spaces;
+  }
+
+  /** Whose family my family rows belong to. */
+  async layout(): Promise<string> {
+    return householdOwner(await this.loadSpaces(), this.me);
+  }
+
+  /** Someone else's row in a space I am not in any more (call after a pull: spaces are fresh). */
+  isGone(_collection: string, row: BaseEntity): boolean {
+    if (row.space === undefined) return false; // not known yet
+    if (row.space === null) return true; // private to its owner
+    if (row.space === familySpaceId(this.me) || row.space.startsWith(`cal_${this.me}_`)) return false;
+    return !this.spaces.some((s) => s.id === row.space && s.memberIds.includes(this.me));
+  }
+
+  watch(handlers: { onRecords: (records: RemoteRecord[]) => void; onAccess: () => void }): () => void {
+    const db = firebaseDb();
+    let records: Unsubscribe[] = [];
+    let accessKey: string | null = null;
+    const stopRecords = () => {
+      records.forEach((u) => u());
+      records = [];
+    };
+    const listen = (field: 'ownerId' | 'spaceId', value: string, since: Timestamp) =>
+      onSnapshot(
+        query(collection(db, RECORDS), where(field, '==', value), where('serverUpdatedAt', '>', since)),
+        (snap) => {
+          // Our own writes come back once the server stamps them; merging them again is harmless.
+          const changed = snap
+            .docChanges()
+            .filter((c) => c.type !== 'removed' && !c.doc.metadata.hasPendingWrites)
+            .map((c) => toRemote(c.doc.data() as RecordDoc));
+          if (changed.length) handlers.onRecords(changed);
+        },
+        () => undefined, // e.g. offline or access just removed: the next sync sorts it out
+      );
+    const spaces = onSnapshot(
+      query(collection(db, 'spaces'), where('memberIds', 'array-contains', this.me)),
+      (snap) => {
+        const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Space, 'id'>) }));
+        const shared = this.sharedSpaces(list);
+        const key = JSON.stringify(shared.map((s) => [s.id, s.roles[this.me] ?? 'owner', s.memberIds.length]).sort());
+        if (key === accessKey) return;
+        const first = accessKey === null;
+        accessKey = key;
+        this.spaces = list;
+        this.spacesAt = Date.now();
+        // (Re)start the row listeners from now; anything before is covered by the sync below.
+        stopRecords();
+        const since = Timestamp.now();
+        records = [listen('ownerId', this.me, since), ...shared.map((s) => listen('spaceId', s.id, since))];
+        if (!first) handlers.onAccess();
+      },
+      () => undefined,
+    );
+    return () => {
+      spaces();
+      stopRecords();
+    };
+  }
+
   private async queryPage(field: 'ownerId' | 'spaceId', value: string, since: string | null, overlapMs: number) {
     const constraints = [where(field, '==', value), orderBy('serverUpdatedAt', 'asc'), limit(PAGE)];
     if (since) constraints.splice(1, 0, where('serverUpdatedAt', '>', Timestamp.fromMillis(new Date(since).getTime() - overlapMs)));
@@ -101,8 +175,7 @@ export class FirebaseRemoteStore implements RemoteStore {
     const cursors = parseCursor(cursor);
     const overlap = opts.overlapMs ?? 0;
     const spaces = await this.loadSpaces(true);
-    // My rows, plus the spaces where other people's rows can be: theirs, or mine with someone else in them.
-    const shared = spaces.filter((s) => s.ownerId !== this.me || s.memberIds.length > 1);
+    const shared = this.sharedSpaces(spaces);
     const records: RemoteRecord[] = [];
     let hasMore = false;
     const advance = (docs: RecordDoc[], prev: string | null) => {

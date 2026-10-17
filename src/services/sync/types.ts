@@ -42,6 +42,23 @@ export interface RemoteStore {
   pull(cursor: string | null, opts?: { overlapMs?: number }): Promise<PullPage>;
   /** Idempotent upsert; the server keeps the newest `updatedAt` per row. */
   push(records: RemoteRecord[]): Promise<void | PushResult>;
+  /**
+   * Version of what pulled rows carry. When it changes, the next sync
+   * downloads everything once (e.g. to learn each row's space).
+   */
+  readonly pullSchema?: number;
+  /**
+   * Where my rows go (e.g. whose family I am in). When it changes, my own rows
+   * are uploaded again so they move to their new place.
+   */
+  layout?(): Promise<string>;
+  /** After a pull: a row from someone else that I can no longer see (access removed). */
+  isGone?(collection: string, row: BaseEntity): boolean;
+  /**
+   * Live changes made by other devices / people. `onRecords` gets the changed
+   * rows; `onAccess` fires when what is shared with me changes. Returns stop.
+   */
+  watch?(handlers: { onRecords: (records: RemoteRecord[]) => void; onAccess: () => void }): () => void;
 }
 
 export interface SyncState {
@@ -51,6 +68,10 @@ export interface SyncState {
   lastError: string | null;
   /** RemoteStore.schema of the last full upload. */
   schema?: number;
+  /** RemoteStore.pullSchema of the last full download. */
+  pullSchema?: number;
+  /** RemoteStore.layout() my rows were last uploaded with. */
+  layout?: string;
 }
 
 export interface SyncResult {

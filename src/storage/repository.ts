@@ -40,10 +40,27 @@ export interface SyncableRepository<T extends BaseEntity = BaseEntity> extends R
   markClean(rows: { id: string; updatedAt: string }[]): Promise<void>;
   /** Adds rows from elsewhere (data migration) as local changes; existing ids are kept. */
   importRows(rows: T[]): Promise<number>;
-  /** Marks every row (tombstones included) as changed, to upload everything again. */
-  markAllDirty(): Promise<void>;
+  /** Marks every row (tombstones included; or those matching `which`) as changed, to upload them again. */
+  markAllDirty(which?: (row: T) => boolean): Promise<void>;
+  /** Drops rows from this device only (no tombstone): data we can no longer see. */
+  forget(ids: string[]): Promise<void>;
   /** Replaces rows with the server's version, whatever their local state (rejected changes). */
   restoreRemote(rows: T[]): Promise<void>;
+}
+
+/** Listener for changes made on this device (not the ones that come from the server). */
+export type LocalChangeListener = (collection: string) => void;
+
+/**
+ * Time stamp of an edit: now, but always after the version being replaced, so
+ * an edit made right after receiving a row from a device whose clock runs
+ * ahead still counts as the newest (last-write-wins stays in edit order).
+ */
+export function nextStamp(now: Date, previous?: string): string {
+  const stamp = now.toISOString();
+  if (!previous || stamp > previous) return stamp;
+  const prev = Date.parse(previous);
+  return Number.isNaN(prev) ? stamp : new Date(prev + 1).toISOString();
 }
 
 export class LocalRepository<T extends BaseEntity> implements SyncableRepository<T> {
@@ -56,8 +73,17 @@ export class LocalRepository<T extends BaseEntity> implements SyncableRepository
     private readonly userId: string,
     readonly collection: string,
     private readonly now: () => Date = () => new Date(),
+    private readonly onLocalChange: LocalChangeListener = () => undefined,
   ) {
     this.key = storageKeys.user(userId, collection);
+  }
+
+  /** A local write: persisted, then announced (so it can be synced right away). */
+  private change<R>(fn: (rows: T[]) => { rows: T[]; result: R }): Promise<R> {
+    return this.mutate(fn).then((result) => {
+      this.onLocalChange(this.collection);
+      return result;
+    });
   }
 
   private async load(): Promise<T[]> {
@@ -97,14 +123,14 @@ export class LocalRepository<T extends BaseEntity> implements SyncableRepository
       deletedAt: null,
       dirty: true,
     } as T;
-    return this.mutate((rows) => ({ rows: [...rows, entity], result: entity }));
+    return this.change((rows) => ({ rows: [...rows, entity], result: entity }));
   }
 
   update(id: string, patch: EntityPatch<T>): Promise<T> {
-    return this.mutate((rows) => {
+    return this.change((rows) => {
       const index = rows.findIndex((r) => r.id === id && !r.deletedAt);
       if (index < 0) throw new EntityNotFoundError(this.collection, id);
-      const updated = { ...rows[index], ...patch, updatedAt: this.now().toISOString(), dirty: true } as T;
+      const updated = { ...rows[index], ...patch, updatedAt: nextStamp(this.now(), rows[index].updatedAt), dirty: true } as T;
       const next = rows.slice();
       next[index] = updated;
       return { rows: next, result: updated };
@@ -143,15 +169,20 @@ export class LocalRepository<T extends BaseEntity> implements SyncableRepository
   }
 
   importRows(incoming: T[]): Promise<number> {
-    return this.mutate((rows) => {
+    return this.change((rows) => {
       const known = new Set(rows.map((r) => r.id));
       const added = incoming.filter((r) => !known.has(r.id)).map((r) => ({ ...r, ownerId: this.userId, dirty: true }) as T);
       return { rows: added.length ? [...rows, ...added] : rows, result: added.length };
     });
   }
 
-  markAllDirty(): Promise<void> {
-    return this.mutate((rows) => ({ rows: rows.map((r) => ({ ...r, dirty: true })), result: undefined }));
+  markAllDirty(which: (row: T) => boolean = () => true): Promise<void> {
+    return this.mutate((rows) => ({ rows: rows.map((r) => (which(r) ? { ...r, dirty: true } : r)), result: undefined }));
+  }
+
+  forget(ids: string[]): Promise<void> {
+    const set = new Set(ids);
+    return this.mutate((rows) => ({ rows: rows.filter((r) => !set.has(r.id)), result: undefined }));
   }
 
   restoreRemote(incoming: T[]): Promise<void> {
@@ -174,9 +205,13 @@ export class LocalRepository<T extends BaseEntity> implements SyncableRepository
 
   removeMany(ids: string[]): Promise<void> {
     const set = new Set(ids);
-    const stamp = this.now().toISOString();
-    return this.mutate((rows) => ({
-      rows: rows.map((r) => (set.has(r.id) ? { ...r, deletedAt: stamp, updatedAt: stamp, dirty: true } : r)),
+    const now = this.now();
+    return this.change((rows) => ({
+      rows: rows.map((r) => {
+        if (!set.has(r.id)) return r;
+        const stamp = nextStamp(now, r.updatedAt);
+        return { ...r, deletedAt: stamp, updatedAt: stamp, dirty: true };
+      }),
       result: undefined,
     }));
   }

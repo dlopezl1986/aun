@@ -36,6 +36,16 @@ service cloud.firestore {
     // AUN user data. One document per row: <ownerUid>_<collection>_<id>.
     // Private rows have spaceId == null and only their owner sees them.
     // ---------------------------------------------------------------------
+    // Shape every row must keep: the server stamps the change time (pulls rely on it,
+    // so it cannot be faked to hide a change), and the payload matches the envelope.
+    function wellFormed() {
+      let r = request.resource.data;
+      return r.serverUpdatedAt == request.time
+        && r.updatedAt is string
+        && r.data.get('id', null) == r.id
+        && r.data.get('ownerId', null) == r.ownerId;
+    }
+
     match /records/{docId} {
       allow read: if signedIn()
         && (resource.data.ownerId == uid() || canRead(resource.data.get('spaceId', null)));
@@ -43,6 +53,7 @@ service cloud.firestore {
       allow create: if signedIn()
         && request.resource.data.ownerId == uid()
         && docId == uid() + '_' + request.resource.data.collection + '_' + request.resource.data.id
+        && wellFormed()
         && (request.resource.data.get('spaceId', null) == null || canWrite(request.resource.data.spaceId));
 
       // Owner, or an editor of the row's space. The owner, id and collection
@@ -52,6 +63,10 @@ service cloud.firestore {
         && request.resource.data.ownerId == resource.data.ownerId
         && request.resource.data.id == resource.data.id
         && request.resource.data.collection == resource.data.collection
+        && wellFormed()
+        // Last write wins on the server too: an older version (a device that was
+        // offline) never overwrites a newer one; the client then takes the server's.
+        && request.resource.data.updatedAt >= resource.data.updatedAt
         && (resource.data.ownerId == uid() || canWrite(resource.data.get('spaceId', null)))
         && (
           request.resource.data.get('spaceId', null) == resource.data.get('spaceId', null)
@@ -87,6 +102,22 @@ service cloud.firestore {
         && (!('assignee' in changed) || (inv.get('assign', null) == spaceId && request.resource.data.assignee == uid()));
     }
 
+    // A member leaves (e.g. deleting their account): removes only themselves.
+    function leaving() {
+      let after = request.resource.data;
+      return uid() in resource.data.memberIds
+        && resource.data.ownerId != uid()
+        && after.ownerId == resource.data.ownerId
+        && after.diff(resource.data).affectedKeys().hasOnly(['memberIds', 'roles', 'names', 'assignee', 'updatedAt'])
+        && after.memberIds.toSet() == resource.data.memberIds.toSet().difference([uid()].toSet())
+        && after.roles.diff(resource.data.roles).affectedKeys().hasOnly([uid()])
+        && !(uid() in after.roles)
+        && after.names.diff(resource.data.names).affectedKeys().hasOnly([uid()])
+        && !(uid() in after.names)
+        && (after.get('assignee', null) == resource.data.get('assignee', null)
+          || (after.get('assignee', null) == null && resource.data.get('assignee', null) == uid()));
+    }
+
     match /spaces/{spaceId} {
       // Own spaces can be read even before they exist (to create them); others only by their members.
       allow read: if signedIn() && (ownSpace(spaceId) || uid() in resource.data.memberIds);
@@ -97,6 +128,7 @@ service cloud.firestore {
       allow update: if signedIn() && (
         (resource.data.ownerId == uid() && request.resource.data.ownerId == uid() && uid() in request.resource.data.memberIds)
         || joining(spaceId)
+        || leaving()
       );
       allow delete: if signedIn() && resource.data.ownerId == uid();
     }

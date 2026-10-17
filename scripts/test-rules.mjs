@@ -7,10 +7,12 @@ import { assertFails, assertSucceeds, initializeTestEnvironment } from '@firebas
 import {
   arrayUnion,
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
   query,
+  serverTimestamp,
   setDoc,
   setLogLevel,
   Timestamp,
@@ -47,7 +49,7 @@ const rec = (owner, coll, id, spaceId, extra = {}) => ({
   updatedAt: '2026-10-08T10:00:00.000Z',
   deletedAt: null,
   spaceId,
-  serverUpdatedAt: Timestamp.now(),
+  serverUpdatedAt: serverTimestamp(),
 });
 const recRef = (d, owner, coll, id) => doc(d, 'records', `${owner}_${coll}_${id}`);
 const space = (owner, extra = {}) => ({
@@ -197,6 +199,59 @@ await test('an expired invite cannot be used', async () => {
     }),
   );
   await assertFails(join(db('carol'), 'carol', 'expired-code-0123456789ab', [['cal_alice_kids', 'view']]));
+});
+
+await test('an older version never overwrites a newer one (offline device), the same or newer does', async () => {
+  const ref = recRef(db('alice'), 'alice', 'tasks', 'lww');
+  await assertSucceeds(setDoc(ref, rec('alice', 'tasks', 'lww', null, { title: 'v2' })));
+  await assertFails(setDoc(ref, { ...rec('alice', 'tasks', 'lww', null), updatedAt: '2026-10-08T09:00:00.000Z' }));
+  await assertSucceeds(setDoc(ref, rec('alice', 'tasks', 'lww', null, { title: 'v2 again' })));
+  await assertSucceeds(setDoc(ref, { ...rec('alice', 'tasks', 'lww', null), updatedAt: '2026-10-08T11:00:00.000Z' }));
+});
+await test('the change time is stamped by the server and the payload matches its envelope', async () => {
+  const d = db('alice');
+  await assertFails(
+    setDoc(recRef(d, 'alice', 'tasks', 'old'), { ...rec('alice', 'tasks', 'old', null), serverUpdatedAt: Timestamp.fromMillis(0) }),
+  );
+  await assertFails(
+    setDoc(recRef(d, 'alice', 'tasks', 'mix'), { ...rec('alice', 'tasks', 'mix', null), data: { id: 'mix', ownerId: 'bob' } }),
+  );
+  await assertFails(
+    setDoc(recRef(d, 'alice', 'tasks', 'mix2'), { ...rec('alice', 'tasks', 'mix2', null), data: { id: 'other', ownerId: 'alice' } }),
+  );
+});
+
+await test('a member can leave a space (only removing themselves), never others', async () => {
+  await env.withSecurityRulesDisabled((ctx) =>
+    setDoc(
+      doc(ctx.firestore(), 'spaces', 'fam_zoe'),
+      space('zoe', {
+        memberIds: ['zoe', 'yan', 'xia'],
+        roles: { yan: 'edit', xia: 'view' },
+        names: { zoe: 'Z', yan: 'Y', xia: 'X' },
+        assignee: 'yan',
+      }),
+    ),
+  );
+  const ref = (u) => doc(db(u), 'spaces', 'fam_zoe');
+  await assertFails(updateDoc(ref('yan'), { memberIds: ['zoe', 'yan'], roles: { yan: 'edit' }, names: { zoe: 'Z', yan: 'Y' } }));
+  await assertFails(
+    updateDoc(ref('yan'), { memberIds: ['zoe', 'xia'], roles: { xia: 'edit' }, names: { zoe: 'Z', xia: 'X' }, assignee: null }),
+  );
+  await assertSucceeds(
+    updateDoc(ref('yan'), { memberIds: ['zoe', 'xia'], roles: { xia: 'view' }, names: { zoe: 'Z', xia: 'X' }, assignee: null }),
+  );
+  await assertFails(updateDoc(ref('zoe'), { memberIds: ['xia'] })); // the owner stays in their own space
+});
+await test('deleting my account: I can delete all my rows, invites and notices, never someone else’s', async () => {
+  const alice = db('alice');
+  const mine = await getDocs(query(collection(alice, 'records'), where('ownerId', '==', 'alice')));
+  for (const d of mine.docs) await assertSucceeds(deleteDoc(d.ref));
+  await assertFails(deleteDoc(recRef(alice, 'bob', 'shoppingItems', 'bread')));
+  await assertSucceeds(deleteDoc(doc(alice, 'invites', CODE)));
+  await assertSucceeds(deleteDoc(doc(alice, 'notify', 'alice')));
+  await assertSucceeds(deleteDoc(doc(alice, 'spaces', 'fam_alice')));
+  await assertFails(deleteDoc(doc(db('bob'), 'spaces', 'cal_alice_sora')));
 });
 
 console.log('Notices outside the app');

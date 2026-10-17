@@ -70,4 +70,10 @@ export interface AuthGateway {
   requestPasswordReset(email: string): Promise<PasswordResetResult>;
   updateProfile(userId: string, patch: { displayName?: string }): Promise<AuthUser>;
   signOut(): Promise<void>;
+  /**
+   * Deletes the account for good. Checks the password first, then runs
+   * `cleanup` (the user's data, while still signed in), then removes the
+   * account itself.
+   */
+  deleteAccount(password: string, cleanup: () => Promise<void>): Promise<void>;
 }

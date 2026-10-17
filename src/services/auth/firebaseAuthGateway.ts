@@ -22,7 +22,7 @@ import {
   type PasswordResetResult,
 } from './types';
 
-import type { User, UserCredential } from 'firebase/auth';
+import { deleteUser, EmailAuthProvider, reauthenticateWithCredential, type User, type UserCredential } from 'firebase/auth';
 
 // ---------------------------------------------------------------------------
 // Mapping helpers
@@ -151,5 +151,22 @@ export class FirebaseAuthGateway implements AuthGateway {
 
   async signOut(): Promise<void> {
     await fbSignOut(firebaseAuth());
+  }
+
+  async deleteAccount(password: string, cleanup: () => Promise<void>): Promise<void> {
+    const user = firebaseAuth().currentUser;
+    if (!user?.email) throw new AuthError('unknown');
+    try {
+      // Also makes the sign-in recent, which Firebase requires to delete a user.
+      await reauthenticateWithCredential(user, EmailAuthProvider.credential(user.email, password));
+    } catch (e) {
+      throw mapError(e);
+    }
+    await cleanup();
+    try {
+      await deleteUser(user);
+    } catch (e) {
+      throw mapError(e);
+    }
   }
 }

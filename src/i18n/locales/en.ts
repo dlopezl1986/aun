@@ -1339,7 +1339,8 @@ export const en: Translation = {
     danger: {
       title: 'Danger zone',
       wipe: 'Delete all content',
-      wipeHint: 'Tasks, calendars, documents, family, reminders and connected mail. Your account and preferences are kept.',
+      wipeHint:
+        'Tasks, calendars, documents, family, reminders and connected mail. What others share with you is left alone. Your account and preferences are kept.',
       wipeTitle: 'Delete all content?',
       wipeMessage:
         'All your tasks, calendars and events, 2ndBrain folders and documents (their files too: removed from this device, moved to the trash on Google Drive), children and Family lists, reminders and notifications will be deleted, and your mail accounts disconnected (no email is deleted). This cannot be undone.',
@@ -1354,6 +1355,21 @@ export const en: Translation = {
       done_other: 'Content deleted ({{count}} items)',
       filesKept_one: '{{count}} file could not be removed from its storage',
       filesKept_other: '{{count}} files could not be removed from their storage',
+      deleteAccount: 'Delete my account',
+      deleteAccountHint:
+        'Deletes your account and all your data, on this device and in the cloud. You leave shared families and calendars.',
+      deleteTitle: 'Delete your account for good?',
+      deleteMessage:
+        'Your account and all your data will be deleted: tasks, calendars and events, documents, family, lists, reminders and e-mail or Telegram notices. People you share with will stop seeing your things, and you theirs. This cannot be undone.',
+      deleteWord: 'DELETE',
+      passwordTitle: 'Confirm with your password',
+      passwordMessage: 'For your security, type your account password.',
+      passwordLabel: 'Password',
+      deleting: 'Deleting your account…',
+      deleted: 'Your account and your data have been deleted.',
+      wrongPassword: 'Wrong password: nothing was deleted.',
+      deleteUnavailable: 'This kind of account cannot be deleted from the app yet.',
+      deleteFailed: 'Could not finish deleting the account. Check your connection and try again.',
     },
     sync: {
       title: 'Account & sync',
