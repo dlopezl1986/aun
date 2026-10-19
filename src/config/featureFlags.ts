@@ -18,6 +18,12 @@ export const featureFlags = {
   emailDemo: __DEV__,
   ai: false,
   globalSearch: true,
+  /**
+   * Notices outside the app (daily e-mail summary, Telegram alerts). On standby
+   * since 2026-10-19 by the user's decision: hidden in Settings and nothing is
+   * published; the notifier workflow is disabled. Code and tests are kept.
+   */
+  remoteNotices: false,
 } as const;
 
 export type FeatureFlag = keyof typeof featureFlags;

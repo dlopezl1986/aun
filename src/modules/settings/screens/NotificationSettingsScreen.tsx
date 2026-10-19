@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { featureFlags } from '@/config/featureFlags';
 import { Platform, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
@@ -73,7 +74,7 @@ export function NotificationSettingsScreen() {
         />
       </Card>
 
-      <RemoteNotifySettings />
+      {featureFlags.remoteNotices ? <RemoteNotifySettings /> : null}
       {permission === 'denied' ? (
         <InfoNote
           tone="warning"

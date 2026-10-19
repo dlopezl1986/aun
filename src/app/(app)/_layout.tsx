@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import { featureFlags } from '@/config/featureFlags';
 import { Tabs } from 'expo-router/js-tabs';
 import { useEffect, useMemo } from 'react';
 import { View } from 'react-native';
@@ -118,7 +119,7 @@ export default function AppLayout() {
       <AlertScheduler />
       <AutoSync />
       <PendingInvite />
-      <RemoteNotify />
+      {featureFlags.remoteNotices ? <RemoteNotify /> : null}
       <AppTabs />
     </ServicesProvider>
   );
