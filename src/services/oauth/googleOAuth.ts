@@ -89,7 +89,11 @@ export async function connectGoogleDrive(userId: string): Promise<OAuthTokens | 
   const result = await request.promptAsync(discovery);
   if (result.type === 'cancel' || result.type === 'dismiss') return null;
   if (result.type !== 'success')
-    throw new StorageProviderError('auth-expired', 'google-drive', result.type === 'error' ? result.error?.message : result.type);
+    throw new StorageProviderError(
+      'auth-expired',
+      'google-drive',
+      result.type === 'error' ? (result.error?.description ?? result.params.error) : result.type,
+    );
 
   let tokens: OAuthTokens;
   if (isWeb) {

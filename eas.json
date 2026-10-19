@@ -1,0 +1,35 @@
+{
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "base": {
+      "env": {
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyCAP_hcYmwf2yCtbIQ5sy-z5rmRI1eiqeQ",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "aun-app-dlopez.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "aun-app-dlopez",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "aun-app-dlopez.firebasestorage.app",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "550815193118",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:550815193118:web:55f8f4f675f185a749b60f",
+        "EXPO_PUBLIC_APP_ENV": "production"
+      }
+    },
+    "preview": {
+      "extends": "base",
+      "distribution": "internal",
+      "ios": {
+        "simulator": false
+      }
+    },
+    "production": {
+      "extends": "base",
+      "autoIncrement": true
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {}
+    }
+  }
+}

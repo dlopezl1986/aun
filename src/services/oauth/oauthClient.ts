@@ -77,7 +77,7 @@ export async function authorize(config: OAuthProviderConfig): Promise<OAuthToken
   const result = await request.promptAsync(config.discovery);
   if (result.type === 'cancel' || result.type === 'dismiss') return null;
   if (result.type !== 'success') {
-    const message = result.type === 'error' ? (result.error?.message ?? result.params.error) : result.type;
+    const message = result.type === 'error' ? (result.error?.description ?? result.params.error) : result.type;
     throw new OAuthError(result.type === 'error' && result.params.error === 'access_denied' ? 'denied' : 'failed', message);
   }
   if (implicit) {

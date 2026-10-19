@@ -9,7 +9,10 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.aun.allyouneed"
+      "bundleIdentifier": "com.aun.allyouneed",
+      "config": {
+        "usesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.aun.allyouneed",
@@ -24,7 +27,7 @@
     "web": {
       "bundler": "metro",
       "output": "single",
-      "name": "AUN · All You Need",
+      "name": "AUN \u00b7 All You Need",
       "shortName": "AUN",
       "themeColor": "#2563EB",
       "favicon": "./assets/favicon.png"
