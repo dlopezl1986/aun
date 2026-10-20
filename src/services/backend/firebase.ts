@@ -25,6 +25,7 @@ import {
   collection,
   doc,
   getDocs,
+  getDocsFromServer,
   getFirestore,
   initializeFirestore,
   limit,
@@ -127,4 +128,4 @@ export {
  * `request.auth.uid == resource.data.ownerId`.
  */
 
-export { collection, doc, getDocs, getFirestore, limit, orderBy, query, where, writeBatch };
+export { collection, doc, getDocs, getDocsFromServer, getFirestore, limit, orderBy, query, where, writeBatch };

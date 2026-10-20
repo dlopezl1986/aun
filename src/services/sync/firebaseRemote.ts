@@ -11,9 +11,9 @@
  * `watch` keeps live listeners on the same queries (only changes after it
  * starts), so a change made by the family shows up in seconds.
  */
-import { collection, doc, firebaseDb, getDocs, limit, orderBy, query, where, writeBatch } from '@/services/backend/firebase';
+import { collection, doc, firebaseDb, getDocsFromServer, limit, orderBy, query, where, writeBatch } from '@/services/backend/firebase';
 import { familySpaceId, householdOwner, spaceForRecord, type Space } from '@/services/sharing/spaces';
-import { getDoc, onSnapshot, serverTimestamp, setDoc, Timestamp, type Unsubscribe } from 'firebase/firestore';
+import { getDocFromServer, onSnapshot, serverTimestamp, setDoc, Timestamp, type Unsubscribe } from 'firebase/firestore';
 import type { BaseEntity } from '@/types/entity';
 import { SyncError, type PullPage, type PushResult, type RemoteRecord, type RemoteStore } from './types';
 
@@ -87,7 +87,7 @@ export class FirebaseRemoteStore implements RemoteStore {
   async loadSpaces(force = false): Promise<Space[]> {
     if (!force && Date.now() - this.spacesAt < 30_000) return this.spaces;
     try {
-      const snap = await getDocs(query(collection(firebaseDb(), 'spaces'), where('memberIds', 'array-contains', this.me)));
+      const snap = await getDocsFromServer(query(collection(firebaseDb(), 'spaces'), where('memberIds', 'array-contains', this.me)));
       this.spaces = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Space, 'id'>) }));
       this.spacesAt = Date.now();
     } catch (e) {
@@ -167,7 +167,7 @@ export class FirebaseRemoteStore implements RemoteStore {
   private async queryPage(field: 'ownerId' | 'spaceId', value: string, since: string | null, overlapMs: number) {
     const constraints = [where(field, '==', value), orderBy('serverUpdatedAt', 'asc'), limit(PAGE)];
     if (since) constraints.splice(1, 0, where('serverUpdatedAt', '>', Timestamp.fromMillis(new Date(since).getTime() - overlapMs)));
-    const snap = await getDocs(query(collection(firebaseDb(), RECORDS), ...constraints));
+    const snap = await getDocsFromServer(query(collection(firebaseDb(), RECORDS), ...constraints));
     return snap.docs.map((d) => d.data() as RecordDoc);
   }
 
@@ -242,7 +242,7 @@ export class FirebaseRemoteStore implements RemoteStore {
           } catch (err) {
             if (!code(err).includes('permission-denied')) mapFirestoreError(err);
             const original = records[i + j];
-            const server = await getDoc(chunk[j].ref).catch(() => null);
+            const server = await getDocFromServer(chunk[j].ref).catch(() => null);
             restored.push(
               server?.exists()
                 ? toRemote(server.data() as RecordDoc)

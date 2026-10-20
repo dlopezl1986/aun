@@ -1552,6 +1552,12 @@ export const en: Translation = {
       expoGo: 'Requires the installed app',
     },
   },
+  sync: {
+    problem: {
+      title: 'Not syncing with the cloud',
+      account: 'Account: {{email}}',
+    },
+  },
   legal: {
     privacy: 'Privacy policy',
     terms: 'Terms of use',

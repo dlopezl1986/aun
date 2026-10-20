@@ -5,8 +5,8 @@ import {
   deleteDoc,
   deleteField,
   doc,
-  getDoc,
-  getDocs,
+  getDocFromServer,
+  getDocsFromServer,
   query,
   setDoc,
   Timestamp,
@@ -85,7 +85,7 @@ export class FirebaseSharingService {
 
   async spaces(): Promise<Space[]> {
     try {
-      const snap = await getDocs(query(collection(this.db, 'spaces'), where('memberIds', 'array-contains', this.me)));
+      const snap = await getDocsFromServer(query(collection(this.db, 'spaces'), where('memberIds', 'array-contains', this.me)));
       return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Space, 'id'>) }));
     } catch (e) {
       mapError(e);
@@ -96,7 +96,7 @@ export class FirebaseSharingService {
   async ensureSpace(id: string, def: { kind: Space['kind']; refId: string | null; name: string }): Promise<void> {
     const ref = doc(this.db, 'spaces', id);
     try {
-      const snap = await getDoc(ref);
+      const snap = await getDocFromServer(ref);
       if (!snap.exists()) {
         await setDoc(ref, {
           ownerId: this.me,
@@ -139,7 +139,7 @@ export class FirebaseSharingService {
             updatedAt: Timestamp.now(),
           });
         } else {
-          const snap = await getDoc(ref);
+          const snap = await getDocFromServer(ref);
           if (!snap.exists() || !(snap.data().memberIds as string[]).includes(person.uid)) continue;
           await updateDoc(ref, {
             memberIds: arrayRemove(person.uid),
@@ -161,7 +161,7 @@ export class FirebaseSharingService {
     for (const id of spaceIds) {
       const ref = doc(this.db, 'spaces', id);
       try {
-        const snap = await getDoc(ref);
+        const snap = await getDocFromServer(ref);
         if (!snap.exists()) continue;
         const data = snap.data() as { ownerId: string; memberIds: string[]; assignee?: string | null };
         if (data.ownerId === this.me || !data.memberIds.includes(this.me)) continue;
@@ -204,7 +204,7 @@ export class FirebaseSharingService {
 
   async myInvites(): Promise<Invite[]> {
     try {
-      const snap = await getDocs(query(collection(this.db, 'invites'), where('ownerId', '==', this.me)));
+      const snap = await getDocsFromServer(query(collection(this.db, 'invites'), where('ownerId', '==', this.me)));
       return snap.docs.map((d) => toInvite(d.id, d.data())).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     } catch (e) {
       mapError(e);
@@ -221,7 +221,7 @@ export class FirebaseSharingService {
 
   async getInvite(code: string): Promise<Invite> {
     try {
-      const snap = await getDoc(doc(this.db, 'invites', code));
+      const snap = await getDocFromServer(doc(this.db, 'invites', code));
       if (!snap.exists()) throw new SharingError('not-found');
       return toInvite(code, snap.data());
     } catch (e) {

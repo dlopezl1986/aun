@@ -15,7 +15,7 @@ function legacyStorage(): Storage | null {
 }
 
 export const platformKeyValueStore: KeyValueStore =
-  typeof indexedDB !== 'undefined' ? createIndexedDbStore(indexedDB, legacyStorage()) : asyncStorageStore;
+  typeof indexedDB !== 'undefined' ? createIndexedDbStore(indexedDB, legacyStorage(), asyncStorageStore) : asyncStorageStore;
 
 // Ask the browser not to evict AUN's data under storage pressure (best effort).
 if (typeof navigator !== 'undefined' && navigator.storage?.persist) void navigator.storage.persist().catch(() => undefined);

@@ -10,22 +10,22 @@
  */
 import {
   collection,
-  documentId,
-  orderBy,
-  serverTimestamp,
-  startAfter,
-  type DocumentSnapshot,
-  type QuerySnapshot,
   deleteDoc,
   deleteField,
   doc,
-  getDocs,
+  documentId,
+  type DocumentSnapshot,
+  getDocsFromServer,
   limit,
+  orderBy,
+  type Query,
   query,
+  type QuerySnapshot,
+  serverTimestamp,
+  startAfter,
   updateDoc,
   where,
   writeBatch,
-  type Query,
 } from 'firebase/firestore';
 
 import { firebaseDb } from '@/services/backend/firebase';
@@ -37,7 +37,7 @@ async function deleteAll(q: (n: number) => Query): Promise<number> {
   const db = firebaseDb();
   let total = 0;
   for (;;) {
-    const snap = await getDocs(q(BATCH));
+    const snap = await getDocsFromServer(q(BATCH));
     if (snap.empty) return total;
     const batch = writeBatch(db);
     snap.docs.forEach((d) => batch.delete(d.ref));
@@ -56,7 +56,9 @@ async function removeMyRows(uid: string): Promise<number> {
   let total = 0;
   for (;;) {
     const constraints = [where('ownerId', '==', uid), orderBy(documentId()), limit(BATCH)];
-    const snap: QuerySnapshot = await getDocs(query(collection(db, 'records'), ...constraints, ...(last ? [startAfter(last)] : [])));
+    const snap: QuerySnapshot = await getDocsFromServer(
+      query(collection(db, 'records'), ...constraints, ...(last ? [startAfter(last)] : [])),
+    );
     if (snap.empty) return total;
     const batch = writeBatch(db);
     for (const d of snap.docs) {
@@ -85,7 +87,7 @@ export async function deleteFirebaseAccountData(uid: string): Promise<{ rows: nu
   const db = firebaseDb();
   const rows = await removeMyRows(uid);
 
-  const spaces = await getDocs(query(collection(db, 'spaces'), where('memberIds', 'array-contains', uid)));
+  const spaces = await getDocsFromServer(query(collection(db, 'spaces'), where('memberIds', 'array-contains', uid)));
   for (const s of spaces.docs) {
     const data = s.data() as { ownerId: string; memberIds: string[]; assignee?: string | null };
     if (data.ownerId === uid) {

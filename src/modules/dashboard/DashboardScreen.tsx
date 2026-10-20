@@ -19,6 +19,7 @@ import { useServices } from '@/services/ServicesProvider';
 import { useAuthStore } from '@/state/authStore';
 import { useDashboardWidgets, useUserSettings } from '@/state/userSettingsStore';
 import { formatLongDate, greetingKey } from '@/utils/date';
+import { SyncProblemNotice } from '@/modules/settings/components/SyncProblemNotice';
 import { VerifyEmailNotice } from '@/modules/settings/components/VerifyEmailNotice';
 import { GlobalSearch } from './components/GlobalSearch';
 import { HiddenWidgets } from './components/HiddenWidgets';
@@ -101,6 +102,7 @@ export function DashboardScreen() {
         actions={actions}
       />
 
+      {editing ? null : <SyncProblemNotice />}
       {editing ? null : <VerifyEmailNotice />}
       {editing ? null : <GlobalSearch />}
 

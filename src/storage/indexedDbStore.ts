@@ -12,6 +12,7 @@ const DEVICE_PREFIX = 'aun:v1:device:';
 const DB = 'aun';
 const STORE = 'kv';
 const MIGRATED = 'aun:storage:idb-migrated';
+const NO_DB = Symbol('no-indexeddb');
 
 const request = <T>(r: IDBRequest<T>) =>
   new Promise<T>((resolve, reject) => {
@@ -25,16 +26,28 @@ function openDb(factory: IDBFactory): Promise<IDBDatabase> {
   return request(r);
 }
 
-/** Exported for tests: an IndexedDB store over `factory`, migrating from `legacy`. */
-export function createIndexedDbStore(factory: IDBFactory, legacy: Storage | null): KeyValueStore {
-  let db: Promise<IDBDatabase> | null = null;
-  const tx = async <T>(mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest<T>): Promise<T> => {
-    db ??= openDb(factory).then(async (d) => {
-      await migrate(d);
-      return d;
-    });
-    const store = (await db).transaction(STORE, mode).objectStore(STORE);
-    return request(fn(store));
+/** Some browsers (old Safari, locked-down profiles) never answer `indexedDB.open`. */
+const OPEN_TIMEOUT_MS = 4_000;
+
+/**
+ * An IndexedDB store over `factory`, migrating from `legacy`. If IndexedDB
+ * cannot be opened (error or no answer), every call goes to `fallback`
+ * instead of leaving the app waiting forever.
+ */
+export function createIndexedDbStore(factory: IDBFactory, legacy: Storage | null, fallback?: KeyValueStore): KeyValueStore {
+  let db: Promise<IDBDatabase | null> | null = null;
+  const open = () =>
+    (db ??= Promise.race([
+      openDb(factory).then(async (d) => {
+        await migrate(d);
+        return d;
+      }),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), OPEN_TIMEOUT_MS)),
+    ]).catch(() => null));
+  const tx = async <T>(mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest<T>): Promise<T | typeof NO_DB> => {
+    const d = await open();
+    if (!d) return NO_DB;
+    return request(fn(d.transaction(STORE, mode).objectStore(STORE)));
   };
 
   async function migrate(d: IDBDatabase) {
@@ -54,19 +67,25 @@ export function createIndexedDbStore(factory: IDBFactory, legacy: Storage | null
     keys.forEach((k) => legacy.removeItem(k));
   }
 
+  const noDb = () => {
+    if (!fallback) throw new Error('IndexedDB is not available');
+    return fallback;
+  };
   return {
     async getItem(key) {
-      return ((await tx('readonly', (s) => s.get(key))) as string | undefined) ?? null;
+      const v = await tx('readonly', (s) => s.get(key));
+      return v === NO_DB ? noDb().getItem(key) : ((v as string | undefined) ?? null);
     },
     async setItem(key, value) {
-      await tx('readwrite', (s) => s.put(value, key));
+      if ((await tx('readwrite', (s) => s.put(value, key))) === NO_DB) await noDb().setItem(key, value);
     },
     async removeItem(key) {
-      await tx('readwrite', (s) => s.delete(key));
+      if ((await tx('readwrite', (s) => s.delete(key))) === NO_DB) await noDb().removeItem(key);
     },
     async keys(prefix) {
-      const all = (await tx('readonly', (s) => s.getAllKeys())) as string[];
-      return all.filter((k) => typeof k === 'string' && k.startsWith(prefix));
+      const all = await tx('readonly', (s) => s.getAllKeys());
+      if (all === NO_DB) return (await noDb().keys?.(prefix)) ?? [];
+      return (all as IDBValidKey[]).filter((k): k is string => typeof k === 'string' && k.startsWith(prefix));
     },
   };
 }

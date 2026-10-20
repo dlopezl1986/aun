@@ -1554,6 +1554,12 @@ export const es = {
       expoGo: 'Requiere la app instalada',
     },
   },
+  sync: {
+    problem: {
+      title: 'No se está sincronizando con la nube',
+      account: 'Cuenta: {{email}}',
+    },
+  },
   legal: {
     privacy: 'Política de privacidad',
     terms: 'Condiciones de uso',

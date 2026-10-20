@@ -52,4 +52,23 @@ describe('web storage (IndexedDB)', () => {
     await store.removeItem('aun:v1:u:me:events');
     expect(await store.getItem('aun:v1:u:me:events')).toBeNull();
   });
+
+  it('falls back to the other store when IndexedDB never answers (instead of hanging the app)', async () => {
+    jest.useFakeTimers();
+    const hanging = { open: () => ({}) } as unknown as IDBFactory; // no onsuccess / onerror ever
+    const data = new Map<string, string>();
+    const fallback = {
+      getItem: async (k: string) => data.get(k) ?? null,
+      setItem: async (k: string, v: string) => void data.set(k, v),
+      removeItem: async (k: string) => void data.delete(k),
+      keys: async (p: string) => [...data.keys()].filter((k) => k.startsWith(p)),
+    };
+    const store = createIndexedDbStore(hanging, null, fallback);
+    const write = store.setItem('aun:v1:u:me:tasks', '[]');
+    await jest.advanceTimersByTimeAsync(4_100);
+    await write;
+    jest.useRealTimers();
+    expect(await store.getItem('aun:v1:u:me:tasks')).toBe('[]');
+    expect(await store.keys!('aun:v1:u:me:')).toEqual(['aun:v1:u:me:tasks']);
+  });
 });

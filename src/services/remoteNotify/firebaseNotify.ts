@@ -1,4 +1,15 @@
-import { collection, deleteDoc, doc, getDoc, getDocs, query, setDoc, Timestamp, where, writeBatch } from 'firebase/firestore';
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDocFromServer,
+  getDocsFromServer,
+  query,
+  setDoc,
+  Timestamp,
+  where,
+  writeBatch,
+} from 'firebase/firestore';
 
 import { firebaseAuth, firebaseDb } from '@/services/backend/firebase';
 import type { AlertItem } from '@/types/module';
@@ -65,7 +76,7 @@ export class FirebaseNotifyService {
   }
 
   async get(lang: string): Promise<NotifySettings> {
-    const snap = await getDoc(doc(this.db, 'notify', this.me));
+    const snap = await getDocFromServer(doc(this.db, 'notify', this.me));
     const base = defaultNotifySettings(firebaseAuth().currentUser?.email ?? null, lang);
     return snap.exists() ? { ...base, ...(snap.data() as Partial<NotifySettings>) } : base;
   }
@@ -108,7 +119,7 @@ export class FirebaseNotifyService {
    * they are never sent twice.
    */
   async publishAlerts(alerts: AlertItem[], now = Date.now()): Promise<number> {
-    const snap = await getDocs(query(collection(this.db, 'outbox'), where('uid', '==', this.me)));
+    const snap = await getDocsFromServer(query(collection(this.db, 'outbox'), where('uid', '==', this.me)));
     const existing = new Map(snap.docs.map((d) => [d.id, d.data() as { sent?: boolean; at?: Timestamp; title?: string; body?: string }]));
     const wanted = new Map<string, AlertItem>();
     for (const a of alerts) if (new Date(a.at).getTime() > now - PAST_TOLERANCE_MS) wanted.set(alertDocId(this.me, a.key), a);
@@ -156,7 +167,7 @@ export class FirebaseNotifyService {
 
   /** Stops everything outside the app (pending alerts are removed). */
   async clearOutbox(): Promise<void> {
-    const snap = await getDocs(query(collection(this.db, 'outbox'), where('uid', '==', this.me)));
+    const snap = await getDocsFromServer(query(collection(this.db, 'outbox'), where('uid', '==', this.me)));
     for (const d of snap.docs) if (!(d.data() as { sent?: boolean }).sent) await deleteDoc(d.ref);
   }
 }
