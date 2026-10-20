@@ -23,11 +23,16 @@ const spaceLabel = (s) =>
 const ago = (ts) => (ts ? `${Math.round((Date.now() - ts.toMillis()) / 60000)} min` : '?');
 
 const users = (await getAuth(app).listUsers(100)).users;
+// Optional: which account is a given e-mail? Passed as its SHA-256 (never the address itself).
+const wanted = (process.env.EMAIL_SHA256 ?? '').trim().toLowerCase();
+const sha = (s) => createHash('sha256').update(String(s).trim().toLowerCase()).digest('hex');
 console.log('== Accounts');
 for (const u of users)
   console.log(
-    `${who(u.uid)}  verified=${u.emailVerified}  lastSignIn=${u.metadata.lastSignInTime ?? '-'}  lastRefresh=${u.metadata.lastRefreshTime ?? '-'}`,
+    `${who(u.uid)}  verified=${u.emailVerified}  created=${u.metadata.creationTime}  lastSignIn=${u.metadata.lastSignInTime ?? '-'}  lastRefresh=${u.metadata.lastRefreshTime ?? '-'}` +
+      (wanted && u.email && sha(u.email) === wanted ? '  <== THIS E-MAIL' : ''),
   );
+if (wanted && !users.some((u) => u.email && sha(u.email) === wanted)) console.log('(no account has that e-mail)');
 
 console.log('\n== Spaces');
 for (const d of (await db.collection('spaces').get()).docs) {

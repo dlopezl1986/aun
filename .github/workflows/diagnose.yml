@@ -3,6 +3,11 @@ name: Diagnose sharing
 
 on:
   workflow_dispatch:
+    inputs:
+      email_sha256:
+        description: SHA-256 of an e-mail to locate (lowercase hex; never the address itself)
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -27,4 +32,5 @@ jobs:
       - name: Diagnose
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          EMAIL_SHA256: ${{ inputs.email_sha256 }}
         run: node diagnose.mjs
