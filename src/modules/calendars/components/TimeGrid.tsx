@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { AppText } from '@/components/ui/AppText';
@@ -10,7 +10,8 @@ import { useTheme } from '@/theme';
 import { withAlpha } from '@/utils/color';
 import { formatLongDate, formatTime, toDateKey, weekdayNames } from '@/utils/date';
 import { mondayIndex } from '@/utils/recurrence';
-import { allDayOn, layoutDay } from '../layout';
+import { layoutDay } from '../layout';
+import { layoutWeek } from '../monthLayout';
 import {
   canDrag,
   DragGhost,
@@ -27,6 +28,7 @@ import { occurrenceColor, type DayNote, type EventOccurrence } from '../types';
 
 const HOUR_HEIGHT = 52;
 const GUTTER = 52;
+const ALL_DAY_BAR = 20;
 
 interface Props {
   days: Date[];
@@ -81,8 +83,17 @@ export function TimeGrid({
   const now = useNow(60_000);
   const names = useMemo(() => weekdayNames(locale), [locale]);
   const layouts = useMemo(() => days.map((d) => layoutDay(d, occurrences)), [days, occurrences]);
-  const allDay = useMemo(() => days.map((d) => allDayOn(d, occurrences)), [days, occurrences]);
-  const hasAllDay = allDay.some((a) => a.length > 0);
+  // All-day events: bars across their days (an event of several days is one continuous bar).
+  const allDayRows = useMemo(
+    () =>
+      layoutWeek(
+        occurrences.filter((o) => o.event.allDay),
+        days,
+        { allAsBars: true },
+      ),
+    [days, occurrences],
+  );
+  const hasAllDay = allDayRows.bars.length > 0;
   const dayNotes = useMemo(() => days.map((d) => notes.filter((n) => n.date === toDateKey(d))), [days, notes]);
   const hasNotes = dayNotes.some((n) => n.length > 0);
   const [drag, setDrag] = useState<Drag | null>(null);
@@ -220,58 +231,63 @@ export function TimeGrid({
               {t('calendars.allDayShort')}
             </AppText>
           </View>
-          {allDay.map((items, i) => (
-            <View key={i} {...dropDay(toDateKey(days[i]))} style={{ flex: 1, gap: 2, paddingHorizontal: 2 }}>
-              {items.slice(0, 3).map((o) => (
+          {/* One bar per event across the days it covers (rows so they never overlap). */}
+          <View style={{ flex: 1, position: 'relative', height: allDayRows.lanes * (ALL_DAY_BAR + 2) }}>
+            <View style={[StyleSheet.absoluteFill, { flexDirection: 'row' }]}>
+              {days.map((d) => (
+                <View key={toDateKey(d)} {...dropDay(toDateKey(d))} style={{ flex: 1 }} />
+              ))}
+            </View>
+            {allDayRows.bars.map((b) => {
+              const o = b.occurrence;
+              const from = toDateKey(days[b.col]);
+              const drag = (point: DragPoint, moved = false) =>
+                startDrag(
+                  { key: o.key, label: o.event.title, color: occurrenceColor(o), from, occurrence: o, grabMin: 0, durMin: 0, point },
+                  moved,
+                );
+              return (
                 <Pressable
-                  key={o.key}
+                  key={`${o.key}:${b.col}`}
                   onPress={() => !justDragged() && onEventPress(o)}
-                  {...mouseDraggable(`t:${o.key}`, (point) =>
-                    startDrag(
-                      {
-                        key: o.key,
-                        label: o.event.title,
-                        color: occurrenceColor(o),
-                        from: toDateKey(days[i]),
-                        occurrence: o,
-                        grabMin: 0,
-                        durMin: 0,
-                        point,
-                      },
-                      true,
-                    ),
-                  )}
-                  onLongPress={(e) =>
-                    startDrag({
-                      key: o.key,
-                      label: o.event.title,
-                      color: occurrenceColor(o),
-                      from: toDateKey(days[i]),
-                      occurrence: o,
-                      grabMin: 0,
-                      durMin: 0,
-                      point: pointOf(e),
-                    })
-                  }
+                  {...mouseDraggable(`t:${o.key}`, (point) => drag(point, true))}
+                  onLongPress={(e) => drag(pointOf(e))}
                   delayLongPress={250}
                   accessibilityRole="button"
                   accessibilityLabel={`${o.event.title}, ${t('calendars.allDay')}`}
                   style={{
-                    paddingHorizontal: 6,
-                    paddingVertical: 2,
-                    borderRadius: radius.xs,
-                    backgroundColor: withAlpha(occurrenceColor(o), 0.22),
-                    borderLeftWidth: 3,
-                    borderLeftColor: o.calendar.color,
+                    position: 'absolute',
+                    top: b.lane * (ALL_DAY_BAR + 2),
+                    height: ALL_DAY_BAR,
+                    left: `${(b.col / days.length) * 100}%`,
+                    width: `${(b.span / days.length) * 100}%`,
+                    paddingLeft: b.startsHere ? 2 : 0,
+                    paddingRight: b.endsHere ? 2 : 0,
                   }}
                 >
-                  <AppText variant="caption" color={colors.text} numberOfLines={1}>
-                    {o.event.title}
-                  </AppText>
+                  <View
+                    style={{
+                      flex: 1,
+                      justifyContent: 'center',
+                      paddingHorizontal: 6,
+                      overflow: 'hidden',
+                      backgroundColor: withAlpha(occurrenceColor(o), 0.22),
+                      borderLeftWidth: b.startsHere ? 3 : 0,
+                      borderLeftColor: o.calendar.color,
+                      borderTopLeftRadius: b.startsHere ? radius.xs : 0,
+                      borderBottomLeftRadius: b.startsHere ? radius.xs : 0,
+                      borderTopRightRadius: b.endsHere ? radius.xs : 0,
+                      borderBottomRightRadius: b.endsHere ? radius.xs : 0,
+                    }}
+                  >
+                    <AppText variant="caption" color={colors.text} numberOfLines={1}>
+                      {o.event.title}
+                    </AppText>
+                  </View>
                 </Pressable>
-              ))}
-            </View>
-          ))}
+              );
+            })}
+          </View>
         </View>
       ) : null}
 
