@@ -334,6 +334,18 @@ export const en: Translation = {
       new: 'New shift',
       deleteTitle: 'Delete the shift “{{name}}”?',
       deleteMessage: 'Shifts already on the calendar are not deleted.',
+      hours: 'Hours it counts',
+      hoursHint: 'What each shift adds in the month summary (may differ from its times).',
+      hoursInvalid: 'Type a number of hours, e.g. 7.5.',
+    },
+    shiftHours: {
+      title: 'Shift hours · {{month}}',
+      count_one: '× {{count}}',
+      count_other: '× {{count}}',
+      total_one: '{{count}} shift · {{hours}}',
+      total_other: '{{count}} shifts · {{hours}}',
+      all: 'Total: {{hours}}',
+      thisMonth: '{{hours}} this month',
     },
     daySheet: {
       notes_one: '{{count}} note',

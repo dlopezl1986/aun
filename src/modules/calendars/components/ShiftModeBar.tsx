@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { IconButton } from '@/components/ui/IconButton';
 import { interaction } from '@/components/ui/interaction';
+import { useLocale } from '@/hooks/useLocale';
 import { useTheme } from '@/theme';
 import { withAlpha } from '@/utils/color';
 import type { Calendar, ShiftType } from '../types';
@@ -23,6 +24,8 @@ interface Props {
   calendarId: string | null;
   onCalendar: (id: string) => void;
   changes: number;
+  /** Hours of the shifts this month in the chosen calendar ("97,5 h"), if any. */
+  monthHours: string | null;
   canUndo: boolean;
   onUndo: () => void;
   onManage: () => void;
@@ -42,6 +45,7 @@ export function ShiftModeBar({
   calendarId,
   onCalendar,
   changes,
+  monthHours,
   canUndo,
   onUndo,
   onManage,
@@ -49,6 +53,7 @@ export function ShiftModeBar({
 }: Props) {
   const { t } = useTranslation();
   const { spacing, colors, radius } = useTheme();
+  const locale = useLocale();
   const chip = (
     key: string,
     label: string,
@@ -107,6 +112,11 @@ export function ShiftModeBar({
         <Icon name="briefcase" size={18} color={colors.primary} />
         <AppText variant="bodyStrong" style={{ flex: 1 }}>
           {t('calendars.shiftMode.title')}
+          {monthHours ? (
+            <AppText variant="small" tone="primary">
+              {`  ·  ${t('calendars.shiftHours.thisMonth', { hours: monthHours })}`}
+            </AppText>
+          ) : null}
         </AppText>
         <IconButton icon="rotate-ccw" label={t('calendars.shiftMode.undo')} onPress={onUndo} disabled={!canUndo} />
         <IconButton icon="settings" label={t('calendars.shiftMode.manage')} onPress={onManage} />
@@ -140,8 +150,13 @@ export function ShiftModeBar({
           accessibilityLabel={t('calendars.shiftMode.title')}
         >
           {types.map((s) =>
-            chip(s.id, s.name, shiftHoursLabel(s, t('calendars.allDay')), s.color, brush?.kind === 'shift' && brush.type.id === s.id, () =>
-              onBrush({ kind: 'shift', type: s }),
+            chip(
+              s.id,
+              s.name,
+              shiftHoursLabel(s, t('calendars.allDay'), locale),
+              s.color,
+              brush?.kind === 'shift' && brush.type.id === s.id,
+              () => onBrush({ kind: 'shift', type: s }),
             ),
           )}
           {chip('erase', t('calendars.shiftMode.erase'), null, null, brush?.kind === 'erase', () => onBrush({ kind: 'erase' }), 'delete')}

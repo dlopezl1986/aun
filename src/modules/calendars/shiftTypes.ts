@@ -1,8 +1,16 @@
 import type { Repository } from '@/storage/repository';
-import { DEFAULT_SHIFT_COLORS, DEFAULT_SHIFT_HOURS, SHIFT_IDS, type ShiftHours, type ShiftId } from './shifts';
+import {
+  DEFAULT_SHIFT_COLORS,
+  DEFAULT_SHIFT_COUNTED_HOURS,
+  DEFAULT_SHIFT_HOURS,
+  SHIFT_IDS,
+  shiftDuration,
+  type ShiftHours,
+  type ShiftId,
+} from './shifts';
 import type { ShiftType } from './types';
 
-export type ShiftTypeInput = Pick<ShiftType, 'name' | 'color' | 'allDay' | 'start' | 'end'>;
+export type ShiftTypeInput = Pick<ShiftType, 'name' | 'color' | 'allDay' | 'start' | 'end' | 'hours'>;
 
 /** Colour of the "Libre" (day off) label. */
 export const DAY_OFF_COLOR = '#10B981';
@@ -24,7 +32,16 @@ export class ShiftTypeService {
     saved: { hours?: Partial<Record<ShiftId, ShiftHours>>; colors?: Partial<Record<ShiftId, string>> } = {},
   ): Promise<ShiftType[]> {
     const current = await this.list();
-    if (current.length) return current;
+    if (current.length) {
+      // Labels made before shifts counted hours: the usual ones get their usual hours, the rest their duration.
+      const missing = current.filter((s) => typeof s.hours !== 'number');
+      for (const s of missing) {
+        const usual = SHIFT_IDS.find((id) => names[id] === s.name);
+        const hours = s.allDay || s.name === names.off ? 0 : usual ? DEFAULT_SHIFT_COUNTED_HOURS[usual] : shiftDuration(s);
+        await this.repo.update(s.id, { hours });
+      }
+      return missing.length ? this.list() : current;
+    }
     let order = 0;
     for (const id of SHIFT_IDS) {
       const hours = { ...DEFAULT_SHIFT_HOURS[id], ...saved.hours?.[id] };
@@ -33,10 +50,11 @@ export class ShiftTypeService {
         color: saved.colors?.[id] ?? DEFAULT_SHIFT_COLORS[id],
         allDay: false,
         ...hours,
+        hours: DEFAULT_SHIFT_COUNTED_HOURS[id],
         order: order++,
       });
     }
-    await this.repo.create({ name: names.off, color: DAY_OFF_COLOR, allDay: true, start: '00:00', end: '00:00', order: order++ });
+    await this.repo.create({ name: names.off, color: DAY_OFF_COLOR, allDay: true, start: '00:00', end: '00:00', hours: 0, order: order++ });
     return this.list();
   }
 

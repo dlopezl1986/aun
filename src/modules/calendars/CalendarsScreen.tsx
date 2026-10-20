@@ -1,5 +1,5 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, View, useWindowDimensions } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
@@ -40,7 +40,9 @@ import { EventFormSheet } from './components/EventFormSheet';
 import { DayAgenda, EventCard, NoteCard } from './components/DayAgenda';
 import { DayNoteSheet } from './components/DayNoteSheet';
 import { DaySheet } from './components/DaySheet';
+import { ShiftHoursSummary } from './components/ShiftHoursSummary';
 import { ShiftModeBar, type ShiftBrush } from './components/ShiftModeBar';
+import { formatHours, shiftTotals } from './shiftHours';
 import { ShiftTypesSheet } from './components/ShiftTypesSheet';
 import { MonthGrid } from './components/MonthGrid';
 import { TimeGrid } from './components/TimeGrid';
@@ -154,8 +156,14 @@ export function CalendarsScreen() {
     setMode('month');
     setShiftMode(true);
     setShiftChanges([]);
-    if (!shiftTypes.data?.length) ensureShiftTypes.mutate();
+    ensureShiftTypes.mutate();
   };
+  // Shift labels made before shifts counted hours get them (once).
+  const needsHours = !!shiftTypes.data?.some((s) => typeof s.hours !== 'number');
+  useEffect(() => {
+    if (needsHours && !ensureShiftTypes.isPending) ensureShiftTypes.mutate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [needsHours]);
   const finishShiftMode = () => {
     setShiftMode(false);
     setBrush(null);
@@ -356,6 +364,8 @@ export function CalendarsScreen() {
   }
 
   const occ = occurrences.data ?? [];
+  // Hours of the shifts in the month shown (summary under the grid and in shift mode).
+  const monthShiftTotals = mode === 'month' ? shiftTotals(occ, shiftTypes.data ?? [], anchor) : [];
   const notes = notesQuery.data ?? [];
   const onNote = (n: DayNote) => openNote(n.date, n);
   const weekStart = addDays(anchor, -mondayIndex(anchor));
@@ -468,6 +478,14 @@ export function CalendarsScreen() {
             calendarId={shiftCalendarId}
             onCalendar={setShiftCalendar}
             changes={shiftChanges.length}
+            monthHours={
+              monthShiftTotals.length
+                ? formatHours(
+                    monthShiftTotals.filter((c) => c.calendarId === shiftCalendarId).reduce((n, c) => n + c.hours, 0),
+                    locale,
+                  )
+                : null
+            }
             canUndo={shiftChanges.length > 0 && !undoShift.isPending}
             onUndo={() => {
               const last = shiftChanges[shiftChanges.length - 1];
@@ -497,6 +515,7 @@ export function CalendarsScreen() {
           }}
           onPaint={shiftMode ? paintDay : undefined}
         />
+        <ShiftHoursSummary totals={monthShiftTotals} month={anchor} />
         <Divider />
         <CardHeader
           title={selected === today ? t('common.today') : formatLongDate(anchor, locale)}

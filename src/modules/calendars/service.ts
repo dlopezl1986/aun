@@ -4,7 +4,7 @@ import type { RecurrenceRule } from '@/types/recurrence';
 import { matchScore, type SearchResult } from '@/types/search';
 import { addDays, combine, fromDateKey, startOfDay, timeOf, toDateKey, type DateKey } from '@/utils/date';
 import { expandOccurrences } from '@/utils/recurrence';
-import { shiftEndDate } from './shifts';
+import { countedHours, shiftEndDate } from './shifts';
 import { NOTE_COLORS, type Calendar, type CalendarEvent, type DayNote, type EventOccurrence, type ShiftType } from './types';
 
 export interface CalendarInput {
@@ -34,6 +34,7 @@ export interface EventInput {
   links?: EntityRef[];
   /** Shift label it was painted with (shift mode). Left untouched when undefined. */
   shiftTypeId?: string | null;
+  shiftHours?: number | null;
 }
 
 /** Drag & drop: move one day of a series, or the whole series. */
@@ -207,6 +208,7 @@ export class CalendarService {
       recurrence: input.recurrence ?? null,
       links: input.links ?? [],
       ...(input.shiftTypeId !== undefined ? { shiftTypeId: input.shiftTypeId } : {}),
+      ...(input.shiftHours !== undefined ? { shiftHours: input.shiftHours } : {}),
     };
   }
 
@@ -239,6 +241,7 @@ export class CalendarService {
       endTime: type.allDay ? null : type.end,
       color: type.color,
       shiftTypeId: type.id,
+      shiftHours: countedHours(type),
     });
     return { added: [added], removed: [] };
   }

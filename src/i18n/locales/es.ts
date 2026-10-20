@@ -332,6 +332,18 @@ export const es = {
       new: 'Nuevo turno',
       deleteTitle: '¿Borrar el turno «{{name}}»?',
       deleteMessage: 'Los turnos ya puestos en el calendario no se borran.',
+      hours: 'Horas que cuenta',
+      hoursHint: 'Las que suma cada turno en el resumen del mes (pueden no coincidir con el horario).',
+      hoursInvalid: 'Escribe un número de horas, por ejemplo 7,5.',
+    },
+    shiftHours: {
+      title: 'Horas de turnos · {{month}}',
+      count_one: '× {{count}}',
+      count_other: '× {{count}}',
+      total_one: '{{count}} turno · {{hours}}',
+      total_other: '{{count}} turnos · {{hours}}',
+      all: 'Total: {{hours}}',
+      thisMonth: '{{hours}} este mes',
     },
     daySheet: {
       notes_one: '{{count}} nota',

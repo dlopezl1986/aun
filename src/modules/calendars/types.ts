@@ -40,6 +40,8 @@ export interface CalendarEvent extends BaseEntity {
   links?: EntityRef[];
   /** Added with a shift label in shift mode (so it can be erased / toggled there). */
   shiftTypeId?: string | null;
+  /** Hours this shift counts (copied from its label when painted, so later label changes keep the past right). */
+  shiftHours?: number | null;
   /** @deprecated Phase 1 field, superseded by `links`. */
   attachments?: EntityRef[];
 }
@@ -84,4 +86,6 @@ export interface ShiftType extends BaseEntity {
   start: string;
   end: string;
   order: number;
+  /** Hours it counts in the totals (may differ from its span: breaks, paid nights…). Missing = its duration. */
+  hours?: number;
 }

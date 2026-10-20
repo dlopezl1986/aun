@@ -1,5 +1,6 @@
 import { createServices } from '@/services/container';
 import { memoryStore } from '@/test/memoryStore';
+import { shiftTotals } from '../shiftHours';
 
 // jest.mock factories run lazily and must use require().
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -62,5 +63,45 @@ describe('shift mode', () => {
     await s.calendars.undoShiftChange(erased);
     const back = await s.calendars.occurrencesBetween(new Date('2026-11-02T00:00'), new Date('2026-11-03T00:00'));
     expect(back).toHaveLength(4);
+  });
+});
+
+describe('shift hours', () => {
+  it('the usual shifts count 7.5 h (morning, afternoon) and 10 h (night); a day off 0', async () => {
+    const { byName } = await setup();
+    expect(byName('Mañana').hours).toBe(7.5);
+    expect(byName('Tarde').hours).toBe(7.5);
+    expect(byName('Noche').hours).toBe(10);
+    expect(byName('Libre').hours).toBe(0);
+  });
+
+  it('labels made before hours existed get them (usual ones their usual hours, the rest their length)', async () => {
+    const s = createServices('u', memoryStore(), null);
+    const repo = s.collections.get('shiftTypes')!;
+    await repo.create({ name: 'Noche', color: '#000', allDay: false, start: '23:00', end: '07:00', order: 0 } as never);
+    await repo.create({ name: 'Guardia', color: '#000', allDay: false, start: '08:00', end: '20:00', order: 1 } as never);
+    const types = await s.shiftTypes.ensureDefaults(names);
+    expect(types.map((t) => [t.name, t.hours])).toEqual([
+      ['Noche', 10],
+      ['Guardia', 12],
+    ]);
+  });
+
+  it('each painted shift keeps its hours, and the month adds them up per calendar and per shift', async () => {
+    const { s, cal, byName } = await setup();
+    for (const d of ['2026-11-02', '2026-11-03']) await s.calendars.paintShift(byName('Mañana'), cal.id, d);
+    await s.calendars.paintShift(byName('Noche'), cal.id, '2026-11-04');
+    await s.calendars.paintShift(byName('Libre'), cal.id, '2026-11-05');
+    await s.calendars.paintShift(byName('Mañana'), cal.id, '2026-12-01'); // another month
+    // Changing the label later does not change shifts already painted.
+    await s.shiftTypes.update(byName('Mañana').id, { ...byName('Mañana'), hours: 8 });
+    const occ = await s.calendars.occurrencesBetween(new Date('2026-10-26T00:00'), new Date('2026-12-07T00:00'));
+    const [total] = shiftTotals(occ, await s.shiftTypes.list(), new Date(2026, 10, 1));
+    expect(total).toMatchObject({ calendarName: 'Trabajo', count: 4, hours: 25 });
+    expect(total.byType.map((r) => [r.name, r.count, r.hours])).toEqual([
+      ['Mañana', 2, 15],
+      ['Noche', 1, 10],
+      ['Libre', 1, 0],
+    ]);
   });
 });

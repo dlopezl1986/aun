@@ -11,15 +11,25 @@ import { IconButton } from '@/components/ui/IconButton';
 import { Sheet } from '@/components/ui/Sheet';
 import { TextField } from '@/components/ui/TextField';
 import { Toggle } from '@/components/ui/Toggle';
+import { useLocale } from '@/hooks/useLocale';
 import { accentPalette, useTheme } from '@/theme';
 import { useDeleteShiftType, useSaveShiftType } from '../hooks';
+import { formatHours } from '../shiftHours';
+import { countedHours, shiftDuration } from '../shifts';
 import type { ShiftTypeInput } from '../shiftTypes';
 import type { ShiftType } from '../types';
 
-/** "07:00 – 15:00" or "Todo el día". */
-export function shiftHoursLabel(s: Pick<ShiftType, 'allDay' | 'start' | 'end'>, allDay: string): string {
-  return s.allDay ? allDay : `${s.start} – ${s.end}`;
+/** "07:00 – 15:00 · 7,5 h" or "Todo el día" (plus the hours it counts, if any). */
+export function shiftHoursLabel(s: Pick<ShiftType, 'allDay' | 'start' | 'end' | 'hours'>, allDay: string, locale: string): string {
+  const hours = countedHours(s);
+  const when = s.allDay ? allDay : `${s.start} – ${s.end}`;
+  return hours ? `${when} · ${formatHours(hours, locale)}` : when;
 }
+
+const parseHours = (text: string) => {
+  const n = Number(text.trim().replace(',', '.'));
+  return text.trim() !== '' && Number.isFinite(n) && n >= 0 && n <= 48 ? n : null;
+};
 
 function Form({ initial, onDone }: { initial: ShiftType | null; onDone: () => void }) {
   const { t } = useTranslation();
@@ -27,10 +37,20 @@ function Form({ initial, onDone }: { initial: ShiftType | null; onDone: () => vo
   const save = useSaveShiftType();
   const [value, setValue] = useState<ShiftTypeInput>(
     initial
-      ? { name: initial.name, color: initial.color, allDay: initial.allDay, start: initial.start, end: initial.end }
+      ? { name: initial.name, color: initial.color, allDay: initial.allDay, start: initial.start, end: initial.end, hours: initial.hours }
       : { name: '', color: accentPalette[4], allDay: false, start: '09:00', end: '17:00' },
   );
-  const set = (patch: Partial<ShiftTypeInput>) => setValue((v) => ({ ...v, ...patch }));
+  const locale = useLocale();
+  const format = (n: number) => new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(n);
+  // Hours it counts: follow its length until typed by hand.
+  const [hoursText, setHoursText] = useState(initial ? format(countedHours(initial)) : format(shiftDuration(value)));
+  const [hoursTouched, setHoursTouched] = useState(!!initial);
+  const set = (patch: Partial<ShiftTypeInput>) => {
+    const next = { ...value, ...patch };
+    setValue(next);
+    if (!hoursTouched) setHoursText(format(shiftDuration(next)));
+  };
+  const hours = parseHours(hoursText);
   return (
     <View style={{ gap: spacing.md, padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.surfaceMuted }}>
       <TextField
@@ -80,15 +100,26 @@ function Form({ initial, onDone }: { initial: ShiftType | null; onDone: () => vo
           {t('calendars.shiftMode.overnight')}
         </AppText>
       ) : null}
+      <TextField
+        label={t('calendars.shiftMode.hours')}
+        hint={t('calendars.shiftMode.hoursHint')}
+        value={hoursText}
+        onChangeText={(text) => {
+          setHoursTouched(true);
+          setHoursText(text);
+        }}
+        keyboardType="decimal-pad"
+        error={hours === null ? t('calendars.shiftMode.hoursInvalid') : undefined}
+      />
       <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: spacing.sm }}>
         <Button label={t('common.cancel')} variant="ghost" size="sm" onPress={onDone} />
         <Button
           label={t('common.save')}
           icon="check"
           size="sm"
-          disabled={!value.name.trim()}
+          disabled={!value.name.trim() || hours === null}
           loading={save.isPending}
-          onPress={() => save.mutate({ id: initial?.id ?? null, input: value }, { onSuccess: onDone })}
+          onPress={() => save.mutate({ id: initial?.id ?? null, input: { ...value, hours: hours ?? 0 } }, { onSuccess: onDone })}
         />
       </View>
     </View>
@@ -101,6 +132,7 @@ export function ShiftTypesSheet({ visible, types, onClose }: { visible: boolean;
   const { spacing } = useTheme();
   const dialog = useDialog();
   const del = useDeleteShiftType();
+  const locale = useLocale();
   const [editing, setEditing] = useState<ShiftType | 'new' | null>(null);
   if (!visible) return null;
   return (
@@ -114,7 +146,7 @@ export function ShiftTypesSheet({ visible, types, onClose }: { visible: boolean;
             <View style={{ flex: 1 }}>
               <AppText variant="bodyStrong">{s.name}</AppText>
               <AppText variant="caption" tone="textMuted">
-                {shiftHoursLabel(s, t('calendars.allDay'))}
+                {shiftHoursLabel(s, t('calendars.allDay'), locale)}
               </AppText>
             </View>
             <IconButton icon="edit-2" size={16} label={`${t('common.edit')}: ${s.name}`} onPress={() => setEditing(s)} />

@@ -22,6 +22,23 @@ export const DEFAULT_SHIFT_COLORS: Record<ShiftId, string> = {
   night: '#64748B',
 };
 
+/** Hours each usual shift counts by default (a morning or afternoon 7.5 h, a night 10 h). */
+export const DEFAULT_SHIFT_COUNTED_HOURS: Record<ShiftId, number> = { morning: 7.5, afternoon: 7.5, night: 10 };
+
+/** Length of a shift in hours from its times (a night ending the next day included). */
+export function shiftDuration(s: { allDay: boolean; start: string; end: string }): number {
+  if (s.allDay) return 0;
+  const min = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));
+  let d = min(s.end) - min(s.start);
+  if (d <= 0) d += 24 * 60;
+  return d / 60;
+}
+
+/** Hours a shift label counts: the ones set on it, or its duration. */
+export function countedHours(s: { allDay: boolean; start: string; end: string; hours?: number }): number {
+  return typeof s.hours === 'number' ? s.hours : shiftDuration(s);
+}
+
 /** End date of a shift starting on `startDate`: the next day when it ends past midnight. */
 export function shiftEndDate(startDate: DateKey, hours: ShiftHours): DateKey {
   return hours.end <= hours.start ? toDateKey(addDays(fromDateKey(startDate), 1)) : startDate;
