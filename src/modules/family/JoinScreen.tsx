@@ -13,7 +13,7 @@ import { LoadingState } from '@/components/ui/States';
 import { backendKind } from '@/services/backend';
 import { FirebaseSharingService, SharingError } from '@/services/sharing/firebaseSharing';
 import { pendingInvite } from '@/services/sharing/pendingInvite';
-import { familySpaceId, type Invite } from '@/services/sharing/spaces';
+import type { Invite } from '@/services/sharing/spaces';
 import { useAuthStore } from '@/state/authStore';
 import { CanvasScope, useTheme } from '@/theme';
 import { familyMeta } from './meta';
@@ -109,7 +109,7 @@ export function JoinScreen() {
     const items = Object.entries(invite.grants).map(([spaceId, role]) => ({
       spaceId,
       role,
-      name: spaceId === familySpaceId(invite.ownerId) ? t('sharing.familyAndShopping') : (invite.spaceNames[spaceId] ?? ''),
+      name: spaceId.startsWith('fam_') ? t('sharing.familyAndShopping') : (invite.spaceNames[spaceId] ?? ''),
       yours: invite.assign === spaceId,
     }));
     body = (
@@ -127,7 +127,7 @@ export function JoinScreen() {
                 {i.yours ? ` · ${t('sharing.yourCalendar')}` : ''}
               </AppText>
               <AppText variant="small" tone="textMuted">
-                {t(`sharing.roles.${i.role}`)}
+                {i.spaceId.startsWith('fam_') ? t(`sharing.family.roles.${i.role}`) : t(`sharing.roles.${i.role}`)}
               </AppText>
             </View>
           ))}

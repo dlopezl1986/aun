@@ -17,7 +17,8 @@ import {
 
 import { firebaseAuth, firebaseDb } from '@/services/backend/firebase';
 import { createId } from '@/utils/id';
-import type { Invite, ShareRole, Space } from './spaces';
+import { fetchSpaces } from './fetchSpaces';
+import { calendarSpaceId, familySpaceId, myFamily, type FamilyCalendarRole, type Invite, type ShareRole, type Space } from './spaces';
 
 const INVITE_DAYS = 7;
 
@@ -31,7 +32,9 @@ export interface InviteInput {
 }
 
 export class SharingError extends Error {
-  constructor(readonly code: 'not-found' | 'expired' | 'used' | 'own' | 'denied' | 'offline') {
+  constructor(
+    readonly code: 'not-found' | 'expired' | 'used' | 'own' | 'denied' | 'offline' | 'other-family' | 'own-family' | 'no-family',
+  ) {
     super(code);
     this.name = 'SharingError';
   }
@@ -83,17 +86,22 @@ export class FirebaseSharingService {
     return u?.displayName || u?.email?.split('@')[0] || 'AUN';
   }
 
+  /** Spaces I can see: mine, the ones shared with me and the calendars shared with my family. */
   async spaces(): Promise<Space[]> {
     try {
-      const snap = await getDocsFromServer(query(collection(this.db, 'spaces'), where('memberIds', 'array-contains', this.me)));
-      return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Space, 'id'>) }));
+      return await fetchSpaces(this.db, this.me);
     } catch (e) {
       mapError(e);
     }
   }
 
-  /** Creates one of my spaces if missing (only me in it), or refreshes its name. */
+  private isMine(spaceId: string) {
+    return spaceId === familySpaceId(this.me) || spaceId.startsWith(`cal_${this.me}_`);
+  }
+
+  /** Creates one of my spaces if missing (only me in it), or refreshes its name. Others' spaces already exist. */
   async ensureSpace(id: string, def: { kind: Space['kind']; refId: string | null; name: string }): Promise<void> {
+    if (!this.isMine(id)) return;
     const ref = doc(this.db, 'spaces', id);
     try {
       const snap = await getDocFromServer(ref);
@@ -178,6 +186,27 @@ export class FirebaseSharingService {
     this.onSpacesChanged();
   }
 
+  /**
+   * Shares one of my calendars with my whole family (`null` stops it): every
+   * member sees it, and can edit it if `role` is 'edit' and their family role allows.
+   */
+  async shareCalendarWithFamily(calendar: { id: string; name: string }, role: FamilyCalendarRole | null): Promise<void> {
+    const spaceId = calendarSpaceId(this.me, calendar.id);
+    const family = myFamily(await this.spaces(), this.me);
+    if (role && !family) throw new SharingError('no-family');
+    await this.ensureSpace(spaceId, { kind: 'calendar', refId: calendar.id, name: calendar.name });
+    try {
+      await updateDoc(doc(this.db, 'spaces', spaceId), {
+        family: role ? family!.id : null,
+        familyRole: role,
+        updatedAt: Timestamp.now(),
+      });
+    } catch (e) {
+      mapError(e);
+    }
+    this.onSpacesChanged();
+  }
+
   async createInvite(input: InviteInput): Promise<Invite> {
     for (const [id, def] of Object.entries(input.spaces)) if (input.grants[id]) await this.ensureSpace(id, def);
     const code = `${createId()}${createId()}`.replace(/-/g, '').slice(0, 40);
@@ -237,6 +266,14 @@ export class FirebaseSharingService {
     if (invite.usedBy && invite.usedBy !== this.me) throw new SharingError('used');
     if (invite.usedBy === this.me) return invite; // already accepted (e.g. another device)
     if (new Date(invite.expiresAt).getTime() < Date.now()) throw new SharingError('expired');
+    // One family per person: not while I am in another one, nor while my own has other people in it.
+    const joining = Object.keys(invite.grants).find((id) => id.startsWith('fam_'));
+    if (joining) {
+      const mine = await this.spaces();
+      const current = myFamily(mine, this.me);
+      if (current && current.id !== joining && current.ownerId !== this.me) throw new SharingError('other-family');
+      if (current && current.ownerId === this.me && current.memberIds.length > 1) throw new SharingError('own-family');
+    }
     const name = this.myName();
     const batch = writeBatch(this.db);
     batch.update(doc(this.db, 'invites', code), { usedBy: this.me, usedByName: name, usedAt: Timestamp.now() });

@@ -12,7 +12,8 @@
  * starts), so a change made by the family shows up in seconds.
  */
 import { collection, doc, firebaseDb, getDocsFromServer, limit, orderBy, query, where, writeBatch } from '@/services/backend/firebase';
-import { familySpaceId, householdOwner, spaceForRecord, type Space } from '@/services/sharing/spaces';
+import { fetchSpaces, watchSpaces } from '@/services/sharing/fetchSpaces';
+import { canSee, householdOwner, roleIn, spaceForRecord, type Space } from '@/services/sharing/spaces';
 import { getDocFromServer, onSnapshot, serverTimestamp, setDoc, Timestamp, type Unsubscribe } from 'firebase/firestore';
 import type { BaseEntity } from '@/types/entity';
 import { SyncError, type PullPage, type PushResult, type RemoteRecord, type RemoteStore } from './types';
@@ -83,12 +84,11 @@ export class FirebaseRemoteStore implements RemoteStore {
     private readonly calendarOwner: (calendarId: string) => Promise<string | null>,
   ) {}
 
-  /** Spaces I belong to (refreshed at most every 30 s). */
+  /** Spaces I can see: mine, and calendars shared with my family (refreshed at most every 30 s). */
   async loadSpaces(force = false): Promise<Space[]> {
     if (!force && Date.now() - this.spacesAt < 30_000) return this.spaces;
     try {
-      const snap = await getDocsFromServer(query(collection(firebaseDb(), 'spaces'), where('memberIds', 'array-contains', this.me)));
-      this.spaces = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Space, 'id'>) }));
+      this.spaces = await fetchSpaces(firebaseDb(), this.me);
       this.spacesAt = Date.now();
     } catch (e) {
       mapFirestoreError(e);
@@ -114,14 +114,57 @@ export class FirebaseRemoteStore implements RemoteStore {
   isGone(_collection: string, row: BaseEntity): boolean {
     if (row.space === undefined) return false; // not known yet
     if (row.space === null) return true; // private to its owner
-    if (row.space === familySpaceId(this.me) || row.space.startsWith(`cal_${this.me}_`)) return false;
-    return !this.spaces.some((s) => s.id === row.space && s.memberIds.includes(this.me));
+    return !canSee(this.spaces, row.space, this.me);
   }
 
   watch(handlers: { onRecords: (records: RemoteRecord[]) => void; onAccess: () => void }): () => void {
+    let stopped = false;
+    let stopAll: (() => void) | null = null;
+    let retry: ReturnType<typeof setTimeout> | null = null;
+    let attempts = 0;
+    let accessKey: string | null = null;
+    const access = (key: string) => {
+      const changed = accessKey !== null && key !== accessKey;
+      accessKey = key;
+      attempts = 0;
+      return changed;
+    };
+    // Access was taken away under a listener: Firestore stalls the whole connection's
+    // listeners, so close them all, sync from the server (which forgets what I lost)
+    // and listen again (backing off if it keeps happening).
+    const revoked = () => {
+      if (stopped || retry) return;
+      stopAll?.();
+      stopAll = null;
+      handlers.onAccess();
+      retry = setTimeout(
+        () => {
+          retry = null;
+          if (!stopped) stopAll = this.listen(handlers, access, revoked);
+        },
+        Math.min(30_000, 500 * 2 ** attempts++),
+      );
+    };
+    stopAll = this.listen(handlers, access, revoked);
+    return () => {
+      stopped = true;
+      if (retry) clearTimeout(retry);
+      stopAll?.();
+    };
+  }
+
+  /**
+   * One set of live listeners: my spaces (and my family's calendars), my rows,
+   * and the rows of every space I can see. `access(key)` says whether what I can
+   * see changed (then a full sync runs).
+   */
+  private listen(
+    handlers: { onRecords: (records: RemoteRecord[]) => void; onAccess: () => void },
+    access: (key: string) => boolean,
+    revoked: () => void,
+  ): () => void {
     const db = firebaseDb();
     let records: Unsubscribe[] = [];
-    let accessKey: string | null = null;
     const stopRecords = () => {
       records.forEach((u) => u());
       records = [];
@@ -137,26 +180,29 @@ export class FirebaseRemoteStore implements RemoteStore {
             .map((c) => toRemote(c.doc.data() as RecordDoc));
           if (changed.length) handlers.onRecords(changed);
         },
-        () => undefined, // e.g. offline or access just removed: the next sync sorts it out
+        (e) => {
+          if ((e as { code?: string })?.code === 'permission-denied') revoked();
+        },
       );
-    const spaces = onSnapshot(
-      query(collection(db, 'spaces'), where('memberIds', 'array-contains', this.me)),
-      (snap) => {
-        const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Space, 'id'>) }));
+    let lastKey = '';
+    const spaces = watchSpaces(
+      db,
+      this.me,
+      (list) => {
         const shared = this.sharedSpaces(list);
-        const key = JSON.stringify(shared.map((s) => [s.id, s.roles[this.me] ?? 'owner', s.memberIds.length]).sort());
-        if (key === accessKey) return;
-        const first = accessKey === null;
-        accessKey = key;
+        // What I can see and do, and who is in each space: any change means a new sync.
+        const key = JSON.stringify(shared.map((s) => [s.id, roleIn(list, s.id, this.me), s.memberIds.length]).sort());
+        if (key === lastKey) return;
+        lastKey = key;
         this.spaces = list;
         this.spacesAt = Date.now();
-        // (Re)start the row listeners from now; anything before is covered by the sync below.
+        // (Re)start the row listeners from now; anything before is covered by the sync.
         stopRecords();
         const since = Timestamp.now();
         records = [listen('ownerId', this.me, since), ...shared.map((s) => listen('spaceId', s.id, since))];
-        if (!first) handlers.onAccess();
+        if (access(key)) handlers.onAccess();
       },
-      () => undefined,
+      revoked,
     );
     return () => {
       spaces();

@@ -14,7 +14,14 @@ service cloud.firestore {
     //   cal_<ownerUid>_<calendarId>  one calendar and its events
     //   fam_<ownerUid>               the family: members, lists, shopping
     // Its id embeds the owner, so nobody can create a space in someone
-    // else's name. roles: { uid: 'view' | 'edit' }.
+    // else's name. roles: { uid: 'view' | 'edit' | 'admin' }.
+    //
+    // A family is a group: its owner and 'admin' members are adults who
+    // manage it (invite, change roles); 'edit' members can add and change
+    // family data; 'view' members only see it. A calendar can be shared with
+    // the whole family (`family` = the family space id, `familyRole` = what
+    // members can do): access then follows family membership, so people who
+    // join see it at once and people who leave stop seeing it.
     // ---------------------------------------------------------------------
     function ownSpace(s) {
       return s == 'fam_' + uid() || s.matches('cal_' + uid() + '_.+');
@@ -25,11 +32,26 @@ service cloud.firestore {
     function hasSpace(s) {
       return exists(/databases/$(db)/documents/spaces/$(s));
     }
+    // My role in a family space document ('admin' for its owner).
+    function famRoleIn(fd, u) {
+      return fd.ownerId == u ? 'admin' : fd.roles.get(u, 'none');
+    }
+    function inFamily(f) {
+      return f != null && hasSpace(f) && uid() in spaceDoc(f).memberIds;
+    }
+    function familyWriter(f) {
+      return f != null && hasSpace(f) && famRoleIn(spaceDoc(f), uid()) in ['admin', 'edit'];
+    }
     function canRead(s) {
-      return s != null && (ownSpace(s) || (hasSpace(s) && uid() in spaceDoc(s).memberIds));
+      return s != null && (ownSpace(s) || (hasSpace(s) && (
+        uid() in spaceDoc(s).memberIds || inFamily(spaceDoc(s).get('family', null))
+      )));
     }
     function canWrite(s) {
-      return s != null && (ownSpace(s) || (hasSpace(s) && spaceDoc(s).roles.get(uid(), 'none') == 'edit'));
+      return s != null && (ownSpace(s) || (hasSpace(s) && (
+        spaceDoc(s).roles.get(uid(), 'none') in ['edit', 'admin']
+        || (spaceDoc(s).get('familyRole', null) == 'edit' && familyWriter(spaceDoc(s).get('family', null)))
+      )));
     }
 
     // ---------------------------------------------------------------------
@@ -88,7 +110,9 @@ service cloud.firestore {
       let role = inv.grants.get(spaceId, null);
       let changed = request.resource.data.diff(resource.data).affectedKeys();
       return role != null
-        && inv.ownerId == resource.data.ownerId
+        // The owner invites to any of their spaces; a family admin to the family.
+        && (inv.ownerId == resource.data.ownerId
+          || (spaceId.matches('fam_.+') && famRoleIn(resource.data, inv.ownerId) == 'admin'))
         && inv.usedBy == uid()
         && inv.expiresAt > request.time
         && !(uid() in resource.data.memberIds)
@@ -118,17 +142,43 @@ service cloud.firestore {
           || (after.get('assignee', null) == null && resource.data.get('assignee', null) == uid()));
     }
 
+    // A calendar is shared with a family only by someone in that family.
+    function familyLinkOk() {
+      let f = request.resource.data.get('family', null);
+      return (f == null && request.resource.data.get('familyRole', null) == null)
+        || (f.matches('fam_.+') && inFamily(f) && request.resource.data.get('familyRole', null) in ['view', 'edit']);
+    }
+
+    // A family admin (not the owner) manages people: roles, adding or
+    // removing members — never the owner, the owner field or anything else.
+    function managingFamily(spaceId) {
+      let after = request.resource.data;
+      return spaceId.matches('fam_.+')
+        && resource.data.ownerId != uid()
+        && famRoleIn(resource.data, uid()) == 'admin'
+        && after.ownerId == resource.data.ownerId
+        && resource.data.ownerId in after.memberIds
+        && !(resource.data.ownerId in after.roles)
+        && after.diff(resource.data).affectedKeys().hasOnly(['memberIds', 'roles', 'names', 'updatedAt']);
+    }
+
     match /spaces/{spaceId} {
-      // Own spaces can be read even before they exist (to create them); others only by their members.
-      allow read: if signedIn() && (ownSpace(spaceId) || uid() in resource.data.memberIds);
+      // Own spaces can be read even before they exist (to create them); others by
+      // their members, and calendars shared with a family by that family.
+      allow read: if signedIn() && (
+        ownSpace(spaceId) || uid() in resource.data.memberIds || inFamily(resource.data.get('family', null))
+      );
       allow create: if signedIn()
         && ownSpace(spaceId)
         && request.resource.data.ownerId == uid()
-        && uid() in request.resource.data.memberIds;
+        && uid() in request.resource.data.memberIds
+        && familyLinkOk();
       allow update: if signedIn() && (
-        (resource.data.ownerId == uid() && request.resource.data.ownerId == uid() && uid() in request.resource.data.memberIds)
+        (resource.data.ownerId == uid() && request.resource.data.ownerId == uid() && uid() in request.resource.data.memberIds
+          && familyLinkOk())
         || joining(spaceId)
         || leaving()
+        || managingFamily(spaceId)
       );
       allow delete: if signedIn() && resource.data.ownerId == uid();
     }

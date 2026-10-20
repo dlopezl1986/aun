@@ -20,8 +20,16 @@ import { TextField } from '@/components/ui/TextField';
 import { Toggle } from '@/components/ui/Toggle';
 import { useLocale } from '@/hooks/useLocale';
 import { useNow } from '@/hooks/useNow';
-import { useCreateInvite, useDeleteInvite, useLeaveSpaces, useMyInvites, useSetAccess, useSharing } from '@/services/sharing/hooks';
-import { calendarSpaceId, familySpaceId, peopleOf, type Invite, type ShareRole, type Space } from '@/services/sharing/spaces';
+import {
+  useCreateInvite,
+  useDeleteInvite,
+  useFamily,
+  useLeaveSpaces,
+  useMyInvites,
+  useSetAccess,
+  useSharing,
+} from '@/services/sharing/hooks';
+import { calendarSpaceId, familyRoleOf, familySpaceId, peopleOf, type Invite, type ShareRole, type Space } from '@/services/sharing/spaces';
 import { useDataQuery } from '@/state/queryClient';
 import { useTheme } from '@/theme';
 import { formatShortDate } from '@/utils/date';
@@ -30,7 +38,30 @@ import { familyMeta } from '../meta';
 import { SharingSyncStatus } from './SharingSyncStatus';
 import type { Member } from '../types';
 
-type Access = 'none' | ShareRole;
+type Access = 'none' | Exclude<ShareRole, 'admin'>;
+/** Role in the family: adult (manages it), relative (adds and edits), view only. */
+type FamilyAccessRole = 'none' | ShareRole;
+
+function FamilyRoleChips({
+  value,
+  onChange,
+  allowNone = false,
+}: {
+  value: FamilyAccessRole;
+  onChange: (v: FamilyAccessRole) => void;
+  allowNone?: boolean;
+}) {
+  const { t } = useTranslation();
+  const options: FamilyAccessRole[] = [...(allowNone ? (['none'] as const) : []), 'admin', 'edit', 'view'];
+  return (
+    <ChipGroup<FamilyAccessRole>
+      accessibilityLabel={t('sharing.family.role')}
+      selected={value}
+      onToggle={onChange}
+      options={options.map((v) => ({ value: v, label: t(`sharing.family.roles.${v}`) }))}
+    />
+  );
+}
 type SpaceDef = { kind: Space['kind']; refId: string | null; name: string };
 interface Cal {
   id: string;
@@ -95,6 +126,9 @@ function InviteSheet({ onClose }: { onClose: () => void }) {
   const { spacing } = useTheme();
   const toast = useToast();
   const { me } = useSharing();
+  const fam = useFamily();
+  // Invitations go to my family: someone else's if I am an adult in it, or mine (created now if needed).
+  const familyId = fam.family?.id ?? familySpaceId(me);
   const calendars = useMyCalendars(me);
   const membersQuery = useChildren();
   const members = useMemo(() => membersQuery.data ?? [], [membersQuery.data]);
@@ -103,6 +137,7 @@ function InviteSheet({ onClose }: { onClose: () => void }) {
   const [name, setName] = useState('');
   const [assign, setAssign] = useState<string | null>(null);
   const [family, setFamily] = useState(true);
+  const [role, setRole] = useState<FamilyAccessRole>('admin');
   const childCalendars = useMemo(() => new Set(members.filter((m) => m.relation === 'child').map((m) => m.calendarId)), [members]);
   const [access, setAccess] = useState<Record<string, Access>>({});
   const [invite, setInvite] = useState<Invite | null>(null);
@@ -113,6 +148,7 @@ function InviteSheet({ onClose }: { onClose: () => void }) {
     setMember(m);
     if (m) {
       setName(m.name);
+      setRole(m.relation === 'child' ? 'edit' : 'admin');
       if (m.calendarId && calendars.some((c) => c.id === m.calendarId)) setAssign(m.calendarId);
     }
   };
@@ -120,9 +156,9 @@ function InviteSheet({ onClose }: { onClose: () => void }) {
   const submit = () => {
     const grants: Record<string, ShareRole> = {};
     const spaces: Record<string, SpaceDef> = {};
-    if (family) {
-      grants[familySpaceId(me)] = 'edit';
-      spaces[familySpaceId(me)] = { kind: 'family', refId: null, name: t('sharing.familyAndShopping') };
+    if (family && role !== 'none') {
+      grants[familyId] = role;
+      spaces[familyId] = { kind: 'family', refId: null, name: t('sharing.familyAndShopping') };
     }
     for (const c of calendars) {
       const role: Access = c.id === assign ? 'edit' : accessOf(c);
@@ -188,7 +224,7 @@ function InviteSheet({ onClose }: { onClose: () => void }) {
           selected={member?.id ?? 'other'}
           onToggle={(id) => pickMember(members.find((m) => m.id === id) ?? null)}
           options={[
-            ...members.filter((m) => m.relation !== 'child').map((m) => ({ value: m.id, label: m.name })),
+            ...members.filter((m) => !m.accountUid).map((m) => ({ value: m.id, label: m.name })),
             { value: 'other', label: t('sharing.otherPerson') },
           ]}
         />
@@ -223,6 +259,15 @@ function InviteSheet({ onClose }: { onClose: () => void }) {
         </View>
         <Toggle value={family} onValueChange={setFamily} label={t('sharing.familyAndShopping')} />
       </View>
+      {family ? (
+        <View style={{ gap: spacing.xs }}>
+          <Label>{t('sharing.family.role')}</Label>
+          <FamilyRoleChips value={role} onChange={setRole} />
+          <AppText variant="caption" tone="textMuted">
+            {t(`sharing.family.roleHints.${role}`)}
+          </AppText>
+        </View>
+      ) : null}
 
       {calendars.filter((c) => c.id !== assign).length ? (
         <View style={{ gap: spacing.md }}>
@@ -268,8 +313,13 @@ function PersonEditor({ person, onClose }: { person: { uid: string; name: string
   const { me, spaces } = useSharing();
   const calendars = useMyCalendars(me);
   const setAccessM = useSetAccess();
-  const roleIn = (id: string): Access => spaces.find((s) => s.id === id)?.roles[person.uid] ?? 'none';
-  const [family, setFamily] = useState(roleIn(familySpaceId(me)) !== 'none');
+  const fam = useFamily();
+  const familyId = fam.family?.id ?? familySpaceId(me);
+  const roleIn = (id: string): Access => {
+    const r = spaces.find((s) => s.id === id)?.roles[person.uid];
+    return r === 'admin' ? 'edit' : (r ?? 'none');
+  };
+  const [familyRole, setFamilyRole] = useState<FamilyAccessRole>(familyRoleOf(fam.family, person.uid) ?? 'none');
   const [assign, setAssign] = useState<string | null>(
     calendars.find((c) => spaces.find((s) => s.id === calendarSpaceId(me, c.id))?.assignee === person.uid)?.id ?? null,
   );
@@ -278,11 +328,15 @@ function PersonEditor({ person, onClose }: { person: { uid: string; name: string
   );
 
   const changesFor = (all: Access | null) => [
-    {
-      spaceId: familySpaceId(me),
-      role: (all === 'none' ? null : family ? 'edit' : null) as ShareRole | null,
-      def: { kind: 'family' as const, refId: null, name: t('sharing.familyAndShopping') },
-    },
+    ...(fam.canManage || !fam.family
+      ? [
+          {
+            spaceId: familyId,
+            role: (all === 'none' || familyRole === 'none' ? null : familyRole) as ShareRole | null,
+            def: { kind: 'family' as const, refId: null, name: t('sharing.familyAndShopping') },
+          },
+        ]
+      : []),
     ...calendars.map((c) => {
       const v: Access = all === 'none' ? 'none' : c.id === assign ? 'edit' : (access[c.id] ?? 'none');
       return {
@@ -320,15 +374,15 @@ function PersonEditor({ person, onClose }: { person: { uid: string; name: string
         </>
       }
     >
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-        <View style={{ flex: 1 }}>
-          <AppText variant="bodyStrong">{t('sharing.familyAndShopping')}</AppText>
+      {fam.canManage || !fam.family ? (
+        <View style={{ gap: spacing.xs }}>
+          <Label>{t('sharing.family.role')}</Label>
+          <FamilyRoleChips value={familyRole} onChange={setFamilyRole} allowNone />
           <AppText variant="caption" tone="textMuted">
-            {t('sharing.familyHint')}
+            {t(`sharing.family.roleHints.${familyRole}`)}
           </AppText>
         </View>
-        <Toggle value={family} onValueChange={setFamily} label={t('sharing.familyAndShopping')} />
-      </View>
+      ) : null}
       <View style={{ gap: spacing.xs }}>
         <Label>{t('sharing.theirCalendar')}</Label>
         <RadioRow selected={assign === null} onSelect={() => setAssign(null)} label={t('sharing.noCalendar')} />
@@ -385,9 +439,9 @@ function SharedWithMe({ spaces, me }: { spaces: Space[]; me: string }) {
       <AppText variant="bodyStrong">{t('sharing.youAreIn', { name: ownerName })}</AppText>
       {spaces.map((s) => (
         <AppText key={s.id} variant="small" tone="textMuted">
-          {`• ${s.kind === 'family' ? t('sharing.familyAndShopping') : s.name} — ${t(`sharing.roles.${s.roles[me] ?? 'view'}`)}${
-            s.assignee === me ? ` · ${t('sharing.yourCalendar')}` : ''
-          }`}
+          {`• ${s.kind === 'family' ? t('sharing.familyAndShopping') : s.name} — ${
+            s.kind === 'family' ? t(`sharing.family.roles.${s.roles[me] ?? 'view'}`) : t(`sharing.roles.${s.roles[me] ?? 'view'}`)
+          }${s.assignee === me ? ` · ${t('sharing.yourCalendar')}` : ''}`}
         </AppText>
       ))}
       <View style={{ flexDirection: 'row', marginTop: spacing.xs }}>
@@ -425,10 +479,16 @@ export function FamilyAccess({
   const [inviting, setInviting] = useState(false);
   const now = useNow(60_000);
   const [person, setPerson] = useState<{ uid: string; name: string } | null>(null);
-  const people = peopleOf(spaces, me);
+  const fam = useFamily();
+  const family = fam.family;
+  // Everyone in the family (whoever created it), then people I share calendars with outside it.
+  const familyPeople = family
+    ? family.memberIds.filter((uid) => uid !== me).map((uid) => ({ uid, name: family.names[uid] || t('sharing.someone') }))
+    : [];
+  const people = peopleOf(spaces, me).filter((p) => !family?.memberIds.includes(p.uid));
   const pending = (invites.data ?? []).filter((i) => !i.usedBy && new Date(i.expiresAt).getTime() > now);
   // Families / calendars other people share with me.
-  const sharedWithMe = spaces.filter((s) => s.ownerId !== me);
+  const sharedWithMe = spaces.filter((s) => s.ownerId !== me && s.memberIds.includes(me));
 
   // Once an invitation is accepted, its family profile is linked to that account (and to "their calendar").
   useEffect(() => {
@@ -447,13 +507,28 @@ export function FamilyAccess({
   }, [invites.data, members, me]);
 
   const summary = (uid: string) => {
-    const mine = spaces.filter((s) => s.ownerId === me && s.memberIds.includes(uid));
-    const fam = mine.some((s) => s.kind === 'family');
-    const cals = mine.filter((s) => s.kind === 'calendar').length;
-    return [fam ? t('sharing.familyAndShopping') : null, cals ? t('sharing.calendarsCount', { count: cals }) : null]
+    const role = familyRoleOf(family, uid);
+    const owner = family?.ownerId === uid;
+    const cals = spaces.filter((s) => s.ownerId === me && s.kind === 'calendar' && s.memberIds.includes(uid)).length;
+    return [
+      role ? (owner ? t('sharing.family.creator') : t(`sharing.family.roles.${role}`)) : null,
+      cals ? t('sharing.calendarsCount', { count: cals }) : null,
+    ]
       .filter(Boolean)
       .join(' · ');
   };
+  const personRow = (p: { uid: string; name: string }, manageable: boolean) => (
+    <View key={p.uid} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 52 }}>
+      <Avatar name={p.name || '?'} size={36} />
+      <View style={{ flex: 1 }}>
+        <AppText variant="bodyStrong">{p.name}</AppText>
+        <AppText variant="caption" tone="textMuted">
+          {summary(p.uid)}
+        </AppText>
+      </View>
+      {manageable ? <Button label={t('sharing.permissions')} size="sm" variant="secondary" onPress={() => setPerson(p)} /> : null}
+    </View>
+  );
 
   return (
     <Card>
@@ -461,30 +536,58 @@ export function FamilyAccess({
         title={t('sharing.title')}
         icon="users"
         accent={familyMeta.accent}
-        right={<Button label={t('sharing.invite')} icon="user-plus" size="sm" variant="soft" onPress={() => setInviting(true)} />}
+        right={
+          fam.canInvite ? (
+            <Button label={t('sharing.invite')} icon="user-plus" size="sm" variant="soft" onPress={() => setInviting(true)} />
+          ) : undefined
+        }
       />
       {sharedWithMe.length ? <SharedWithMe spaces={sharedWithMe} me={me} /> : null}
 
+      {familyPeople.length ? (
+        <View style={{ gap: spacing.xs }}>
+          <Label>{t('sharing.family.members')}</Label>
+          {familyPeople.map((p) => personRow(p, fam.canManage && p.uid !== family?.ownerId))}
+          {fam.myRole ? (
+            <AppText variant="caption" tone="textMuted">
+              {t('sharing.family.you', {
+                role: family?.ownerId === me ? t('sharing.family.creator') : t(`sharing.family.roles.${fam.myRole}`),
+              })}
+            </AppText>
+          ) : null}
+        </View>
+      ) : null}
       {people.length ? (
         <View style={{ gap: spacing.xs }}>
-          {people.map((p) => (
-            <View key={p.uid} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 52 }}>
-              <Avatar name={p.name || '?'} size={36} />
-              <View style={{ flex: 1 }}>
-                <AppText variant="bodyStrong">{p.name}</AppText>
-                <AppText variant="caption" tone="textMuted">
-                  {summary(p.uid)}
-                </AppText>
-              </View>
-              <Button label={t('sharing.permissions')} size="sm" variant="secondary" onPress={() => setPerson(p)} />
-            </View>
-          ))}
+          {familyPeople.length ? <Label>{t('sharing.family.others')}</Label> : null}
+          {people.map((p) => personRow(p, true))}
         </View>
-      ) : sharedWithMe.length ? null : (
+      ) : null}
+      {!familyPeople.length && !people.length && !sharedWithMe.length ? (
         <AppText variant="small" tone="textMuted">
           {t('sharing.empty')}
         </AppText>
-      )}
+      ) : null}
+
+      {fam.withOthers ? (
+        <View style={{ gap: spacing.xs }}>
+          <Label>{t('sharing.family.calendars')}</Label>
+          {fam.calendars.length ? (
+            fam.calendars.map((c) => (
+              <AppText key={c.id} variant="small">
+                {`• ${c.name} — ${c.ownerId === me ? t('sharing.family.yours') : c.names[c.ownerId] || t('sharing.someone')} · ${t(`sharing.roles.${c.familyRole ?? 'view'}`)}`}
+              </AppText>
+            ))
+          ) : (
+            <AppText variant="caption" tone="textMuted">
+              {t('sharing.family.noCalendars')}
+            </AppText>
+          )}
+          <AppText variant="caption" tone="textMuted">
+            {t('sharing.family.calendarsHint')}
+          </AppText>
+        </View>
+      ) : null}
 
       {pending.length ? (
         <View style={{ gap: spacing.xs }}>

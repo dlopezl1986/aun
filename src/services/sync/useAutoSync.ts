@@ -28,6 +28,13 @@ const AFTER_CHANGE_MS = 1_000;
 /** Group live updates that arrive together before refreshing the screens. */
 const REFRESH_MS = 150;
 
+/** Development only: a trace of sync events, readable from the browser console as `__aunSync`. */
+export function traceSync(event: string, detail?: unknown) {
+  if (!__DEV__) return;
+  const g = globalThis as { __aunSync?: unknown[] };
+  (g.__aunSync ??= []).push({ t: new Date().toISOString().slice(11, 23), event, detail });
+}
+
 /** Runs a sync and refreshes every screen when something came from the server. */
 export function useSyncNow() {
   const services = useServices();
@@ -38,11 +45,14 @@ export function useSyncNow() {
       const status = useSyncStatus.getState();
       status.set({ running: true });
       try {
+        traceSync('sync:start', opts);
         const result = await services.sync.sync(opts);
+        traceSync('sync:done', result);
         status.set({ running: false, last: result, error: null });
         if (result.pulled > 0) await client.invalidateQueries({ queryKey: ['u', services.userId] });
         return result;
       } catch (e) {
+        traceSync('sync:error', e instanceof Error ? e.message : String(e));
         status.set({ running: false, error: e instanceof SyncError ? e.code : 'unknown' });
         return null;
       }
@@ -82,7 +92,10 @@ export function useAutoSync() {
         if (refresh) clearTimeout(refresh);
         refresh = setTimeout(() => void client.invalidateQueries({ queryKey: ['u', services.userId] }), REFRESH_MS);
       },
-      onAccess: () => void syncNow(),
+      onAccess: () => {
+        traceSync('access-changed');
+        void syncNow();
+      },
     });
     return () => {
       clearInterval(interval);

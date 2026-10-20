@@ -1,7 +1,18 @@
 import { createServices } from '@/services/container';
 import { memoryStore } from '@/test/memoryStore';
 import type { PullPage, RemoteRecord, RemoteStore } from '@/services/sync/types';
-import { canEditCalendar, householdOwner, roleIn, spaceForRecord, type Space } from '../spaces';
+import {
+  canEditCalendar,
+  canManageFamily,
+  canSee,
+  familyRoleOf,
+  householdOwner,
+  myFamily,
+  peopleOf,
+  roleIn,
+  spaceForRecord,
+  type Space,
+} from '../spaces';
 
 // jest.mock factories run lazily and must use require().
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -294,5 +305,52 @@ describe('fast, safe family sync', () => {
     expect(pushed).toHaveLength(1);
     expect('space' in pushed[0].data).toBe(false);
     expect('dirty' in pushed[0].data).toBe(false);
+  });
+});
+
+describe('families as groups', () => {
+  // Pa created the family; Ma is an adult (admin); Kid has an account (edit); Gran only views.
+  const fam = space('fam_pa', 'pa', {
+    memberIds: ['pa', 'ma', 'kid', 'gran'],
+    roles: { ma: 'admin', kid: 'edit', gran: 'view' },
+    names: { pa: 'Pa', ma: 'Ma', kid: 'Kid', gran: 'Gran' },
+  });
+  const home = space('cal_pa_home', 'pa', { family: 'fam_pa', familyRole: 'edit' });
+  const work = space('cal_pa_work', 'pa', { family: 'fam_pa', familyRole: 'view' });
+  const gym = space('cal_ma_gym', 'ma', { family: 'fam_pa', familyRole: 'edit' });
+  const spaces = [fam, home, work, gym];
+
+  it('everyone has a role; the creator and adults manage it', () => {
+    expect(familyRoleOf(fam, 'pa')).toBe('admin');
+    expect(familyRoleOf(fam, 'ma')).toBe('admin');
+    expect(familyRoleOf(fam, 'kid')).toBe('edit');
+    expect(familyRoleOf(fam, 'eve')).toBeNull();
+    expect(canManageFamily(fam, 'ma')).toBe(true);
+    expect(canManageFamily(fam, 'kid')).toBe(false);
+    for (const u of ['pa', 'ma', 'kid', 'gran']) expect(myFamily(spaces, u)?.id).toBe('fam_pa');
+    expect(householdOwner(spaces, 'kid')).toBe('pa');
+  });
+
+  it('calendars shared with the family: everyone sees them, adults and relatives edit the editable ones', () => {
+    expect(roleIn(spaces, 'cal_pa_home', 'ma')).toBe('edit');
+    expect(roleIn(spaces, 'cal_pa_home', 'kid')).toBe('edit');
+    expect(roleIn(spaces, 'cal_pa_home', 'gran')).toBe('view');
+    expect(roleIn(spaces, 'cal_pa_work', 'ma')).toBe('view');
+    expect(roleIn(spaces, 'cal_ma_gym', 'pa')).toBe('edit');
+    expect(canEditCalendar(spaces, { id: 'gym', ownerId: 'ma' }, 'pa')).toBe(true);
+    expect(canEditCalendar(spaces, { id: 'work', ownerId: 'pa' }, 'kid')).toBe(false);
+    expect(canSee(spaces, 'cal_pa_work', 'gran')).toBe(true);
+    expect(canSee(spaces, 'cal_pa_home', 'eve')).toBe(false);
+  });
+
+  it('leaving the family ends access to its calendars', () => {
+    const without = [{ ...fam, memberIds: ['pa', 'ma', 'kid'] }, home, work, gym];
+    expect(canSee(without, 'cal_pa_home', 'gran')).toBe(false);
+    expect(myFamily(without, 'gran')).toBeNull();
+  });
+
+  it('every family member sees every other member (not only the creator)', () => {
+    expect(peopleOf(spaces, 'kid').map((p) => p.name)).toEqual(['Gran', 'Ma', 'Pa']);
+    expect(peopleOf(spaces, 'ma').map((p) => p.name)).toEqual(['Gran', 'Kid', 'Pa']);
   });
 });

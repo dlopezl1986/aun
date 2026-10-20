@@ -254,6 +254,100 @@ await test('deleting my account: I can delete all my rows, invites and notices, 
   await assertFails(deleteDoc(doc(db('bob'), 'spaces', 'cal_alice_sora')));
 });
 
+console.log('Families as groups (2 adults, a child with an account, a viewer, a stranger)');
+// fam_pa: Pa (owner), Ma (admin), Kid (edit), Gran (view). Eve is not in it.
+await env.withSecurityRulesDisabled(async (ctx) => {
+  const d = ctx.firestore();
+  await setDoc(
+    doc(d, 'spaces', 'fam_pa'),
+    space('pa', {
+      kind: 'family',
+      memberIds: ['pa', 'ma', 'kid', 'gran'],
+      roles: { ma: 'admin', kid: 'edit', gran: 'view' },
+      names: { pa: 'Pa', ma: 'Ma', kid: 'Kid', gran: 'Gran' },
+    }),
+  );
+  // Pa's calendar shared with the family (edit) and another one shared to view.
+  await setDoc(doc(d, 'spaces', 'cal_pa_home'), space('pa', { family: 'fam_pa', familyRole: 'edit' }));
+  await setDoc(doc(d, 'spaces', 'cal_pa_work'), space('pa', { family: 'fam_pa', familyRole: 'view' }));
+  await setDoc(recRef(d, 'pa', 'events', 'dinner'), rec('pa', 'events', 'dinner', 'cal_pa_home'));
+  await setDoc(recRef(d, 'pa', 'events', 'meeting'), rec('pa', 'events', 'meeting', 'cal_pa_work'));
+  await setDoc(recRef(d, 'pa', 'shoppingItems', 'eggs'), rec('pa', 'shoppingItems', 'eggs', 'fam_pa'));
+});
+const byFamily = (u) => getDocs(query(collection(db(u), 'spaces'), where('family', '==', 'fam_pa')));
+const bySpace = (u, s) => getDocs(query(collection(db(u), 'records'), where('spaceId', '==', s)));
+
+await test('everyone in the family sees calendars shared with it (no per-person setup); strangers do not', async () => {
+  for (const u of ['ma', 'kid', 'gran']) {
+    await assertSucceeds(byFamily(u));
+    await assertSucceeds(bySpace(u, 'cal_pa_home'));
+    await assertSucceeds(getDoc(recRef(db(u), 'pa', 'events', 'meeting')));
+  }
+  await assertFails(byFamily('eve'));
+  await assertFails(bySpace('eve', 'cal_pa_home'));
+});
+await test('adults and family editors can change a family calendar shared to edit; viewers cannot; nobody edits a view-only one', async () => {
+  await assertSucceeds(
+    setDoc(recRef(db('ma'), 'pa', 'events', 'dinner'), rec('pa', 'events', 'dinner', 'cal_pa_home', { title: 'Cena 21h' })),
+  );
+  await assertSucceeds(setDoc(recRef(db('kid'), 'kid', 'events', 'match'), rec('kid', 'events', 'match', 'cal_pa_home')));
+  await assertFails(setDoc(recRef(db('gran'), 'gran', 'events', 'x'), rec('gran', 'events', 'x', 'cal_pa_home')));
+  await assertFails(setDoc(recRef(db('ma'), 'pa', 'events', 'meeting'), rec('pa', 'events', 'meeting', 'cal_pa_work', { title: 'hack' })));
+});
+await test('the family lists: adults and editors write, viewers only read', async () => {
+  await assertSucceeds(setDoc(recRef(db('kid'), 'kid', 'shoppingItems', 'cola'), rec('kid', 'shoppingItems', 'cola', 'fam_pa')));
+  await assertSucceeds(
+    setDoc(recRef(db('ma'), 'pa', 'shoppingItems', 'eggs'), rec('pa', 'shoppingItems', 'eggs', 'fam_pa', { done: true })),
+  );
+  await assertSucceeds(getDoc(recRef(db('gran'), 'pa', 'shoppingItems', 'eggs')));
+  await assertFails(setDoc(recRef(db('gran'), 'gran', 'shoppingItems', 'x'), rec('gran', 'shoppingItems', 'x', 'fam_pa')));
+});
+await test('any member shares their own calendar with the family; nobody links a calendar to a family they are not in', async () => {
+  await assertSucceeds(setDoc(doc(db('ma'), 'spaces', 'cal_ma_gym'), space('ma', { family: 'fam_pa', familyRole: 'edit' })));
+  await assertSucceeds(byFamily('pa'));
+  await assertSucceeds(setDoc(recRef(db('pa'), 'pa', 'events', 'gym'), rec('pa', 'events', 'gym', 'cal_ma_gym')));
+  await assertFails(setDoc(doc(db('eve'), 'spaces', 'cal_eve_spy'), space('eve', { family: 'fam_pa', familyRole: 'view' })));
+  await assertFails(setDoc(doc(db('ma'), 'spaces', 'cal_ma_bad'), space('ma', { family: 'fam_pa', familyRole: 'admin' })));
+});
+await test('a family admin (not only the owner) can invite; a family editor cannot', async () => {
+  const inv = (owner, code) =>
+    env.withSecurityRulesDisabled((ctx) =>
+      setDoc(doc(ctx.firestore(), 'invites', code), {
+        ownerId: owner,
+        grants: { fam_pa: 'edit' },
+        assign: null,
+        usedBy: null,
+        expiresAt: future(),
+      }),
+    );
+  await inv('ma', 'invite-by-admin-0123456789');
+  await inv('kid', 'invite-by-editor-012345678');
+  await assertSucceeds(join(db('aunt'), 'aunt', 'invite-by-admin-0123456789', [['fam_pa', 'edit']]));
+  await assertFails(join(db('cousin'), 'cousin', 'invite-by-editor-012345678', [['fam_pa', 'edit']]));
+  await assertSucceeds(bySpace('aunt', 'cal_pa_home')); // joined → family calendars at once
+});
+await test('admins manage people (roles, removal) but never the owner; editors and viewers cannot', async () => {
+  const fam = (u) => doc(db(u), 'spaces', 'fam_pa');
+  await assertSucceeds(updateDoc(fam('ma'), { 'roles.gran': 'edit' }));
+  await assertFails(updateDoc(fam('kid'), { 'roles.gran': 'admin' }));
+  await assertFails(updateDoc(fam('gran'), { 'roles.gran': 'admin' }));
+  await assertFails(updateDoc(fam('ma'), { memberIds: ['ma', 'kid', 'gran', 'aunt'] })); // removing the owner
+  await assertFails(updateDoc(fam('ma'), { 'roles.pa': 'view' }));
+  await assertFails(updateDoc(fam('ma'), { ownerId: 'ma' }));
+});
+await test('leaving or being removed from the family ends access to its calendars and lists at once', async () => {
+  await assertSucceeds(
+    updateDoc(doc(db('ma'), 'spaces', 'fam_pa'), {
+      memberIds: ['pa', 'ma', 'kid', 'aunt'],
+      roles: { ma: 'admin', kid: 'edit', aunt: 'edit' },
+      names: { pa: 'Pa', ma: 'Ma', kid: 'Kid', aunt: 'aunt' },
+    }),
+  );
+  await assertFails(bySpace('gran', 'cal_pa_home'));
+  await assertFails(getDoc(recRef(db('gran'), 'pa', 'shoppingItems', 'eggs')));
+  await assertFails(byFamily('gran'));
+});
+
 console.log('Notices outside the app');
 await test('my notice settings are mine: nobody else reads or writes them', async () => {
   await assertSucceeds(setDoc(doc(db('alice'), 'notify', 'alice'), { email: null, emailDaily: true }));

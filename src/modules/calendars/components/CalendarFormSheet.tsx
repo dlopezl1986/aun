@@ -7,6 +7,7 @@ import { AppText } from '@/components/ui/AppText';
 import { Button } from '@/components/ui/Button';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import { Toggle } from '@/components/ui/Toggle';
+import { useFamily, useShareCalendarWithFamily } from '@/services/sharing/hooks';
 import { withAlpha } from '@/utils/color';
 import { ColorPicker } from '@/components/ui/ColorPicker';
 import { Sheet } from '@/components/ui/Sheet';
@@ -38,6 +39,11 @@ function CalendarForm({ onClose, calendar }: Props) {
   const [color, setColor] = useState<string>(calendar?.color ?? accentPalette[1]);
   const [icon, setIcon] = useState<string | null>(calendar?.icon ?? null);
   const [active, setActive] = useState(calendar?.isActive ?? true);
+  // New calendars are shared with the family by default (everyone sees it; can be changed in "Compartir").
+  const family = useFamily();
+  const shareFamily = useShareCalendarWithFamily();
+  const [withFamily, setWithFamily] = useState(true);
+  const offerFamily = !calendar && family.withOthers;
 
   const remove = async () => {
     if (!calendar) return;
@@ -75,7 +81,16 @@ function CalendarForm({ onClose, calendar }: Props) {
     if (!name.trim()) return;
     const done = { onSuccess: onClose };
     if (calendar) update.mutate({ id: calendar.id, patch: { name, description, color, icon, isActive: active } }, done);
-    else create.mutate({ name, description, color, icon }, done);
+    else
+      create.mutate(
+        { name, description, color, icon },
+        {
+          onSuccess: (created) => {
+            if (offerFamily && withFamily) shareFamily.mutate({ calendar: created, role: 'edit' });
+            onClose();
+          },
+        },
+      );
   };
 
   return (
@@ -148,6 +163,17 @@ function CalendarForm({ onClose, calendar }: Props) {
           })}
         </View>
       </View>
+      {offerFamily ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <View style={{ flex: 1 }}>
+            <AppText variant="bodyStrong">{t('sharing.family.shareNew')}</AppText>
+            <AppText variant="small" tone="textMuted">
+              {t('sharing.family.shareNewHint')}
+            </AppText>
+          </View>
+          <Toggle value={withFamily} onValueChange={setWithFamily} label={t('sharing.family.shareNew')} />
+        </View>
+      ) : null}
       {calendar ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
           <View style={{ flex: 1 }}>

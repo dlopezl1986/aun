@@ -4,7 +4,7 @@
  */
 import { createIndexedDbStore } from './indexedDbStore';
 import type { KeyValueStore } from './keyValueStore';
-import { asyncStorageStore } from './platformKeyValue';
+import { asyncStorageStore } from './asyncStorageStore';
 
 function legacyStorage(): Storage | null {
   try {
