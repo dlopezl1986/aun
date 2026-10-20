@@ -40,9 +40,24 @@ import { EventFormSheet } from './components/EventFormSheet';
 import { DayAgenda, EventCard, NoteCard } from './components/DayAgenda';
 import { DayNoteSheet } from './components/DayNoteSheet';
 import { DaySheet } from './components/DaySheet';
+import { ShiftModeBar, type ShiftBrush } from './components/ShiftModeBar';
+import { ShiftTypesSheet } from './components/ShiftTypesSheet';
 import { MonthGrid } from './components/MonthGrid';
 import { TimeGrid } from './components/TimeGrid';
-import { useCalendars, useCreateCalendar, useDayNotes, useEvent, useMoveDayNote, useMoveOccurrence, useOccurrences } from './hooks';
+import {
+  useCalendars,
+  useCreateCalendar,
+  useDayNotes,
+  useEnsureShiftTypes,
+  useEvent,
+  useMoveDayNote,
+  useMoveOccurrence,
+  useOccurrences,
+  usePaintShift,
+  useShiftTypes,
+  useUndoShiftChange,
+  type ShiftChange,
+} from './hooks';
 import type { MoveScope } from './service';
 import { calendarsMeta } from './meta';
 import type { Calendar, CalendarEvent, DayNote, EventOccurrence } from './types';
@@ -106,6 +121,17 @@ export function CalendarsScreen() {
   /** Day opened in detail (double click / "+N más" in the month grid). */
   const [daySheet, setDaySheet] = useState<string | null>(null);
 
+  // ---------- Shift mode: pick a shift label and tap days to add it (like Shifter) ----------
+  const [shiftMode, setShiftMode] = useState(false);
+  const [brush, setBrush] = useState<ShiftBrush | null>(null);
+  const [shiftCalendar, setShiftCalendar] = useState<string | null>(null);
+  const [shiftChanges, setShiftChanges] = useState<ShiftChange[]>([]);
+  const [manageShifts, setManageShifts] = useState(false);
+  const shiftTypes = useShiftTypes();
+  const ensureShiftTypes = useEnsureShiftTypes();
+  const paintShift = usePaintShift();
+  const undoShift = useUndoShiftChange();
+
   const calendarsQuery = useCalendars();
   const allCalendars = useMemo(() => calendarsQuery.data ?? [], [calendarsQuery.data]);
   const activeCalendars = useMemo(() => allCalendars.filter((c) => c.isActive), [allCalendars]);
@@ -116,6 +142,37 @@ export function CalendarsScreen() {
   const dialog = useDialog();
   const toast = useToast();
   const access = useCalendarAccess();
+  // Calendars I can add shifts to: mine and the ones shared with me to edit.
+  const writableCalendars = useMemo(() => activeCalendars.filter((c) => access.canEdit(c)), [activeCalendars, access]);
+  const shiftCalendarId =
+    (shiftCalendar && writableCalendars.some((c) => c.id === shiftCalendar) ? shiftCalendar : null) ??
+    (access.assignedToMe && writableCalendars.some((c) => c.id === access.assignedToMe) ? access.assignedToMe : null) ??
+    writableCalendars.find((c) => access.isMine(c))?.id ??
+    writableCalendars[0]?.id ??
+    null;
+  const startShiftMode = () => {
+    setMode('month');
+    setShiftMode(true);
+    setShiftChanges([]);
+    if (!shiftTypes.data?.length) ensureShiftTypes.mutate();
+  };
+  const finishShiftMode = () => {
+    setShiftMode(false);
+    setBrush(null);
+    if (shiftChanges.length) toast.show(t('calendars.shiftMode.saved', { count: shiftChanges.length }), 'success');
+    setShiftChanges([]);
+  };
+  const paintDay = (date: string) => {
+    if (!brush) {
+      toast.show(t('calendars.shiftMode.hintPick'), 'info');
+      return;
+    }
+    if (!shiftCalendarId) return;
+    paintShift.mutate(
+      { type: brush.kind === 'shift' ? brush.type : null, calendarId: shiftCalendarId, date },
+      { onSuccess: (change) => (change.added.length || change.removed.length) && setShiftChanges((c) => [...c, change]) },
+    );
+  };
   const moveOccurrence = useMoveOccurrence();
   const moveDayNote = useMoveDayNote();
 
@@ -192,6 +249,12 @@ export function CalendarsScreen() {
       actions={
         activeCalendars.length ? (
           <>
+            <Button
+              label={t('calendars.shiftMode.button')}
+              icon="briefcase"
+              variant={shiftMode ? 'primary' : 'secondary'}
+              onPress={() => (shiftMode ? finishShiftMode() : startShiftMode())}
+            />
             <Button label={t('calendars.notes.new')} icon="bookmark" variant="secondary" onPress={() => openNote(selected)} />
             <Button label={t('calendars.newEvent')} icon="plus" onPress={() => newEvent()} />
           </>
@@ -217,6 +280,7 @@ export function CalendarsScreen() {
       />
       <EventDetailSheet occurrence={detail} onClose={() => setDetail(null)} onEdit={editEvent} />
       <DayNoteSheet target={noteSheet} onClose={() => setNoteSheet(null)} />
+      <ShiftTypesSheet visible={manageShifts} types={shiftTypes.data ?? []} onClose={() => setManageShifts(false)} />
       <DaySheet
         date={daySheet}
         occurrences={occurrences.data ?? []}
@@ -395,6 +459,26 @@ export function CalendarsScreen() {
   } else if (mode === 'month') {
     body = (
       <View style={{ gap: spacing.md }}>
+        {shiftMode ? (
+          <ShiftModeBar
+            types={shiftTypes.data ?? []}
+            brush={brush}
+            onBrush={setBrush}
+            calendars={writableCalendars}
+            calendarId={shiftCalendarId}
+            onCalendar={setShiftCalendar}
+            changes={shiftChanges.length}
+            canUndo={shiftChanges.length > 0 && !undoShift.isPending}
+            onUndo={() => {
+              const last = shiftChanges[shiftChanges.length - 1];
+              if (!last) return;
+              setShiftChanges((c) => c.slice(0, -1));
+              undoShift.mutate(last);
+            }}
+            onManage={() => setManageShifts(true)}
+            onDone={finishShiftMode}
+          />
+        ) : null}
         <MonthGrid
           month={anchor}
           selected={selected}
@@ -411,6 +495,7 @@ export function CalendarsScreen() {
             setSelected(d);
             setDaySheet(d);
           }}
+          onPaint={shiftMode ? paintDay : undefined}
         />
         <Divider />
         <CardHeader

@@ -41,6 +41,8 @@ interface MonthGridProps {
   onMoveNote?: (n: DayNote, to: string) => void;
   /** Double click / double tap on a day, or its "+N más": everything on that day. */
   onDayOpen?: (dateKey: string) => void;
+  /** Shift mode: a tap anywhere on a day paints / erases it (no event opening, no dragging). */
+  onPaint?: (dateKey: string) => void;
 }
 
 /** Two presses on the same day within this time are a double click / double tap. */
@@ -64,6 +66,7 @@ export function MonthGrid({
   onMoveEvent,
   onMoveNote,
   onDayOpen,
+  onPaint,
 }: MonthGridProps) {
   const styles = useStyles();
   const { colors } = useTheme();
@@ -82,6 +85,7 @@ export function MonthGrid({
   const pending = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => void (pending.current && clearTimeout(pending.current)), []);
   const pressDay = (day: string, single: () => void, waitForDouble: boolean) => {
+    if (onPaint) return onPaint(day);
     const now = pressTime();
     const prev = lastPress.current;
     if (pending.current) {
@@ -104,7 +108,7 @@ export function MonthGrid({
 
   // Long press picks an event / note up; dropping it on another day moves it.
   const startDrag = (label: Label, from: string, point: DragPoint, moved = false) => {
-    if (!canDrag || (label.note ? !onMoveNote : !onMoveEvent)) return;
+    if (!canDrag || onPaint || (label.note ? !onMoveNote : !onMoveEvent)) return;
     const started = followPointer(
       {
         move: (p) => setDrag((d) => d && { ...d, point: p, over: dropTargetAt(p)?.day ?? null }),

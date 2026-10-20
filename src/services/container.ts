@@ -1,5 +1,6 @@
 import { CalendarService } from '@/modules/calendars/service';
-import type { Calendar, CalendarEvent, DayNote } from '@/modules/calendars/types';
+import { ShiftTypeService } from '@/modules/calendars/shiftTypes';
+import type { Calendar, CalendarEvent, DayNote, ShiftType } from '@/modules/calendars/types';
 import { createEmailProviders } from '@/modules/email/providers';
 import { EmailService } from '@/modules/email/service';
 import type { EmailAccount } from '@/modules/email/types';
@@ -53,6 +54,8 @@ function defaultBackend(
 export interface Services {
   userId: string;
   calendars: CalendarService;
+  /** Shift labels for shift mode in Calendarios. */
+  shiftTypes: ShiftTypeService;
   tasks: TaskService;
   secondBrain: SecondBrainService;
   family: FamilyService;
@@ -80,6 +83,7 @@ export const SYNCED_COLLECTIONS = [
   'calendars',
   'events',
   'dayNotes',
+  'shiftTypes',
   'tasks',
   'areas',
   'projects',
@@ -129,6 +133,7 @@ export function createServices(
   const services = {
     userId,
     calendars,
+    shiftTypes: new ShiftTypeService(repo<ShiftType>('shiftTypes')),
     tasks: new TaskService(
       repo<Task>('tasks'),
       repo<Area>('areas'),

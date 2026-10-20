@@ -14,14 +14,19 @@ export interface WeekBar {
   endsHere: boolean;
 }
 
-/** Last day an occurrence touches (an end at 00:00 belongs to the day before). */
-export function lastDayKey(o: Pick<EventOccurrence, 'start' | 'end'>): string {
+/**
+ * Last day an occurrence touches (an end at 00:00 belongs to the day before).
+ * A shift belongs to the day it starts (a night shift ending at 07:00 is that night's).
+ */
+export function lastDayKey(o: Pick<EventOccurrence, 'start' | 'end'> & { event?: { shiftTypeId?: string | null } }): string {
+  if (o.event?.shiftTypeId) return toDateKey(o.start);
   const end = o.end.getTime() > o.start.getTime() ? new Date(o.end.getTime() - 1) : o.start;
   return toDateKey(end);
 }
 
 /** Does the occurrence cover more than one calendar day? */
-export const isMultiDay = (o: Pick<EventOccurrence, 'start' | 'end'>) => lastDayKey(o) > toDateKey(o.start);
+export const isMultiDay = (o: Pick<EventOccurrence, 'start' | 'end'> & { event?: { shiftTypeId?: string | null } }) =>
+  lastDayKey(o) > toDateKey(o.start);
 
 /**
  * Lays out one week row of the month grid: multi-day events become bars in

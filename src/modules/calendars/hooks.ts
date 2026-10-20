@@ -1,8 +1,11 @@
 import { useTranslation } from 'react-i18next';
 
+import { useAppPreferences } from '@/state/appPreferences';
 import { useDataMutation, useDataQuery } from '@/state/queryClient';
 import { addDays, startOfDay, toDateKey } from '@/utils/date';
 import { EventValidationError, type CalendarInput, type DayNoteInput, type EventInput, type MoveScope } from './service';
+import type { ShiftTypeInput } from './shiftTypes';
+import type { CalendarEvent, ShiftType } from './types';
 
 export function useCalendars() {
   return useDataQuery('calendars', [], (s) => s.calendars.listCalendars());
@@ -154,4 +157,57 @@ export function useDuplicateCalendar() {
     invalidate: [...invalidateAll],
     successMessage: t('calendars.duplicateCal.done'),
   });
+}
+
+// ---------- Shift mode ----------
+
+export function useShiftTypes() {
+  return useDataQuery('calendars', ['shiftTypes'], (s) => s.shiftTypes.list());
+}
+
+/** First time in shift mode: Mañana, Tarde, Noche and Libre (with the hours already used in the event form). */
+export function useEnsureShiftTypes() {
+  const { t } = useTranslation();
+  const hours = useAppPreferences((s) => s.shiftHours);
+  const colors = useAppPreferences((s) => s.shiftColors);
+  return useDataMutation(
+    (s) =>
+      s.shiftTypes.ensureDefaults(
+        {
+          morning: t('calendars.shifts.names.morning'),
+          afternoon: t('calendars.shifts.names.afternoon'),
+          night: t('calendars.shifts.names.night'),
+          off: t('calendars.shiftMode.dayOff'),
+        },
+        { hours, colors },
+      ),
+    { invalidate: ['calendars'] },
+  );
+}
+
+export function useSaveShiftType() {
+  const { t } = useTranslation();
+  return useDataMutation(
+    (s, v: { id: string | null; input: ShiftTypeInput }) => (v.id ? s.shiftTypes.update(v.id, v.input) : s.shiftTypes.create(v.input)),
+    { invalidate: ['calendars'], successMessage: t('common.saved') },
+  );
+}
+
+export function useDeleteShiftType() {
+  return useDataMutation((s, id: string) => s.shiftTypes.remove(id), { invalidate: ['calendars'] });
+}
+
+export type ShiftChange = { added: CalendarEvent[]; removed: CalendarEvent[] };
+
+/** One tap in shift mode: paint a shift, or erase the day's shifts (no toast: taps come in quick runs). */
+export function usePaintShift() {
+  return useDataMutation(
+    (s, v: { type: ShiftType | null; calendarId: string; date: string }): Promise<ShiftChange> =>
+      v.type ? s.calendars.paintShift(v.type, v.calendarId, v.date) : s.calendars.eraseShifts(v.calendarId, v.date),
+    { invalidate: ['events'] },
+  );
+}
+
+export function useUndoShiftChange() {
+  return useDataMutation((s, change: ShiftChange) => s.calendars.undoShiftChange(change), { invalidate: ['events'] });
 }

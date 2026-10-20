@@ -72,7 +72,7 @@ export function useWhen() {
   const { t } = useTranslation();
   const locale = useLocale();
   return ({ event, start, end }: EventOccurrence) => {
-    if (isMultiDay({ start, end })) {
+    if (isMultiDay({ start, end, event })) {
       const last = new Date(end.getTime() - 1);
       return event.allDay
         ? `${formatShortDate(start, locale)} – ${formatShortDate(last, locale)}`

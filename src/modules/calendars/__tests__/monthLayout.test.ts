@@ -57,4 +57,14 @@ describe('multi-day events in the month grid', () => {
     expect(singles.size).toBe(0);
     expect(bars[0]).toEqual(expect.objectContaining({ col: 2, span: 1, startsHere: true, endsHere: true }));
   });
+
+  it('a night shift (23:00 → 07:00) stays on the day it starts', () => {
+    const night = {
+      ...occ('night', '2026-10-21T23:00', '2026-10-22T07:00'),
+      event: { id: 'night', title: 'Noche', shiftTypeId: 's1' },
+    } as never;
+    const { bars, singles } = layoutWeek([night], week);
+    expect(bars).toHaveLength(0);
+    expect(singles.get('2026-10-21')).toHaveLength(1);
+  });
 });

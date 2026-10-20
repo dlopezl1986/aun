@@ -4,7 +4,8 @@ import type { RecurrenceRule } from '@/types/recurrence';
 import { matchScore, type SearchResult } from '@/types/search';
 import { addDays, combine, fromDateKey, startOfDay, timeOf, toDateKey, type DateKey } from '@/utils/date';
 import { expandOccurrences } from '@/utils/recurrence';
-import { NOTE_COLORS, type Calendar, type CalendarEvent, type DayNote, type EventOccurrence } from './types';
+import { shiftEndDate } from './shifts';
+import { NOTE_COLORS, type Calendar, type CalendarEvent, type DayNote, type EventOccurrence, type ShiftType } from './types';
 
 export interface CalendarInput {
   name: string;
@@ -31,6 +32,8 @@ export interface EventInput {
   reminders?: number[];
   recurrence?: RecurrenceRule | null;
   links?: EntityRef[];
+  /** Shift label it was painted with (shift mode). Left untouched when undefined. */
+  shiftTypeId?: string | null;
 }
 
 /** Drag & drop: move one day of a series, or the whole series. */
@@ -203,7 +206,57 @@ export class CalendarService {
       reminders: [...new Set(input.reminders ?? [])].sort((a, b) => a - b),
       recurrence: input.recurrence ?? null,
       links: input.links ?? [],
+      ...(input.shiftTypeId !== undefined ? { shiftTypeId: input.shiftTypeId } : {}),
     };
+  }
+
+  // ---------- Shift mode (paint shifts on days) ----------
+
+  /** Shifts painted on `date` in a calendar (events added with a shift label that start that day). */
+  private async shiftsOn(calendarId: string, date: DateKey): Promise<CalendarEvent[]> {
+    return (await this.events.list()).filter(
+      (e) => e.calendarId === calendarId && !!e.shiftTypeId && !e.recurrence && toDateKey(new Date(e.start)) === date,
+    );
+  }
+
+  /**
+   * Taps a day with a shift label: adds that shift, or removes it if the day
+   * already has it (tapping again undoes). Returns what changed (for undo).
+   */
+  async paintShift(type: ShiftType, calendarId: string, date: DateKey): Promise<{ added: CalendarEvent[]; removed: CalendarEvent[] }> {
+    const same = (await this.shiftsOn(calendarId, date)).filter((e) => e.shiftTypeId === type.id);
+    if (same.length) {
+      await this.events.removeMany(same.map((e) => e.id));
+      return { added: [], removed: same };
+    }
+    const added = await this.createEvent({
+      calendarId,
+      title: type.name,
+      allDay: type.allDay,
+      startDate: date,
+      startTime: type.allDay ? null : type.start,
+      endDate: type.allDay ? date : shiftEndDate(date, { start: type.start, end: type.end }),
+      endTime: type.allDay ? null : type.end,
+      color: type.color,
+      shiftTypeId: type.id,
+    });
+    return { added: [added], removed: [] };
+  }
+
+  /** The eraser: removes every shift painted on that day in that calendar. */
+  async eraseShifts(calendarId: string, date: DateKey): Promise<{ added: CalendarEvent[]; removed: CalendarEvent[] }> {
+    const removed = await this.shiftsOn(calendarId, date);
+    if (removed.length) await this.events.removeMany(removed.map((e) => e.id));
+    return { added: [], removed };
+  }
+
+  /** Undo a paint / erase: removes what was added and puts back what was removed. */
+  async undoShiftChange(change: { added: CalendarEvent[]; removed: CalendarEvent[] }): Promise<void> {
+    if (change.added.length) await this.events.removeMany(change.added.map((e) => e.id));
+    for (const e of change.removed) {
+      const { id: _id, ownerId: _o, createdAt: _c, updatedAt: _u, deletedAt: _d, dirty: _dirty, space: _space, ...copy } = e;
+      await this.events.create(copy as never);
+    }
   }
 
   async createEvent(input: EventInput): Promise<CalendarEvent> {

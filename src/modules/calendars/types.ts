@@ -38,6 +38,8 @@ export interface CalendarEvent extends BaseEntity {
   color?: string | null;
   /** Cross-module links: 2ndBrain documents, Familia children… (section 48). */
   links?: EntityRef[];
+  /** Added with a shift label in shift mode (so it can be erased / toggled there). */
+  shiftTypeId?: string | null;
   /** @deprecated Phase 1 field, superseded by `links`. */
   attachments?: EntityRef[];
 }
@@ -69,3 +71,17 @@ export interface DayNote extends BaseEntity {
 
 /** Fill colour of an occurrence: its own colour, else its calendar's. */
 export const occurrenceColor = (o: Pick<EventOccurrence, 'event' | 'calendar'>): string => o.event.color || o.calendar.color;
+
+/**
+ * A shift label ("Mañana 07–15", "Noche", "Libre"…) the user creates once and
+ * then paints on days in shift mode. Private to its owner, synced.
+ */
+export interface ShiftType extends BaseEntity {
+  name: string;
+  color: string;
+  allDay: boolean;
+  /** HH:mm; a shift whose end is not after its start ends the next day (nights). */
+  start: string;
+  end: string;
+  order: number;
+}
