@@ -39,6 +39,7 @@ import { EventDetailSheet } from './components/EventDetailSheet';
 import { EventFormSheet } from './components/EventFormSheet';
 import { DayAgenda, EventCard, NoteCard } from './components/DayAgenda';
 import { DayNoteSheet } from './components/DayNoteSheet';
+import { DaySheet } from './components/DaySheet';
 import { MonthGrid } from './components/MonthGrid';
 import { TimeGrid } from './components/TimeGrid';
 import { useCalendars, useCreateCalendar, useDayNotes, useEvent, useMoveDayNote, useMoveOccurrence, useOccurrences } from './hooks';
@@ -102,6 +103,8 @@ export function CalendarsScreen() {
   const [detail, setDetail] = useState<EventOccurrence | null>(null);
   const [noteSheet, setNoteSheet] = useState<{ date: string; note: DayNote | null } | null>(null);
   const [dayLayout, setDayLayout] = useState<DayLayout>('list');
+  /** Day opened in detail (double click / "+N más" in the month grid). */
+  const [daySheet, setDaySheet] = useState<string | null>(null);
 
   const calendarsQuery = useCalendars();
   const allCalendars = useMemo(() => calendarsQuery.data ?? [], [calendarsQuery.data]);
@@ -214,6 +217,15 @@ export function CalendarsScreen() {
       />
       <EventDetailSheet occurrence={detail} onClose={() => setDetail(null)} onEdit={editEvent} />
       <DayNoteSheet target={noteSheet} onClose={() => setNoteSheet(null)} />
+      <DaySheet
+        date={daySheet}
+        occurrences={occurrences.data ?? []}
+        notes={notesQuery.data ?? []}
+        onClose={() => setDaySheet(null)}
+        onEvent={setDetail}
+        onNote={(date, n) => openNote(date, n)}
+        onNewEvent={(date) => newEvent(date)}
+      />
     </>
   );
 
@@ -395,6 +407,10 @@ export function CalendarsScreen() {
           onNotePress={onNote}
           onMoveEvent={moveEvent}
           onMoveNote={moveNote}
+          onDayOpen={(d) => {
+            setSelected(d);
+            setDaySheet(d);
+          }}
         />
         <Divider />
         <CardHeader

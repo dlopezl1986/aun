@@ -306,6 +306,12 @@ export const es = {
       untilDate: 'Hasta una fecha',
       never: 'Sin fin',
     },
+    daySheet: {
+      notes_one: '{{count}} nota',
+      notes_other: '{{count}} notas',
+      open: 'Ver todo lo del día',
+      hint: 'Doble clic en un día para verlo entero',
+    },
     dayEvents_one: '{{count}} evento',
     dayEvents_other: '{{count}} eventos',
     moreItems_one: '+{{count}} más',

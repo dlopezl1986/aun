@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Pressable, StyleSheet, View, type GestureResponderEvent } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { AppText } from '@/components/ui/AppText';
@@ -39,7 +39,14 @@ interface MonthGridProps {
   /** Drag & drop to another day (web). */
   onMoveEvent?: (o: EventOccurrence, from: string, to: string) => void;
   onMoveNote?: (n: DayNote, to: string) => void;
+  /** Double click / double tap on a day, or its "+N más": everything on that day. */
+  onDayOpen?: (dateKey: string) => void;
 }
+
+/** Two presses on the same day within this time are a double click / double tap. */
+const DOUBLE_PRESS_MS = 300;
+/** Time of a press (only ever called from press handlers). */
+const pressTime = () => Date.now();
 
 /** One line inside a day cell: the event name (or note text) on its colour. */
 type Label = { key: string; text: string; color: string; stripe?: string; note?: DayNote; occurrence?: EventOccurrence };
@@ -56,6 +63,7 @@ export function MonthGrid({
   onNotePress,
   onMoveEvent,
   onMoveNote,
+  onDayOpen,
 }: MonthGridProps) {
   const styles = useStyles();
   const { colors } = useTheme();
@@ -67,6 +75,32 @@ export function MonthGrid({
   // Phones have ~50px wide cells: fewer, shorter lines.
   const maxLines = isCompact ? 3 : 4;
   const [drag, setDrag] = useState<{ label: Label; from: string; point: DragPoint; over: string | null } | null>(null);
+
+  // A second press on the same day soon after the first opens the whole day. Presses on an
+  // event / note wait that long before opening it, so a double click never opens both.
+  const lastPress = useRef<{ day: string; at: number } | null>(null);
+  const pending = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => void (pending.current && clearTimeout(pending.current)), []);
+  const pressDay = (day: string, single: () => void, waitForDouble: boolean) => {
+    const now = pressTime();
+    const prev = lastPress.current;
+    if (pending.current) {
+      clearTimeout(pending.current);
+      pending.current = null;
+    }
+    if (onDayOpen && prev && prev.day === day && now - prev.at < DOUBLE_PRESS_MS) {
+      lastPress.current = null;
+      onDayOpen(day);
+      return;
+    }
+    lastPress.current = { day, at: now };
+    if (waitForDouble && onDayOpen)
+      pending.current = setTimeout(() => {
+        pending.current = null;
+        single();
+      }, DOUBLE_PRESS_MS);
+    else single();
+  };
 
   // Long press picks an event / note up; dropping it on another day moves it.
   const startDrag = (label: Label, from: string, point: DragPoint, moved = false) => {
@@ -179,10 +213,11 @@ export function MonthGrid({
                   ]}
                 >
                   <Pressable
-                    onPress={() => onSelect(key)}
+                    onPress={() => pressDay(key, () => onSelect(key), false)}
                     accessibilityRole="button"
                     aria-selected={isSelected}
                     accessibilityLabel={formatLongDate(day, locale)}
+                    accessibilityHint={onDayOpen ? t('calendars.daySheet.hint') : undefined}
                     style={(s) => [
                       StyleSheet.absoluteFill,
                       interaction(s).hovered && !isSelected && { backgroundColor: colors.surfaceMuted },
@@ -200,9 +235,15 @@ export function MonthGrid({
                       {...mouseDraggable(`m:${l.key}`, (p) => startDrag(l, key, p, true))}
                       onPress={() => {
                         if (justDragged()) return;
-                        onSelect(key);
-                        if (l.occurrence) onEventPress?.(l.occurrence);
-                        else if (l.note) onNotePress?.(l.note);
+                        pressDay(
+                          key,
+                          () => {
+                            onSelect(key);
+                            if (l.occurrence) onEventPress?.(l.occurrence);
+                            else if (l.note) onNotePress?.(l.note);
+                          },
+                          true,
+                        );
                       }}
                       onLongPress={(e) => startDrag(l, key, pointOf(e))}
                       delayLongPress={250}
@@ -240,14 +281,17 @@ export function MonthGrid({
                     </Pressable>
                   ))}
                   {more > 0 ? (
-                    <AppText
-                      pointerEvents="none"
-                      variant="caption"
-                      tone="textMuted"
-                      style={{ fontSize: isCompact ? 9.5 : 11, paddingHorizontal: 2 }}
+                    <Pressable
+                      onPress={() => (onDayOpen ? onDayOpen(key) : onSelect(key))}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${t('calendars.moreItems', { count: more })}. ${t('calendars.daySheet.open')}`}
+                      hitSlop={4}
+                      style={(s) => ({ borderRadius: 3, backgroundColor: interaction(s).hovered ? colors.surfaceMuted : 'transparent' })}
                     >
-                      {t('calendars.moreItems', { count: more })}
-                    </AppText>
+                      <AppText variant="caption" tone="primary" style={{ fontSize: isCompact ? 9.5 : 11, paddingHorizontal: 2 }}>
+                        {t('calendars.moreItems', { count: more })}
+                      </AppText>
+                    </Pressable>
                   ) : null}
                 </View>
               );
@@ -264,10 +308,18 @@ export function MonthGrid({
                   height={barHeight}
                   compact={isCompact}
                   dragging={drag?.label.key === b.occurrence.key}
-                  onPress={() => {
+                  onPress={(col) => {
                     if (justDragged()) return;
-                    onSelect(toDateKey(week[b.col]));
-                    onEventPress?.(b.occurrence);
+                    // The day under the pointer (a bar covers several).
+                    const day = toDateKey(week[Math.min(6, b.col + col)]);
+                    pressDay(
+                      day,
+                      () => {
+                        onSelect(day);
+                        onEventPress?.(b.occurrence);
+                      },
+                      true,
+                    );
                   }}
                   onDragStart={(l, from, p, moved) => startDrag(l, from, p, moved)}
                 />
@@ -285,6 +337,22 @@ export function MonthGrid({
       ) : null}
     </View>
   );
+}
+
+/** Which of a bar's `span` days was pressed (0 = first), from where the press landed on it. */
+function pressedColumn(e: GestureResponderEvent, span: number): number {
+  const ne = e.nativeEvent as { locationX?: number; clientX?: number; pageX?: number };
+  const el = e.currentTarget as unknown as { getBoundingClientRect?: () => { left: number; width: number } };
+  let x: number | undefined;
+  let width = 0;
+  if (typeof el?.getBoundingClientRect === 'function' && typeof ne.clientX === 'number') {
+    // Web: the press position against the bar's real box.
+    const r = el.getBoundingClientRect();
+    x = ne.clientX - r.left;
+    width = r.width;
+  }
+  if (x === undefined || !width) return 0;
+  return Math.min(span - 1, Math.max(0, Math.floor((x / width) * span)));
 }
 
 /** An event of several days: one bar of its colour across the days it covers in this week. */
@@ -307,7 +375,8 @@ function EventBar({
   height: number;
   compact: boolean;
   dragging: boolean;
-  onPress: () => void;
+  /** `col`: which of the bar's days was pressed (0 = its first in this week). */
+  onPress: (col: number) => void;
   onDragStart: (label: Label, from: string, point: DragPoint, moved?: boolean) => void;
 }) {
   const { colors } = useTheme();
@@ -319,7 +388,7 @@ function EventBar({
   return (
     <Pressable
       {...mouseDraggable(`m:${label.key}:${from}`, (p) => onDragStart(label, from, p, true))}
-      onPress={onPress}
+      onPress={(e) => onPress(pressedColumn(e, bar.span))}
       onLongPress={(e) => onDragStart(label, from, pointOf(e))}
       delayLongPress={250}
       accessibilityRole="button"

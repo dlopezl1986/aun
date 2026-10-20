@@ -308,6 +308,12 @@ export const en: Translation = {
       untilDate: 'Until a date',
       never: 'No end',
     },
+    daySheet: {
+      notes_one: '{{count}} note',
+      notes_other: '{{count}} notes',
+      open: 'See the whole day',
+      hint: 'Double-click a day to see all of it',
+    },
     dayEvents_one: '{{count}} event',
     dayEvents_other: '{{count}} events',
     moreItems_one: '+{{count}} more',

@@ -9,9 +9,10 @@ import { EmptyState } from '@/components/ui/States';
 import { useLocale } from '@/hooks/useLocale';
 import { useTheme } from '@/theme';
 import { withAlpha } from '@/utils/color';
-import { formatTime } from '@/utils/date';
+import { formatShortDate, formatTime } from '@/utils/date';
 import { useUpdateDayNote } from '../hooks';
 import { calendarsMeta } from '../meta';
+import { isMultiDay } from '../monthLayout';
 import { occurrenceColor, type DayNote, type EventOccurrence } from '../types';
 
 /** A sticky note: tick it off, tap it to edit. */
@@ -66,13 +67,37 @@ export function NoteCard({ note, onPress }: { note: DayNote; onPress: (n: DayNot
   );
 }
 
-/** An event in the day list: its name, big and readable; the time small and the calendar as colour. */
-export function EventCard({ occurrence, onPress }: { occurrence: EventOccurrence; onPress: (o: EventOccurrence) => void }) {
+/** When an occurrence happens, readable: "Todo el día", "10:00 – 11:30", or its days if it lasts several. */
+export function useWhen() {
   const { t } = useTranslation();
   const locale = useLocale();
-  const { spacing, radius } = useTheme();
-  const { event, calendar, start, end } = occurrence;
-  const when = event.allDay ? t('calendars.allDay') : `${formatTime(start, locale)} – ${formatTime(end, locale)}`;
+  return ({ event, start, end }: EventOccurrence) => {
+    if (isMultiDay({ start, end })) {
+      const last = new Date(end.getTime() - 1);
+      return event.allDay
+        ? `${formatShortDate(start, locale)} – ${formatShortDate(last, locale)}`
+        : `${formatShortDate(start, locale)} ${formatTime(start, locale)} – ${formatShortDate(end, locale)} ${formatTime(end, locale)}`;
+    }
+    return event.allDay ? t('calendars.allDay') : `${formatTime(start, locale)} – ${formatTime(end, locale)}`;
+  };
+}
+
+/**
+ * An event in the day list: its name, big and readable; the time small and the calendar as colour.
+ * `extended` (day pop-up) adds the calendar, place, description and notes.
+ */
+export function EventCard({
+  occurrence,
+  onPress,
+  extended = false,
+}: {
+  occurrence: EventOccurrence;
+  onPress: (o: EventOccurrence) => void;
+  extended?: boolean;
+}) {
+  const { spacing, radius, colors } = useTheme();
+  const { event, calendar } = occurrence;
+  const when = useWhen()(occurrence);
   const fill = occurrenceColor(occurrence);
   const own = fill !== calendar.color;
   return (
@@ -94,6 +119,37 @@ export function EventCard({ occurrence, onPress }: { occurrence: EventOccurrence
           {when}
         </AppText>
         <AppText variant="bodyStrong">{event.title}</AppText>
+        {extended ? (
+          <View style={{ gap: 4, marginTop: 2 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: calendar.color }} />
+              <AppText variant="caption" tone="textMuted">
+                {calendar.name}
+              </AppText>
+            </View>
+            {event.location ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Icon name="map-pin" size={12} color={colors.textMuted} />
+                <AppText variant="caption" tone="textMuted">
+                  {event.location}
+                </AppText>
+              </View>
+            ) : null}
+            {event.description ? (
+              <AppText variant="small" numberOfLines={4}>
+                {event.description}
+              </AppText>
+            ) : null}
+            {event.notes ? (
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6 }}>
+                <Icon name="file-text" size={12} color={colors.textMuted} />
+                <AppText variant="small" tone="textMuted" numberOfLines={4} style={{ flex: 1 }}>
+                  {event.notes}
+                </AppText>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
       </View>
     </Pressable>
   );
@@ -105,10 +161,12 @@ interface DayAgendaProps {
   onEvent: (o: EventOccurrence) => void;
   onNote: (n: DayNote | null) => void;
   onNewEvent: () => void;
+  /** Cards with every detail (the day pop-up). */
+  extended?: boolean;
 }
 
 /** Everything on one day, readable at a glance: notes first, then each event as a card. */
-export function DayAgenda({ occurrences, notes, onEvent, onNote, onNewEvent }: DayAgendaProps) {
+export function DayAgenda({ occurrences, notes, onEvent, onNote, onNewEvent, extended = false }: DayAgendaProps) {
   const { t } = useTranslation();
   const { spacing } = useTheme();
   return (
@@ -138,7 +196,7 @@ export function DayAgenda({ occurrences, notes, onEvent, onNote, onNewEvent }: D
           <Button label={t('calendars.addToDay')} icon="plus" size="sm" variant="ghost" onPress={onNewEvent} />
         </View>
         {occurrences.length ? (
-          occurrences.map((o) => <EventCard key={o.key} occurrence={o} onPress={onEvent} />)
+          occurrences.map((o) => <EventCard key={o.key} occurrence={o} onPress={onEvent} extended={extended} />)
         ) : (
           <EmptyState compact icon="sun" accent={calendarsMeta.accent} title={t('calendars.noEventsDay')} />
         )}
