@@ -4,6 +4,7 @@ import { dashboardModule } from './dashboard/definition';
 import { emailModule } from './email/definition';
 import { familyModule } from './family/definition';
 import { notificationsModule } from './notifications/definition';
+import { opModule } from './op/definition';
 import { secondBrainModule } from './second-brain/definition';
 import { settingsModule } from './settings/definition';
 import { shoppingModule } from './shopping/definition';
@@ -21,6 +22,7 @@ const modules: AppModule[] = [
   secondBrainModule,
   calendarsModule,
   todoModule,
+  opModule,
   emailModule,
   familyModule,
   shoppingModule,

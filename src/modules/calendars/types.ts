@@ -13,6 +13,8 @@ export interface Calendar extends BaseEntity {
   /** User's visibility filter ("☑ David ☐ Trabajo"). */
   isVisible: boolean;
   order: number;
+  /** Created by a module for its own use (e.g. 'op': study sessions of OP). */
+  purpose?: string | null;
 }
 
 export interface CalendarEvent extends BaseEntity {

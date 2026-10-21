@@ -130,6 +130,28 @@ export class CalendarService {
     });
   }
 
+  /** The calendar a module keeps its entries in (created the first time, mine only). */
+  async ensurePurposeCalendar(purpose: string, def: { name: string; color: string; icon?: string | null }): Promise<Calendar> {
+    const mine = (await this.calendars.list()).find((c) => c.purpose === purpose && (!this.me || c.ownerId === this.me));
+    if (mine) return mine;
+    const count = (await this.calendars.list()).length;
+    return this.calendars.create({
+      name: def.name,
+      color: def.color,
+      description: null,
+      icon: def.icon ?? null,
+      isActive: true,
+      isVisible: true,
+      order: count,
+      purpose,
+    });
+  }
+
+  /** Renames one event (modules that keep an event per entry). */
+  retitleEvent(id: string, title: string): Promise<CalendarEvent> {
+    return this.events.update(id, { title });
+  }
+
   updateCalendar(id: string, patch: Partial<CalendarInput & { isActive: boolean }>): Promise<Calendar> {
     return this.calendars.update(id, { ...patch, ...(patch.name !== undefined ? { name: patch.name.trim() } : {}) });
   }
