@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useLocale } from '@/hooks/useLocale';
 import { useToday } from '@/hooks/useToday';
 import { useDataMutation, useDataQuery } from '@/state/queryClient';
-import { accentPalette } from '@/theme';
+import { strongPalette } from '@/theme';
 import { colorFromString } from '@/utils/color';
 import { formatShortDate, fromDateKey } from '@/utils/date';
 import { filterTasks, taskCounts } from './selectors';
@@ -38,7 +38,7 @@ export function useQuickAddTask() {
   return useDataMutation(
     async (s, input: QuickTaskInput & { tagNames?: string[] }) => {
       const tagIds = [...(input.tagIds ?? [])];
-      for (const name of input.tagNames ?? []) tagIds.push((await s.tasks.ensureTag(name, colorFromString(name, accentPalette))).id);
+      for (const name of input.tagNames ?? []) tagIds.push((await s.tasks.ensureTag(name, colorFromString(name, strongPalette))).id);
       return s.tasks.quickAdd({ ...input, tagIds: [...new Set(tagIds)] });
     },
     { invalidate: ['tasks'], successMessage: t('todo.toast.added') },
@@ -84,7 +84,7 @@ export function useArchiveCompleted() {
 
 export function useCreateArea() {
   const { t } = useTranslation();
-  return useDataMutation((s, name: string) => s.tasks.createArea(name, colorFromString(name, accentPalette)), {
+  return useDataMutation((s, name: string) => s.tasks.createArea(name, colorFromString(name, strongPalette)), {
     invalidate: ['tasks'],
     successMessage: t('todo.toast.areaCreated'),
   });
@@ -144,5 +144,5 @@ export function useDeleteTag() {
 }
 
 export function useEnsureTag() {
-  return useDataMutation((s, name: string) => s.tasks.ensureTag(name, colorFromString(name, accentPalette)), { invalidate: ['tasks'] });
+  return useDataMutation((s, name: string) => s.tasks.ensureTag(name, colorFromString(name, strongPalette)), { invalidate: ['tasks'] });
 }

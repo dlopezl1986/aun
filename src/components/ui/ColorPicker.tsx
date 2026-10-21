@@ -2,6 +2,7 @@ import { Pressable, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { accentPalette, useTheme } from '@/theme';
+import { isLight } from '@/utils/color';
 import { AppText } from './AppText';
 import { Icon } from './Icon';
 
@@ -34,12 +35,13 @@ export function ColorPicker({ value, onChange, label }: ColorPickerProps) {
                 backgroundColor: c,
                 alignItems: 'center',
                 justifyContent: 'center',
-                borderWidth: selected ? 3 : 0,
-                borderColor: colors.surface,
+                borderWidth: selected ? 3 : isLight(c) ? 1 : 0,
+                // Light colours get a thin outline so they show on light backgrounds.
+                borderColor: selected ? colors.surface : colors.borderStrong,
                 boxShadow: selected ? `0px 0px 0px 2px ${c}` : 'none',
               }}
             >
-              {selected ? <Icon name="check" size={16} color="#FFFFFF" /> : null}
+              {selected ? <Icon name="check" size={16} color={isLight(c) ? '#111827' : '#FFFFFF'} /> : null}
             </Pressable>
           );
         })}

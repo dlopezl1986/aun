@@ -1,6 +1,6 @@
 import { View } from 'react-native';
 
-import { accentPalette } from '@/theme';
+import { strongPalette } from '@/theme';
 import { colorFromString } from '@/utils/color';
 import { AppText } from './AppText';
 
@@ -17,7 +17,7 @@ function initials(name: string): string {
 }
 
 export function Avatar({ name, size = 36, color }: AvatarProps) {
-  const bg = color ?? colorFromString(name, accentPalette);
+  const bg = color ?? colorFromString(name, strongPalette);
   return (
     <View
       accessibilityLabel={name}

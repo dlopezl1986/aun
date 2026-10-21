@@ -25,3 +25,12 @@ export function lighten(hex: string, amount: number): string {
   const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(mix);
   return `#${((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1).toUpperCase()}`;
 }
+
+/** Is this a light colour (dark text / marks read better on it)? */
+export function isLight(hex: string): boolean {
+  const h = hex.replace('#', '');
+  if (h.length !== 6) return false;
+  const [r, g, b] = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
+  // Perceived brightness (ITU-R BT.601).
+  return 0.299 * r + 0.587 * g + 0.114 * b > 0.62;
+}

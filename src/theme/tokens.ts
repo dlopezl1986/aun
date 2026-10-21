@@ -70,22 +70,49 @@ export const layout = {
 
 /** Accent colours used to identify modules, calendars, children, etc. */
 export const accentPalette = [
+  // By hue, from dark to light, so similar colours are easy to tell apart.
+  '#1E3A8A', // navy
+  '#2563EB', // blue
+  '#60A5FA', // light blue
+  '#0E7490', // dark teal
+  '#06B6D4', // cyan
+  '#14532D', // dark green
+  '#16A34A', // green
+  '#4ADE80', // light green
+  '#A3E635', // lime
+  '#CA8A04', // mustard
+  '#FACC15', // yellow
+  '#C2410C', // dark orange
+  '#F97316', // orange
+  '#FDBA74', // light orange
+  '#991B1B', // dark red
+  '#E5484D', // red
+  '#FCA5A5', // light red
+  '#BE185D', // magenta
+  '#F472B6', // pink
+  '#4C1D95', // dark purple
+  '#8B5CF6', // purple
+  '#C4B5FD', // lavender
+  '#78350F', // brown
+  '#1F2937', // charcoal
+  '#64748B', // slate
+  '#CBD5E1', // light grey
+] as const;
+
+/** Mid / dark colours only: for colours picked automatically under white text (avatars, new tags). */
+export const strongPalette = [
+  '#1E3A8A',
   '#2563EB',
-  '#7C3AED',
-  '#0EA5A4',
+  '#0E7490',
   '#16A34A',
-  '#84CC16',
-  '#EAB308',
-  '#F59E0B',
-  '#F97316',
+  '#14532D',
+  '#CA8A04',
+  '#C2410C',
   '#E5484D',
-  '#EC4899',
+  '#991B1B',
+  '#BE185D',
   '#8B5CF6',
+  '#4C1D95',
+  '#78350F',
   '#64748B',
-  // More choices (appended so existing defaults keep their colour).
-  '#4F46E5',
-  '#06B6D4',
-  '#C026D3',
-  '#92400E',
-  '#1F2937',
 ] as const;

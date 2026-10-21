@@ -24,7 +24,7 @@ function ProjectForm({ onClose, project, defaultAreaId, onCreated }: Props) {
   const create = useCreateProject();
   const update = useUpdateProject();
   const [name, setName] = useState(project?.name ?? '');
-  const [color, setColor] = useState<string>(project?.color ?? accentPalette[3]);
+  const [color, setColor] = useState<string>(project?.color ?? accentPalette[6]);
   const [areaId, setAreaId] = useState<string | null>(project?.areaId ?? defaultAreaId ?? null);
   const areas = structure.data?.areas ?? [];
 

@@ -190,8 +190,14 @@ export function useEnsureShiftTypes() {
 export function useSaveShiftType() {
   const { t } = useTranslation();
   return useDataMutation(
-    (s, v: { id: string | null; input: ShiftTypeInput }) => (v.id ? s.shiftTypes.update(v.id, v.input) : s.shiftTypes.create(v.input)),
-    { invalidate: ['calendars'], successMessage: t('common.saved') },
+    async (s, v: { id: string | null; input: ShiftTypeInput }) => {
+      if (!v.id) return s.shiftTypes.create(v.input);
+      const saved = await s.shiftTypes.update(v.id, v.input);
+      // Shifts already on the calendar take the label's new colour / name.
+      await s.calendars.restyleShifts(saved.id, { color: saved.color, title: saved.name });
+      return saved;
+    },
+    { invalidate: ['calendars', 'events'], successMessage: t('common.saved') },
   );
 }
 

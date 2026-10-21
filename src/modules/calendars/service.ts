@@ -250,6 +250,17 @@ export class CalendarService {
     return { added: [added], removed: existing };
   }
 
+  /** A shift label changed colour or name: every shift painted with it follows. Returns how many changed. */
+  async restyleShifts(typeId: string, look: { color: string; title: string }): Promise<number> {
+    let n = 0;
+    for (const e of await this.events.list()) {
+      if (e.shiftTypeId !== typeId || (e.color === look.color && e.title === look.title)) continue;
+      await this.events.update(e.id, { color: look.color, title: look.title });
+      n += 1;
+    }
+    return n;
+  }
+
   /** Corrects the hours of shifts already painted with a label's old hours (label hours fixed). */
   async recountShiftHours(corrections: { typeId: string; from: number; to: number }[]): Promise<number> {
     let n = 0;

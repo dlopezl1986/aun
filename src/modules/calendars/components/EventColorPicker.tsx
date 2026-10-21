@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { AppText } from '@/components/ui/AppText';
 import { Icon } from '@/components/ui/Icon';
 import { accentPalette, useTheme } from '@/theme';
-import { withAlpha } from '@/utils/color';
+import { isLight, withAlpha } from '@/utils/color';
 
 interface Props {
   /** `null` = the calendar's colour. */
@@ -70,12 +70,13 @@ export function EventColorPicker({ value, calendarColor, onChange }: Props) {
               backgroundColor: c,
               alignItems: 'center',
               justifyContent: 'center',
-              borderWidth: selected ? 3 : 0,
-              borderColor: colors.surface,
+              borderWidth: selected ? 3 : isLight(c) ? 1 : 0,
+              // Light colours get a thin outline so they show on light backgrounds.
+              borderColor: selected ? colors.surface : colors.borderStrong,
               boxShadow: selected ? `0px 0px 0px 2px ${c}` : 'none',
             }}
           >
-            {selected ? <Icon name="check" size={14} color="#FFFFFF" /> : null}
+            {selected ? <Icon name="check" size={14} color={isLight(c) ? '#111827' : '#FFFFFF'} /> : null}
           </Pressable>
         );
       })}

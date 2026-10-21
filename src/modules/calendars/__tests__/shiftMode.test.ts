@@ -179,4 +179,19 @@ describe('shift hours', () => {
     await s.calendars.deleteEvent(tarde.event.id); // deleted from its detail, outside shift mode
     expect(await total()).toBe(0);
   });
+
+  it('changing a label’s colour or name changes every shift already painted with it (and nothing else)', async () => {
+    const { s, cal, byName } = await setup();
+    for (const d of ['2026-11-02', '2026-11-03']) await s.calendars.paintShift(byName('Mañana'), cal.id, d);
+    await s.calendars.paintShift(byName('Tarde'), cal.id, '2026-11-04');
+    const m = byName('Mañana');
+    await s.shiftTypes.update(m.id, { ...m, color: '#1E3A8A', name: 'Mañanas' });
+    expect(await s.calendars.restyleShifts(m.id, { color: '#1E3A8A', title: 'Mañanas' })).toBe(2);
+    const occ = await s.calendars.occurrencesBetween(new Date('2026-11-01T00:00'), new Date('2026-11-06T00:00'));
+    expect(occ.map((o) => [o.event.title, o.event.color]).sort()).toEqual([
+      ['Mañanas', '#1E3A8A'],
+      ['Mañanas', '#1E3A8A'],
+      ['Tarde', byName('Tarde').color],
+    ]);
+  });
 });

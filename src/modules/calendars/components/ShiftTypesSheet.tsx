@@ -12,6 +12,7 @@ import { Sheet } from '@/components/ui/Sheet';
 import { TextField } from '@/components/ui/TextField';
 import { Toggle } from '@/components/ui/Toggle';
 import { useLocale } from '@/hooks/useLocale';
+import { isLight } from '@/utils/color';
 import { accentPalette, useTheme } from '@/theme';
 import { useDeleteShiftType, useSaveShiftType } from '../hooks';
 import { formatHours } from '../shiftHours';
@@ -73,8 +74,8 @@ function Form({ initial, onDone }: { initial: ShiftType | null; onDone: () => vo
               height: 28,
               borderRadius: 14,
               backgroundColor: c,
-              borderWidth: value.color === c ? 3 : 0,
-              borderColor: colors.text,
+              borderWidth: value.color === c ? 3 : isLight(c) ? 1 : 0,
+              borderColor: value.color === c ? colors.text : colors.borderStrong,
             }}
           />
         ))}
