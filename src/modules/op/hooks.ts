@@ -73,3 +73,19 @@ export function useRemoveSession() {
     successMessage: t('op.session.deleted'),
   });
 }
+
+export function useAddTopics() {
+  const { t } = useTranslation();
+  return useDataMutation((s, numbers: number[]) => s.op.addTopics(numbers), {
+    invalidate: ['op'],
+    successMessage: (n) => t('op.syllabus.added', { count: n }),
+  });
+}
+
+/** Any change to a day (topics, done, hours, notes): saved at once, no toast. */
+export function useSetDay() {
+  const look = useOpLook();
+  return useDataMutation((s, v: { date: string; patch: SessionPatch }) => s.op.setDay(v.date, v.patch, look), {
+    invalidate: [...ALL],
+  });
+}

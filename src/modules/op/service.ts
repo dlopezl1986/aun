@@ -49,6 +49,18 @@ export class OpService {
     return n;
   }
 
+  /** Adds these topic numbers (the ones not there yet). Returns how many were added. */
+  async addTopics(numbers: number[]): Promise<number> {
+    const have = new Set((await this.topics.list()).map((t) => t.number));
+    let n = 0;
+    for (const i of [...new Set(numbers)].sort((a, b) => a - b)) {
+      if (!Number.isInteger(i) || i < 1 || have.has(i)) continue;
+      await this.topics.create({ number: i, title: '', studied: false });
+      n += 1;
+    }
+    return n;
+  }
+
   updateTopic(id: string, patch: Partial<Pick<OpTopic, 'number' | 'title' | 'studied'>>): Promise<OpTopic> {
     return this.topics.update(id, { ...patch, ...(patch.title !== undefined ? { title: patch.title.trim() } : {}) });
   }
@@ -127,6 +139,26 @@ export class OpService {
     if (sameSet(next, s.topicIds)) return 'kept';
     await this.updateSession(s.id, { topicIds: next, doneTopicIds: s.doneTopicIds.filter((id) => next.includes(id)) }, look);
     return 'updated';
+  }
+
+  /**
+   * Changes one day (topics, hours or notes), creating it if needed. A day
+   * left with no topics and nothing written is removed. Returns the day, or
+   * null if there is none any more.
+   */
+  async setDay(date: DateKey, patch: SessionPatch, look: OpCalendarLook): Promise<OpSession | null> {
+    const s = await this.sessionOn(date);
+    if (!s) {
+      const draft = { topicIds: [], doneTopicIds: [], hours: null, behind: '', tomorrow: '', notes: '', ...patch };
+      if (!draft.topicIds.length && !hasContent({ ...draft, hours: draft.hours ?? null } as OpSession)) return null;
+      return this.createSession(date, patch, look);
+    }
+    const updated = await this.updateSession(s.id, patch, look);
+    if (!updated.topicIds.length && !hasContent(updated)) {
+      await this.removeSession(updated.id);
+      return null;
+    }
+    return updated;
   }
 
   /** A study day opened from the calendar / list that has no session yet. */

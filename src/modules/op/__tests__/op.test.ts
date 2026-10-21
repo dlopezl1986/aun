@@ -90,4 +90,27 @@ describe('OP (oposición)', () => {
     await s.op.removeTopic(t[2], look);
     expect(await eventsOn('2026-11-02')).toEqual(['Oposición:OP · T1']);
   });
+
+  it('the syllabus 1 to 45 without 36 and 37', async () => {
+    const s = createServices('u', memoryStore(), null);
+    const numbers = Array.from({ length: 45 }, (_, i) => i + 1).filter((n) => n !== 36 && n !== 37);
+    expect(await s.op.addTopics(numbers)).toBe(43);
+    const have = (await s.op.listTopics()).map((x) => x.number);
+    expect(have).toHaveLength(43);
+    expect(have).not.toContain(36);
+    expect(have).not.toContain(37);
+    expect(await s.op.addTopics([1, 2, 46])).toBe(1);
+  });
+
+  it('setDay creates, changes and removes a day (never one with something written)', async () => {
+    const { s, t, eventsOn } = await setup();
+    expect(await s.op.setDay('2026-11-05', { notes: '' }, look)).toBeNull();
+    await s.op.setDay('2026-11-05', { topicIds: [t[3]] }, look);
+    expect(await eventsOn('2026-11-05')).toEqual(['Oposición:OP · T3']);
+    await s.op.setDay('2026-11-05', { hours: 1.5 }, look);
+    expect((await s.op.setDay('2026-11-05', { topicIds: [] }, look))?.hours).toBe(1.5);
+    await s.op.setDay('2026-11-05', { hours: 0 }, look);
+    expect(await s.op.sessionOn('2026-11-05')).toBeNull();
+    expect(await eventsOn('2026-11-05')).toEqual([]);
+  });
 });
