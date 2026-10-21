@@ -222,15 +222,19 @@ export class CalendarService {
   }
 
   /**
-   * Taps a day with a shift label: adds that shift, or removes it if the day
-   * already has it (tapping again undoes). Returns what changed (for undo).
+   * Taps a day with a shift label: puts that shift on the day (replacing
+   * another shift it had), or removes it if the day already has it (tapping
+   * again undoes). Returns what changed (for undo).
    */
   async paintShift(type: ShiftType, calendarId: string, date: DateKey): Promise<{ added: CalendarEvent[]; removed: CalendarEvent[] }> {
-    const same = (await this.shiftsOn(calendarId, date)).filter((e) => e.shiftTypeId === type.id);
+    const existing = await this.shiftsOn(calendarId, date);
+    const same = existing.filter((e) => e.shiftTypeId === type.id);
     if (same.length) {
       await this.events.removeMany(same.map((e) => e.id));
       return { added: [], removed: same };
     }
+    // One shift per day: a different one is replaced.
+    if (existing.length) await this.events.removeMany(existing.map((e) => e.id));
     const added = await this.createEvent({
       calendarId,
       title: type.name,
@@ -243,7 +247,7 @@ export class CalendarService {
       shiftTypeId: type.id,
       shiftHours: countedHours(type),
     });
-    return { added: [added], removed: [] };
+    return { added: [added], removed: existing };
   }
 
   /** Corrects the hours of shifts already painted with a label's old hours (label hours fixed). */

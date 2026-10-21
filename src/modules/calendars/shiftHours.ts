@@ -20,9 +20,8 @@ export interface ShiftCalendarTotal {
 }
 
 /**
- * Hours of the shifts painted in `month`, per calendar and per shift label.
- * Each shift counts the hours copied onto it when it was painted; older ones
- * use their label's hours (or their length).
+ * Hours of the shifts painted in `month`, per calendar and per shift label,
+ * from each label's current hours.
  */
 export function shiftTotals(occurrences: EventOccurrence[], types: ShiftType[], month: Date): ShiftCalendarTotal[] {
   const byCalendar = new Map<string, ShiftCalendarTotal>();
@@ -31,11 +30,13 @@ export function shiftTotals(occurrences: EventOccurrence[], types: ShiftType[], 
     if (!e.shiftTypeId) continue;
     if (o.start.getFullYear() !== month.getFullYear() || o.start.getMonth() !== month.getMonth()) continue;
     const type = types.find((t) => t.id === e.shiftTypeId);
+    // Always the label's current hours (change them and every month follows); a deleted
+    // label's shifts keep the hours they had, and as a last resort their length.
     const hours =
-      typeof e.shiftHours === 'number'
-        ? e.shiftHours
-        : type && typeof type.hours === 'number'
-          ? type.hours
+      type && typeof type.hours === 'number'
+        ? type.hours
+        : typeof e.shiftHours === 'number'
+          ? e.shiftHours
           : e.allDay
             ? 0
             : shiftDuration({ allDay: false, start: hhmm(o.start), end: hhmm(o.end) });

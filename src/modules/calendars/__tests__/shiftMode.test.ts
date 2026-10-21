@@ -55,14 +55,14 @@ describe('shift mode', () => {
     await s.calendars.paintShift(byName('Mañana'), other.id, '2026-11-02');
     await s.calendars.createEvent({ calendarId: cal.id, title: 'Médico', allDay: false, startDate: '2026-11-02', startTime: '18:00' });
     const erased = await s.calendars.eraseShifts(cal.id, '2026-11-02');
-    expect(erased.removed.map((e) => e.title).sort()).toEqual(['Mañana', 'Tarde']);
+    expect(erased.removed.map((e) => e.title)).toEqual(['Tarde']); // Tarde replaced Mañana on that day
     const left = (await s.calendars.occurrencesBetween(new Date('2026-11-02T00:00'), new Date('2026-11-03T00:00'))).map(
       (o) => `${o.calendar.name}:${o.event.title}`,
     );
     expect(left.sort()).toEqual(['Casa:Mañana', 'Trabajo:Médico']);
     await s.calendars.undoShiftChange(erased);
     const back = await s.calendars.occurrencesBetween(new Date('2026-11-02T00:00'), new Date('2026-11-03T00:00'));
-    expect(back).toHaveLength(4);
+    expect(back).toHaveLength(3);
   });
 });
 
@@ -87,19 +87,19 @@ describe('shift hours', () => {
     ]);
   });
 
-  it('each painted shift keeps its hours, and the month adds them up per calendar and per shift', async () => {
+  it('the month adds up the hours per calendar and per shift, always with each label’s current hours', async () => {
     const { s, cal, byName } = await setup();
     for (const d of ['2026-11-02', '2026-11-03']) await s.calendars.paintShift(byName('Mañana'), cal.id, d);
     await s.calendars.paintShift(byName('Noche'), cal.id, '2026-11-04');
     await s.calendars.paintShift(byName('Libre'), cal.id, '2026-11-05');
     await s.calendars.paintShift(byName('Mañana'), cal.id, '2026-12-01'); // another month
-    // Changing the label later does not change shifts already painted.
+    // Changing a label's hours changes the totals of the shifts already painted.
     await s.shiftTypes.update(byName('Mañana').id, { ...byName('Mañana'), hours: 8 });
     const occ = await s.calendars.occurrencesBetween(new Date('2026-10-26T00:00'), new Date('2026-12-07T00:00'));
     const [total] = shiftTotals(occ, await s.shiftTypes.list(), new Date(2026, 10, 1));
-    expect(total).toMatchObject({ calendarName: 'Trabajo', count: 4, hours: 24 });
+    expect(total).toMatchObject({ calendarName: 'Trabajo', count: 4, hours: 26 });
     expect(total.byType.map((r) => [r.name, r.count, r.hours])).toEqual([
-      ['Mañana', 2, 14],
+      ['Mañana', 2, 16],
       ['Noche', 1, 10],
       ['Libre', 1, 0],
     ]);
@@ -146,5 +146,37 @@ describe('shift hours', () => {
     await s.shiftTypes.update(tarde.id, { name: 'Tarde', color: '#000', allDay: false, start: '15:00', end: '23:00', hours: 7.5 });
     expect(await s.shiftTypes.fixHours(names)).toEqual([]);
     expect((await s.shiftTypes.list())[0].hours).toBe(7.5);
+  });
+
+  it('a day keeps one shift: painting another replaces it (and undo brings the first back)', async () => {
+    const { s, cal, byName } = await setup();
+    await s.calendars.paintShift(byName('Mañana'), cal.id, '2026-11-02');
+    const change = await s.calendars.paintShift(byName('Tarde'), cal.id, '2026-11-02');
+    expect(change.removed.map((e) => e.title)).toEqual(['Mañana']);
+    const titles = async () =>
+      (await s.calendars.occurrencesBetween(new Date('2026-11-02T00:00'), new Date('2026-11-03T00:00'))).map((o) => o.event.title);
+    expect(await titles()).toEqual(['Tarde']);
+    await s.calendars.undoShiftChange(change);
+    expect(await titles()).toEqual(['Mañana']);
+  });
+
+  it('adding, replacing, erasing and deleting shifts always gives the right total', async () => {
+    const { s, cal, byName } = await setup();
+    const total = async () =>
+      shiftTotals(
+        await s.calendars.occurrencesBetween(new Date('2026-10-26T00:00'), new Date('2026-12-07T00:00')),
+        await s.shiftTypes.list(),
+        new Date(2026, 10, 1),
+      )[0]?.hours ?? 0;
+    await s.calendars.paintShift(byName('Mañana'), cal.id, '2026-11-02');
+    await s.calendars.paintShift(byName('Noche'), cal.id, '2026-11-03');
+    expect(await total()).toBe(17);
+    await s.calendars.paintShift(byName('Tarde'), cal.id, '2026-11-02'); // replaces Mañana
+    expect(await total()).toBe(17);
+    await s.calendars.eraseShifts(cal.id, '2026-11-03');
+    expect(await total()).toBe(7);
+    const [tarde] = await s.calendars.occurrencesBetween(new Date('2026-11-02T00:00'), new Date('2026-11-03T00:00'));
+    await s.calendars.deleteEvent(tarde.event.id); // deleted from its detail, outside shift mode
+    expect(await total()).toBe(0);
   });
 });

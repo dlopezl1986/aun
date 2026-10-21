@@ -5,7 +5,7 @@ import { useDataMutation, useDataQuery } from '@/state/queryClient';
 import { addDays, startOfDay, toDateKey } from '@/utils/date';
 import { EventValidationError, type CalendarInput, type DayNoteInput, type EventInput, type MoveScope } from './service';
 import type { ShiftTypeInput } from './shiftTypes';
-import type { CalendarEvent, ShiftType } from './types';
+import type { CalendarEvent } from './types';
 
 export function useCalendars() {
   return useDataQuery('calendars', [], (s) => s.calendars.listCalendars());
@@ -204,8 +204,13 @@ export type ShiftChange = { added: CalendarEvent[]; removed: CalendarEvent[] };
 /** One tap in shift mode: paint a shift, or erase the day's shifts (no toast: taps come in quick runs). */
 export function usePaintShift() {
   return useDataMutation(
-    (s, v: { type: ShiftType | null; calendarId: string; date: string }): Promise<ShiftChange> =>
-      v.type ? s.calendars.paintShift(v.type, v.calendarId, v.date) : s.calendars.eraseShifts(v.calendarId, v.date),
+    async (s, v: { typeId: string | null; calendarId: string; date: string }): Promise<ShiftChange> => {
+      if (!v.typeId) return s.calendars.eraseShifts(v.calendarId, v.date);
+      // The label as it is now (hours / times may have just changed), never a copy kept by the screen.
+      const type = (await s.shiftTypes.list()).find((x) => x.id === v.typeId);
+      if (!type) return { added: [], removed: [] };
+      return s.calendars.paintShift(type, v.calendarId, v.date);
+    },
     { invalidate: ['events'] },
   );
 }

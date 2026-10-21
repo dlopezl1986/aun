@@ -178,7 +178,7 @@ export function CalendarsScreen() {
     }
     if (!shiftCalendarId) return;
     paintShift.mutate(
-      { type: brush.kind === 'shift' ? brush.type : null, calendarId: shiftCalendarId, date },
+      { typeId: brush.kind === 'shift' ? brush.type.id : null, calendarId: shiftCalendarId, date },
       { onSuccess: (change) => (change.added.length || change.removed.length) && setShiftChanges((c) => [...c, change]) },
     );
   };
