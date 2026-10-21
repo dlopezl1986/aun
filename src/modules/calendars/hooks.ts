@@ -171,17 +171,19 @@ export function useEnsureShiftTypes() {
   const hours = useAppPreferences((s) => s.shiftHours);
   const colors = useAppPreferences((s) => s.shiftColors);
   return useDataMutation(
-    (s) =>
-      s.shiftTypes.ensureDefaults(
-        {
-          morning: t('calendars.shifts.names.morning'),
-          afternoon: t('calendars.shifts.names.afternoon'),
-          night: t('calendars.shifts.names.night'),
-          off: t('calendars.shiftMode.dayOff'),
-        },
-        { hours, colors },
-      ),
-    { invalidate: ['calendars'] },
+    async (s) => {
+      const names = {
+        morning: t('calendars.shifts.names.morning'),
+        afternoon: t('calendars.shifts.names.afternoon'),
+        night: t('calendars.shifts.names.night'),
+        off: t('calendars.shiftMode.dayOff'),
+      };
+      // Corrected hours on labels also correct the shifts already painted with the old ones.
+      const corrections = await s.shiftTypes.fixHours(names);
+      if (corrections.length) await s.calendars.recountShiftHours(corrections);
+      return s.shiftTypes.ensureDefaults(names, { hours, colors });
+    },
+    { invalidate: ['calendars', 'events'] },
   );
 }
 

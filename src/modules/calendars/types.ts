@@ -88,4 +88,6 @@ export interface ShiftType extends BaseEntity {
   order: number;
   /** Hours it counts in the totals (may differ from its span: breaks, paid nights…). Missing = its duration. */
   hours?: number;
+  /** Counted-hours defaults this label was last brought up to date with (SHIFT_HOURS_REV). */
+  hoursRev?: number;
 }

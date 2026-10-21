@@ -22,8 +22,12 @@ export const DEFAULT_SHIFT_COLORS: Record<ShiftId, string> = {
   night: '#64748B',
 };
 
-/** Hours each usual shift counts by default (a morning or afternoon 7.5 h, a night 10 h). */
-export const DEFAULT_SHIFT_COUNTED_HOURS: Record<ShiftId, number> = { morning: 7.5, afternoon: 7.5, night: 10 };
+/** Hours each usual shift counts by default (a morning or afternoon 7 h, a night 10 h). */
+export const DEFAULT_SHIFT_COUNTED_HOURS: Record<ShiftId, number> = { morning: 7, afternoon: 7, night: 10 };
+/** The first defaults (21 Oct 2026), corrected on labels and shifts that still have them. */
+export const LEGACY_SHIFT_COUNTED_HOURS: Record<ShiftId, number> = { morning: 7.5, afternoon: 7.5, night: 10 };
+/** Version of the counted-hours defaults a label is up to date with (ShiftType.hoursRev). */
+export const SHIFT_HOURS_REV = 2;
 
 /** Length of a shift in hours from its times (a night ending the next day included). */
 export function shiftDuration(s: { allDay: boolean; start: string; end: string }): number {

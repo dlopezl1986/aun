@@ -67,10 +67,10 @@ describe('shift mode', () => {
 });
 
 describe('shift hours', () => {
-  it('the usual shifts count 7.5 h (morning, afternoon) and 10 h (night); a day off 0', async () => {
+  it('the usual shifts count 7 h (morning, afternoon) and 10 h (night); a day off 0', async () => {
     const { byName } = await setup();
-    expect(byName('Mañana').hours).toBe(7.5);
-    expect(byName('Tarde').hours).toBe(7.5);
+    expect(byName('Mañana').hours).toBe(7);
+    expect(byName('Tarde').hours).toBe(7);
     expect(byName('Noche').hours).toBe(10);
     expect(byName('Libre').hours).toBe(0);
   });
@@ -97,11 +97,54 @@ describe('shift hours', () => {
     await s.shiftTypes.update(byName('Mañana').id, { ...byName('Mañana'), hours: 8 });
     const occ = await s.calendars.occurrencesBetween(new Date('2026-10-26T00:00'), new Date('2026-12-07T00:00'));
     const [total] = shiftTotals(occ, await s.shiftTypes.list(), new Date(2026, 10, 1));
-    expect(total).toMatchObject({ calendarName: 'Trabajo', count: 4, hours: 25 });
+    expect(total).toMatchObject({ calendarName: 'Trabajo', count: 4, hours: 24 });
     expect(total.byType.map((r) => [r.name, r.count, r.hours])).toEqual([
-      ['Mañana', 2, 15],
+      ['Mañana', 2, 14],
       ['Noche', 1, 10],
       ['Libre', 1, 0],
     ]);
+  });
+
+  it('labels and shifts still on the first defaults (7.5 h) are corrected to 7 h, once; other hours are kept', async () => {
+    const s = createServices('u', memoryStore(), null);
+    const cal = await s.calendars.createCalendar({ name: 'Trabajo', color: '#2563EB' });
+    const repo = s.collections.get('shiftTypes')!;
+    const tarde = await repo.create({
+      name: 'Tarde',
+      color: '#000',
+      allDay: false,
+      start: '15:00',
+      end: '23:00',
+      hours: 7.5,
+      order: 0,
+    } as never);
+    const guardia = await repo.create({
+      name: 'Guardia',
+      color: '#000',
+      allDay: false,
+      start: '08:00',
+      end: '20:00',
+      hours: 7.5,
+      order: 1,
+    } as never);
+    const painted = (await s.calendars.paintShift(tarde as never, cal.id, '2026-11-02')).added[0];
+    expect(painted.shiftHours).toBe(7.5);
+    await s.calendars.paintShift(guardia as never, cal.id, '2026-11-03');
+
+    const corrections = await s.shiftTypes.fixHours(names);
+    await s.calendars.recountShiftHours(corrections);
+    expect((await s.shiftTypes.list()).map((t) => [t.name, t.hours])).toEqual([
+      ['Tarde', 7],
+      ['Guardia', 7.5],
+    ]);
+    const occ = await s.calendars.occurrencesBetween(new Date('2026-11-01T00:00'), new Date('2026-11-05T00:00'));
+    expect(occ.map((o) => [o.event.title, o.event.shiftHours]).sort()).toEqual([
+      ['Guardia', 7.5],
+      ['Tarde', 7],
+    ]);
+    // Once: a 7.5 set on purpose afterwards stays.
+    await s.shiftTypes.update(tarde.id, { name: 'Tarde', color: '#000', allDay: false, start: '15:00', end: '23:00', hours: 7.5 });
+    expect(await s.shiftTypes.fixHours(names)).toEqual([]);
+    expect((await s.shiftTypes.list())[0].hours).toBe(7.5);
   });
 });

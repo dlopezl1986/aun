@@ -246,6 +246,18 @@ export class CalendarService {
     return { added: [added], removed: [] };
   }
 
+  /** Corrects the hours of shifts already painted with a label's old hours (label hours fixed). */
+  async recountShiftHours(corrections: { typeId: string; from: number; to: number }[]): Promise<number> {
+    let n = 0;
+    for (const e of await this.events.list()) {
+      const c = corrections.find((x) => x.typeId === e.shiftTypeId);
+      if (!c || e.shiftHours !== c.from) continue;
+      await this.events.update(e.id, { shiftHours: c.to });
+      n += 1;
+    }
+    return n;
+  }
+
   /** The eraser: removes every shift painted on that day in that calendar. */
   async eraseShifts(calendarId: string, date: DateKey): Promise<{ added: CalendarEvent[]; removed: CalendarEvent[] }> {
     const removed = await this.shiftsOn(calendarId, date);

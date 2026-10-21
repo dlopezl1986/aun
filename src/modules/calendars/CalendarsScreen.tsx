@@ -43,6 +43,7 @@ import { DaySheet } from './components/DaySheet';
 import { ShiftHoursSummary } from './components/ShiftHoursSummary';
 import { ShiftModeBar, type ShiftBrush } from './components/ShiftModeBar';
 import { formatHours, shiftTotals } from './shiftHours';
+import { SHIFT_HOURS_REV } from './shifts';
 import { ShiftTypesSheet } from './components/ShiftTypesSheet';
 import { MonthGrid } from './components/MonthGrid';
 import { TimeGrid } from './components/TimeGrid';
@@ -158,8 +159,8 @@ export function CalendarsScreen() {
     setShiftChanges([]);
     ensureShiftTypes.mutate();
   };
-  // Shift labels made before shifts counted hours get them (once).
-  const needsHours = !!shiftTypes.data?.some((s) => typeof s.hours !== 'number');
+  // Shift labels get (or have corrected) the hours they count, once per defaults version.
+  const needsHours = !!shiftTypes.data?.some((s) => (s.hoursRev ?? 0) < SHIFT_HOURS_REV);
   useEffect(() => {
     if (needsHours && !ensureShiftTypes.isPending) ensureShiftTypes.mutate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
