@@ -21,7 +21,7 @@ import {
   type CalendarAccess,
   type ShareRole,
 } from '@/services/sharing/spaces';
-import { useTheme } from '@/theme';
+import { SurfaceScope, useTheme } from '@/theme';
 import type { Calendar } from '../types';
 
 type Access = CalendarAccess;
@@ -182,5 +182,10 @@ export function CalendarShareSheet({ calendar, onClose }: { calendar: Calendar |
       </Sheet>
     );
   }
-  return <Editor key={calendar.id} calendar={calendar} onClose={onClose} />;
+  // Its colours are the sheet's (not the page canvas'), like everything inside a Sheet.
+  return (
+    <SurfaceScope>
+      <Editor key={calendar.id} calendar={calendar} onClose={onClose} />
+    </SurfaceScope>
+  );
 }

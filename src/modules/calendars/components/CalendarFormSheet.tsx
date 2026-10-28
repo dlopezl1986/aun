@@ -9,15 +9,17 @@ import { Icon, type IconName } from '@/components/ui/Icon';
 import { Toggle } from '@/components/ui/Toggle';
 import { ChipGroup } from '@/components/forms/Chips';
 import { Avatar } from '@/components/ui/Avatar';
+import { InfoNote } from '@/components/ui/InfoNote';
 import { useFamily, useSetAccess, useShareCalendarWithFamily, useSharing } from '@/services/sharing/hooks';
 import { calendarSpaceId, familyAccessFor, peopleOf, type CalendarAccess } from '@/services/sharing/spaces';
 import { withAlpha } from '@/utils/color';
 import { ColorPicker } from '@/components/ui/ColorPicker';
 import { Sheet } from '@/components/ui/Sheet';
 import { TextField } from '@/components/ui/TextField';
-import { accentPalette, useTheme } from '@/theme';
+import { accentPalette, SurfaceScope, useTheme } from '@/theme';
 import { useCreateCalendar, useDeleteCalendar, useDuplicateCalendar, useUpdateCalendar } from '../hooks';
 import type { Calendar } from '../types';
+import { CalendarShareSheet } from './CalendarShareSheet';
 
 /** Optional calendar icons (person, family, work, school…). */
 export const CALENDAR_ICONS = ['user', 'users', 'heart', 'home', 'briefcase', 'book', 'award', 'activity', 'star', 'sun'];
@@ -50,6 +52,9 @@ function CalendarForm({ onClose, calendar }: Props) {
   const people = !calendar && sharingOn ? peopleOf(spaces, me) : [];
   const [access, setAccessState] = useState<Record<string, CalendarAccess>>({});
   const accessOf = (uid: string) => access[uid] ?? 'edit';
+  // Editing one of my calendars: its permissions open from here too.
+  const [sharingOpen, setSharingOpen] = useState(false);
+  const canSharePeople = sharingOn && (!calendar || calendar.ownerId === me);
 
   const remove = async () => {
     if (!calendar) return;
@@ -119,6 +124,8 @@ function CalendarForm({ onClose, calendar }: Props) {
       });
     }
   };
+
+  if (sharingOpen && calendar) return <CalendarShareSheet calendar={calendar} onClose={() => setSharingOpen(false)} />;
 
   return (
     <Sheet
@@ -190,6 +197,22 @@ function CalendarForm({ onClose, calendar }: Props) {
           })}
         </View>
       </View>
+      {calendar && canSharePeople ? (
+        <View style={{ gap: 8 }}>
+          <View>
+            <AppText variant="bodyStrong">{t('sharing.newCalendar.title')}</AppText>
+            <AppText variant="small" tone="textMuted">
+              {t('sharing.newCalendar.editHint')}
+            </AppText>
+          </View>
+          <View style={{ flexDirection: 'row' }}>
+            <Button label={t('sharing.newCalendar.open')} icon="users" variant="secondary" onPress={() => setSharingOpen(true)} />
+          </View>
+        </View>
+      ) : null}
+      {!calendar && canSharePeople && !people.length ? (
+        <InfoNote icon="users" title={t('sharing.calendar.nobodyTitle')} description={t('sharing.calendar.nobody')} />
+      ) : null}
       {people.length ? (
         <View style={{ gap: 8 }}>
           <View>
@@ -240,7 +263,11 @@ function CalendarForm({ onClose, calendar }: Props) {
   );
 }
 
-/** The form mounts only while open, so its state starts fresh every time. */
+/** The form mounts only while open, so its state starts fresh every time; it uses the sheet's colours. */
 export function CalendarFormSheet(props: Props) {
-  return props.visible ? <CalendarForm {...props} /> : null;
+  return props.visible ? (
+    <SurfaceScope>
+      <CalendarForm {...props} />
+    </SurfaceScope>
+  ) : null;
 }

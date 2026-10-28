@@ -1217,7 +1217,12 @@ export const es = {
     calendarsCount_one: '{{count}} calendario',
     calendarsCount_other: '{{count}} calendarios',
     youAreIn: 'Formas parte de la familia de {{name}}',
-    newCalendar: { title: '¿Quién puede verlo?', hint: 'Puedes cambiarlo cuando quieras en «Compartir».' },
+    newCalendar: {
+      title: '¿Quién puede verlo?',
+      hint: 'Puedes cambiarlo cuando quieras al editar el calendario, en «Permisos».',
+      editHint: 'Elige qué puede hacer cada persona (nada, ver o editar).',
+      open: 'Permisos',
+    },
     familyLowered: 'Al guardar, «Toda la familia» pasará a «{{role}}» para que cada uno tenga solo lo que has elegido.',
     accessFor: 'Acceso de {{name}}',
     readOnly: 'Solo lectura: no tienes permiso para editar este calendario.',

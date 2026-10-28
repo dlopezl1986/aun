@@ -1217,7 +1217,12 @@ export const en: Translation = {
     calendarsCount_one: '{{count}} calendar',
     calendarsCount_other: '{{count}} calendars',
     youAreIn: 'You are part of {{name}}’s family',
-    newCalendar: { title: 'Who can see it?', hint: 'You can change it any time in “Share”.' },
+    newCalendar: {
+      title: 'Who can see it?',
+      hint: 'You can change it any time when editing the calendar, in “Permissions”.',
+      editHint: 'Choose what each person can do (nothing, view or edit).',
+      open: 'Permissions',
+    },
     familyLowered: 'When you save, “Whole family” becomes “{{role}}” so everyone keeps exactly what you chose.',
     accessFor: '{{name}}’s access',
     readOnly: 'Read only: you are not allowed to edit this calendar.',
