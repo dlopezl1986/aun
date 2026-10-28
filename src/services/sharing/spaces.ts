@@ -142,3 +142,39 @@ export function peopleOf(spaces: Space[], me: string): { uid: string; name: stri
   }
   return [...out].map(([uid, name]) => ({ uid, name })).sort((a, b) => a.name.localeCompare(b.name));
 }
+
+/** What one person can do with one calendar, as shown in the sharing screens. */
+export type CalendarAccess = 'none' | 'view' | 'edit';
+const ACCESS_RANK: Record<CalendarAccess, number> = { none: 0, view: 1, edit: 2 };
+
+/** What someone else gets from a calendar shared with the whole family at `familyAccess`. */
+export function accessViaFamily(family: Space | null, uid: string, familyAccess: CalendarAccess): CalendarAccess {
+  const famRole = familyRoleOf(family, uid);
+  if (!famRole || familyAccess === 'none') return 'none';
+  return familyAccess === 'edit' && famRole !== 'view' ? 'edit' : 'view';
+}
+
+/** What a person can really do with my calendar (their own role or the family's, whichever is more). */
+export function personCalendarAccess(spaces: Space[], spaceId: string, uid: string): CalendarAccess {
+  const role = roleIn(spaces, spaceId, uid);
+  return role === 'edit' || role === 'admin' || role === 'owner' ? 'edit' : role === 'view' ? 'view' : 'none';
+}
+
+/**
+ * The most the whole family can keep on a calendar so nobody ends up with
+ * more than what was chosen for them (a family "edit" would beat a
+ * person's "view"). People then keep exactly their own choice.
+ */
+export function familyAccessFor(
+  family: Space | null,
+  familyAccess: CalendarAccess,
+  chosen: Record<string, CalendarAccess>,
+): CalendarAccess {
+  const options: CalendarAccess[] = ['edit', 'view', 'none'];
+  return (
+    options
+      .filter((o) => ACCESS_RANK[o] <= ACCESS_RANK[familyAccess])
+      .find((o) => Object.entries(chosen).every(([uid, access]) => ACCESS_RANK[accessViaFamily(family, uid, o)] <= ACCESS_RANK[access])) ??
+    'none'
+  );
+}

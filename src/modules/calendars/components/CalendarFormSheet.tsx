@@ -7,7 +7,10 @@ import { AppText } from '@/components/ui/AppText';
 import { Button } from '@/components/ui/Button';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import { Toggle } from '@/components/ui/Toggle';
-import { useFamily, useShareCalendarWithFamily } from '@/services/sharing/hooks';
+import { ChipGroup } from '@/components/forms/Chips';
+import { Avatar } from '@/components/ui/Avatar';
+import { useFamily, useSetAccess, useShareCalendarWithFamily, useSharing } from '@/services/sharing/hooks';
+import { calendarSpaceId, familyAccessFor, peopleOf, type CalendarAccess } from '@/services/sharing/spaces';
 import { withAlpha } from '@/utils/color';
 import { ColorPicker } from '@/components/ui/ColorPicker';
 import { Sheet } from '@/components/ui/Sheet';
@@ -39,11 +42,14 @@ function CalendarForm({ onClose, calendar }: Props) {
   const [color, setColor] = useState<string>(calendar?.color ?? accentPalette[1]);
   const [icon, setIcon] = useState<string | null>(calendar?.icon ?? null);
   const [active, setActive] = useState(calendar?.isActive ?? true);
-  // New calendars are shared with the family by default (everyone sees it; can be changed in "Compartir").
+  // New calendars: what each person I share with can do (edit by default; can be changed later in "Compartir").
+  const { me, spaces, enabled: sharingOn } = useSharing();
   const family = useFamily();
   const shareFamily = useShareCalendarWithFamily();
-  const [withFamily, setWithFamily] = useState(true);
-  const offerFamily = !calendar && family.withOthers;
+  const setAccess = useSetAccess();
+  const people = !calendar && sharingOn ? peopleOf(spaces, me) : [];
+  const [access, setAccessState] = useState<Record<string, CalendarAccess>>({});
+  const accessOf = (uid: string) => access[uid] ?? 'edit';
 
   const remove = async () => {
     if (!calendar) return;
@@ -86,11 +92,32 @@ function CalendarForm({ onClose, calendar }: Props) {
         { name, description, color, icon },
         {
           onSuccess: (created) => {
-            if (offerFamily && withFamily) shareFamily.mutate({ calendar: created, role: 'edit' });
             onClose();
+            void shareNew(created);
           },
         },
       );
+  };
+
+  /**
+   * Shares the new calendar: with the whole family as far as everyone's choice
+   * allows (so people who join later see it too), and each person exactly as chosen.
+   */
+  const shareNew = async (created: Calendar) => {
+    if (!people.length) return;
+    const chosen = Object.fromEntries(people.map((p) => [p.uid, accessOf(p.uid)]));
+    const familyRole = family.withOthers ? familyAccessFor(family.family, 'edit', chosen) : 'none';
+    if (familyRole !== 'none') await shareFamily.mutateAsync({ calendar: created, role: familyRole });
+    for (const p of people) {
+      const role = chosen[p.uid];
+      if (role === 'none') continue;
+      await setAccess.mutateAsync({
+        person: p,
+        changes: [
+          { spaceId: calendarSpaceId(created.ownerId, created.id), role, def: { kind: 'calendar', refId: created.id, name: created.name } },
+        ],
+      });
+    }
   };
 
   return (
@@ -163,15 +190,39 @@ function CalendarForm({ onClose, calendar }: Props) {
           })}
         </View>
       </View>
-      {offerFamily ? (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          <View style={{ flex: 1 }}>
-            <AppText variant="bodyStrong">{t('sharing.family.shareNew')}</AppText>
+      {people.length ? (
+        <View style={{ gap: 8 }}>
+          <View>
+            <AppText variant="bodyStrong">{t('sharing.newCalendar.title')}</AppText>
             <AppText variant="small" tone="textMuted">
-              {t('sharing.family.shareNewHint')}
+              {t('sharing.newCalendar.hint')}
             </AppText>
           </View>
-          <Toggle value={withFamily} onValueChange={setWithFamily} label={t('sharing.family.shareNew')} />
+          {people.map((p) => (
+            <View
+              key={p.uid}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: 8,
+                padding: 10,
+                borderRadius: 12,
+                backgroundColor: colors.surfaceMuted,
+              }}
+            >
+              <Avatar name={p.name || '?'} size={28} />
+              <AppText variant="bodyStrong" style={{ flex: 1, minWidth: 80 }} numberOfLines={1}>
+                {p.name}
+              </AppText>
+              <ChipGroup<CalendarAccess>
+                accessibilityLabel={t('sharing.accessFor', { name: p.name })}
+                selected={accessOf(p.uid)}
+                onToggle={(v) => setAccessState((a) => ({ ...a, [p.uid]: v }))}
+                options={(['none', 'view', 'edit'] as CalendarAccess[]).map((v) => ({ value: v, label: t(`sharing.roles.${v}`) }))}
+              />
+            </View>
+          ))}
         </View>
       ) : null}
       {calendar ? (

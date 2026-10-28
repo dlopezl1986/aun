@@ -1217,6 +1217,8 @@ export const es = {
     calendarsCount_one: '{{count}} calendario',
     calendarsCount_other: '{{count}} calendarios',
     youAreIn: 'Formas parte de la familia de {{name}}',
+    newCalendar: { title: '¿Quién puede verlo?', hint: 'Puedes cambiarlo cuando quieras en «Compartir».' },
+    familyLowered: 'Al guardar, «Toda la familia» pasará a «{{role}}» para que cada uno tenga solo lo que has elegido.',
     accessFor: 'Acceso de {{name}}',
     readOnly: 'Solo lectura: no tienes permiso para editar este calendario.',
     roles: { none: 'Nada', view: 'Ver', edit: 'Editar', admin: 'Gestionar' },
@@ -1240,8 +1242,6 @@ export const es = {
         'Cualquier miembro puede compartir un calendario suyo con la familia en Calendarios → compartir. Lo verán todos, también quien entre después.',
       wholeFamily: 'Toda la familia',
       wholeFamilyHint: 'Lo verán todos los miembros, también los que entren después. «Editar» deja cambiarlo a adultos y familiares.',
-      shareNew: 'Compartir con mi familia',
-      shareNewHint: 'Todos los de la familia lo verán y podrán editarlo.',
     },
     calendar: {
       title: 'Compartir «{{name}}»',

@@ -1217,6 +1217,8 @@ export const en: Translation = {
     calendarsCount_one: '{{count}} calendar',
     calendarsCount_other: '{{count}} calendars',
     youAreIn: 'You are part of {{name}}’s family',
+    newCalendar: { title: 'Who can see it?', hint: 'You can change it any time in “Share”.' },
+    familyLowered: 'When you save, “Whole family” becomes “{{role}}” so everyone keeps exactly what you chose.',
     accessFor: '{{name}}’s access',
     readOnly: 'Read only: you are not allowed to edit this calendar.',
     roles: { none: 'None', view: 'View', edit: 'Edit', admin: 'Manage' },
@@ -1240,8 +1242,6 @@ export const en: Translation = {
         'Any member can share one of their calendars with the family in Calendars → share. Everyone will see it, also people who join later.',
       wholeFamily: 'The whole family',
       wholeFamilyHint: 'Every member will see it, also those who join later. “Edit” lets adults and relatives change it.',
-      shareNew: 'Share with my family',
-      shareNewHint: 'Everyone in the family will see it and can edit it.',
     },
     calendar: {
       title: 'Share “{{name}}”',

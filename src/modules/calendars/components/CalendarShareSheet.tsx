@@ -12,12 +12,20 @@ import { LoadingState } from '@/components/ui/States';
 import { Sheet } from '@/components/ui/Sheet';
 import { Toggle } from '@/components/ui/Toggle';
 import { useFamily, useSetAccess, useShareCalendarWithFamily, useSharing } from '@/services/sharing/hooks';
-import { calendarSpaceId, peopleOf, type FamilyCalendarRole, type ShareRole } from '@/services/sharing/spaces';
+import {
+  accessViaFamily,
+  calendarSpaceId,
+  familyAccessFor,
+  peopleOf,
+  personCalendarAccess,
+  type CalendarAccess,
+  type ShareRole,
+} from '@/services/sharing/spaces';
 import { useTheme } from '@/theme';
 import type { Calendar } from '../types';
 
-type Access = 'none' | Exclude<ShareRole, 'admin'>;
-type FamilyAccess = 'none' | FamilyCalendarRole;
+type Access = CalendarAccess;
+type FamilyAccess = CalendarAccess;
 
 /** Who can see / edit one of my calendars, and whose calendar it is. */
 function Editor({ calendar, onClose }: { calendar: Calendar; onClose: () => void }) {
@@ -32,13 +40,30 @@ function Editor({ calendar, onClose }: { calendar: Calendar; onClose: () => void
   const people = peopleOf(spaces, me);
   const familyNow: FamilyAccess = space?.family && space.family === family.family?.id ? (space.familyRole ?? 'view') : 'none';
   const [familyAccess, setFamilyAccess] = useState<FamilyAccess>(familyNow);
-  const [access, setAccessState] = useState<Record<string, Access>>(() =>
-    Object.fromEntries(people.map((p) => [p.uid, (space?.roles[p.uid] === 'admin' ? 'edit' : (space?.roles[p.uid] ?? 'none')) as Access])),
-  );
   const [assignee, setAssignee] = useState<string | null>(space?.assignee ?? null);
+  // What each person can really do now (their own permission or the family's).
+  const [access, setAccessState] = useState<Record<string, Access>>(() =>
+    Object.fromEntries(people.map((p) => [p.uid, personCalendarAccess(spaces, spaceId, p.uid)])),
+  );
+  // The family never gives anyone more than what was chosen for them.
+  const familyFinal = familyAccessFor(family.family, familyAccess, access);
+  const pickFamily = (v: FamilyAccess) => {
+    setFamilyAccess(v);
+    // "Toda la familia" sets everyone in it at once; each person can then be changed.
+    setAccessState((a) => {
+      const next = { ...a };
+      for (const p of people) {
+        const via = accessViaFamily(family.family, p.uid, v);
+        if (family.family?.memberIds.includes(p.uid)) next[p.uid] = via;
+      }
+      return next;
+    });
+    if (assignee && family.family?.memberIds.includes(assignee) && accessViaFamily(family.family, assignee, v) !== 'edit')
+      setAssignee(null);
+  };
 
   const save = async () => {
-    if (familyAccess !== familyNow) await shareFamily.mutateAsync({ calendar, role: familyAccess === 'none' ? null : familyAccess });
+    if (familyFinal !== familyNow) await shareFamily.mutateAsync({ calendar, role: familyFinal === 'none' ? null : familyFinal });
     for (const p of people) {
       const role = access[p.uid] === 'none' ? null : (access[p.uid] as ShareRole);
       const wasAssignee = space?.assignee === p.uid;
@@ -76,9 +101,14 @@ function Editor({ calendar, onClose }: { calendar: Calendar; onClose: () => void
           <ChipGroup<FamilyAccess>
             accessibilityLabel={t('sharing.family.wholeFamily')}
             selected={familyAccess}
-            onToggle={setFamilyAccess}
+            onToggle={pickFamily}
             options={(['none', 'view', 'edit'] as FamilyAccess[]).map((v) => ({ value: v, label: t(`sharing.roles.${v}`) }))}
           />
+          {familyFinal !== familyAccess ? (
+            <AppText variant="caption" tone="textMuted">
+              {t('sharing.familyLowered', { role: t(`sharing.roles.${familyFinal}`) })}
+            </AppText>
+          ) : null}
         </View>
       ) : null}
       {people.length ? (

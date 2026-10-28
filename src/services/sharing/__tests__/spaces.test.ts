@@ -2,13 +2,16 @@ import { createServices } from '@/services/container';
 import { memoryStore } from '@/test/memoryStore';
 import type { PullPage, RemoteRecord, RemoteStore } from '@/services/sync/types';
 import {
+  accessViaFamily,
   canEditCalendar,
+  familyAccessFor,
   canManageFamily,
   canSee,
   familyRoleOf,
   householdOwner,
   myFamily,
   peopleOf,
+  personCalendarAccess,
   roleIn,
   spaceForRecord,
   type Space,
@@ -63,6 +66,22 @@ describe('sharing spaces', () => {
     expect(await spaceForRecord('tasks', { id: 't1' }, ctx)).toBeNull();
     expect(await spaceForRecord('documents', { id: 'd1' }, ctx)).toBeNull();
     expect(await spaceForRecord('dayNotes', { id: 'n1' }, ctx)).toBeNull();
+  });
+
+  it('each person keeps the access chosen for them, even with the calendar shared with the whole family', () => {
+    const fam = space('fam_david', 'david', { memberIds: ['david', 'soraya', 'leo'], roles: { soraya: 'admin', leo: 'view' } });
+    const shared = space('cal_david_casa', 'david', { family: 'fam_david', familyRole: 'edit' });
+    // Soraya (adult) edits through the family; Leo (only sees the family) just sees it.
+    expect(personCalendarAccess([fam, shared], 'cal_david_casa', 'soraya')).toBe('edit');
+    expect(personCalendarAccess([fam, shared], 'cal_david_casa', 'leo')).toBe('view');
+    expect(personCalendarAccess([fam, shared], 'cal_david_work', 'soraya')).toBe('none');
+    expect(accessViaFamily(fam, 'leo', 'edit')).toBe('view');
+    expect(accessViaFamily(fam, 'carol', 'edit')).toBe('none');
+    // Soraya set to "ver": the family can no longer edit; to "nada": the family cannot even see it.
+    expect(familyAccessFor(fam, 'edit', { soraya: 'edit', leo: 'view' })).toBe('edit');
+    expect(familyAccessFor(fam, 'edit', { soraya: 'view', leo: 'view' })).toBe('view');
+    expect(familyAccessFor(fam, 'edit', { soraya: 'none', leo: 'view' })).toBe('none');
+    expect(familyAccessFor(fam, 'view', { soraya: 'edit', leo: 'edit' })).toBe('view');
   });
 });
 
