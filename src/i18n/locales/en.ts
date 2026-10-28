@@ -366,6 +366,10 @@ export const en: Translation = {
     },
   },
   calendars: {
+    holidays: {
+      title: 'Public holidays',
+      description: 'Spain and Comunidad de Madrid',
+    },
     duplicateCal: {
       action: 'Duplicate',
       title: 'Duplicate “{{name}}”',
@@ -1147,6 +1151,9 @@ export const en: Translation = {
     stats: { toBuy: 'to buy' },
   },
   sharing: {
+    allCalendars: 'All at once',
+    familyEditsNote:
+      'The whole family can edit it now. When you save, the family will only see it (whoever should edit it gets that here).',
     leave: {
       button: 'Leave this family',
       title: 'Leave {{name}}’s family?',

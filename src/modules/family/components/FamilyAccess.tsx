@@ -27,6 +27,7 @@ import {
   useLeaveSpaces,
   useMyInvites,
   useSetAccess,
+  useShareCalendarWithFamily,
   useSharing,
 } from '@/services/sharing/hooks';
 import { calendarSpaceId, familyRoleOf, familySpaceId, peopleOf, type Invite, type ShareRole, type Space } from '@/services/sharing/spaces';
@@ -313,8 +314,14 @@ function PersonEditor({ person, onClose }: { person: { uid: string; name: string
   const { me, spaces } = useSharing();
   const calendars = useMyCalendars(me);
   const setAccessM = useSetAccess();
+  const shareFamily = useShareCalendarWithFamily();
   const fam = useFamily();
   const familyId = fam.family?.id ?? familySpaceId(me);
+  /** Shared with the whole family to edit: that would let this person edit it whatever is chosen here. */
+  const familyEdits = (calendarId: string) => {
+    const sp = spaces.find((s) => s.id === calendarSpaceId(me, calendarId));
+    return !!fam.family && sp?.family === fam.family.id && sp.familyRole === 'edit';
+  };
   const roleIn = (id: string): Access => {
     const r = spaces.find((s) => s.id === id)?.roles[person.uid];
     return r === 'admin' ? 'edit' : (r ?? 'none');
@@ -347,8 +354,18 @@ function PersonEditor({ person, onClose }: { person: { uid: string; name: string
     }),
   ];
 
-  const save = () =>
+  const save = async () => {
+    // "Solo ver" must mean it: a calendar the whole family could edit becomes view-only for the family
+    // (people who should edit it get it directly here).
+    for (const c of calendars) {
+      const v: Access = c.id === assign ? 'edit' : (access[c.id] ?? 'none');
+      if (v !== 'edit' && familyEdits(c.id)) await shareFamily.mutateAsync({ calendar: c, role: 'view' });
+    }
     setAccessM.mutate({ person, changes: changesFor(null), assign: assign ? calendarSpaceId(me, assign) : null }, { onSuccess: onClose });
+  };
+  const others = calendars.filter((c) => c.id !== assign);
+  const allSame = others.length && others.every((c) => (access[c.id] ?? 'none') === (access[others[0].id] ?? 'none'));
+  const allValue: Access | null = allSame ? (access[others[0].id] ?? 'none') : null;
   const removeAll = async () => {
     const ok = await dialog.confirm({
       title: t('sharing.removeTitle', { name: person.name }),
@@ -370,7 +387,7 @@ function PersonEditor({ person, onClose }: { person: { uid: string; name: string
           <Button label={t('sharing.remove')} icon="user-x" variant="ghost" onPress={() => void removeAll()} />
           <View style={{ flex: 1 }} />
           <Button label={t('common.cancel')} variant="ghost" onPress={onClose} />
-          <Button label={t('common.save')} onPress={save} loading={setAccessM.isPending} />
+          <Button label={t('common.save')} onPress={() => void save()} loading={setAccessM.isPending || shareFamily.isPending} />
         </>
       }
     >
@@ -398,16 +415,28 @@ function PersonEditor({ person, onClose }: { person: { uid: string; name: string
       </View>
       <View style={{ gap: spacing.md }}>
         <Label>{t('sharing.otherCalendars')}</Label>
-        {calendars
-          .filter((c) => c.id !== assign)
-          .map((c) => (
-            <CalendarAccessRow
-              key={c.id}
-              cal={c}
-              value={access[c.id] ?? 'none'}
-              onChange={(v) => setAccess((a) => ({ ...a, [c.id]: v }))}
+        {others.length > 1 ? (
+          <View style={{ gap: spacing.xs }}>
+            <AppText variant="smallStrong">{t('sharing.allCalendars')}</AppText>
+            <ChipGroup<Access>
+              compact
+              accessibilityLabel={t('sharing.allCalendars')}
+              selected={allValue ?? ([] as Access[])}
+              onToggle={(v) => setAccess((a) => ({ ...a, ...Object.fromEntries(others.map((c) => [c.id, v])) }))}
+              options={(['none', 'view', 'edit'] as Access[]).map((v) => ({ value: v, label: t(`sharing.roles.${v}`) }))}
             />
-          ))}
+          </View>
+        ) : null}
+        {others.map((c) => (
+          <View key={c.id} style={{ gap: 2 }}>
+            <CalendarAccessRow cal={c} value={access[c.id] ?? 'none'} onChange={(v) => setAccess((a) => ({ ...a, [c.id]: v }))} />
+            {familyEdits(c.id) && (access[c.id] ?? 'none') !== 'edit' ? (
+              <AppText variant="caption" tone="textMuted">
+                {t('sharing.familyEditsNote')}
+              </AppText>
+            ) : null}
+          </View>
+        ))}
       </View>
     </Sheet>
   );

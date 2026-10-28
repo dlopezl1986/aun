@@ -25,6 +25,12 @@ export interface UserSettings {
     storageProvider: StorageProviderId;
   };
   notifications: NotificationPrefs;
+  calendars: CalendarPrefs;
+}
+
+export interface CalendarPrefs {
+  /** Show the public holidays (Spain + Comunidad de Madrid). */
+  holidays: boolean;
 }
 
 export interface NotificationPrefs {
@@ -68,6 +74,7 @@ export function normalizeSettings(raw: Partial<UserSettings> | null, modules: Ap
     dashboard: { widgets, todayHidden: raw?.dashboard?.todayHidden ?? [] },
     secondBrain: { storageProvider: raw?.secondBrain?.storageProvider ?? 'local' },
     notifications: { ...defaultNotificationPrefs(), ...(raw?.notifications ?? {}) },
+    calendars: { holidays: true, ...(raw?.calendars ?? {}) },
   };
 }
 

@@ -21,6 +21,7 @@ import {
   pointOf,
   type DragPoint,
 } from '../dragDrop';
+import { HOLIDAY_COLOR } from '../holidays';
 import { layoutWeek, type WeekBar } from '../monthLayout';
 import { shortShiftTitle } from '../shifts';
 import { occurrenceColor, type DayNote, type EventOccurrence } from '../types';
@@ -43,6 +44,8 @@ interface MonthGridProps {
   onDayOpen?: (dateKey: string) => void;
   /** Shift mode: a tap anywhere on a day paints / erases it (no event opening, no dragging). */
   onPaint?: (dateKey: string) => void;
+  /** Public holidays shown (date → name): the day is tinted light red. */
+  holidays?: Map<string, string>;
 }
 
 /** Two presses on the same day within this time are a double click / double tap. */
@@ -66,6 +69,7 @@ export function MonthGrid({
   onMoveEvent,
   onMoveNote,
   onDayOpen,
+  holidays,
   onPaint,
 }: MonthGridProps) {
   const styles = useStyles();
@@ -191,6 +195,7 @@ export function MonthGrid({
               const inMonth = day.getMonth() === month.getMonth();
               const isSelected = key === selected;
               const isToday = key === today;
+              const holiday = holidays?.get(key) ?? null;
               const items = labels.get(key) ?? [];
               // Lines left for this day's own labels once the bar rows are drawn.
               const room = Math.max(1, maxLines - shownLanes);
@@ -206,6 +211,7 @@ export function MonthGrid({
                   style={[
                     styles.dayCell,
                     { minHeight: isCompact ? 76 : 104, padding: isCompact ? 1 : 2, opacity: inMonth ? 1 : 0.55 },
+                    holiday && { backgroundColor: withAlpha(HOLIDAY_COLOR, 0.12) },
                     isSelected && { borderColor: colors.primary, backgroundColor: withAlpha(colors.primary, 0.06) },
                     drag?.over === key &&
                       drag.from !== key && {
@@ -220,7 +226,7 @@ export function MonthGrid({
                     onPress={() => pressDay(key, () => onSelect(key), false)}
                     accessibilityRole="button"
                     aria-selected={isSelected}
-                    accessibilityLabel={formatLongDate(day, locale)}
+                    accessibilityLabel={holiday ? `${formatLongDate(day, locale)}, ${holiday}` : formatLongDate(day, locale)}
                     accessibilityHint={onDayOpen ? t('calendars.daySheet.hint') : undefined}
                     style={(s) => [
                       StyleSheet.absoluteFill,
@@ -228,7 +234,10 @@ export function MonthGrid({
                     ]}
                   />
                   <View pointerEvents="none" style={[styles.dayNumber, isToday && { backgroundColor: colors.primary }]}>
-                    <AppText variant="caption" color={isToday ? colors.onPrimary : inMonth ? colors.text : colors.textSubtle}>
+                    <AppText
+                      variant="caption"
+                      color={isToday ? colors.onPrimary : holiday ? '#DC2626' : inMonth ? colors.text : colors.textSubtle}
+                    >
                       {day.getDate()}
                     </AppText>
                   </View>

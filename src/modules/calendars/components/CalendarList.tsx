@@ -13,6 +13,8 @@ import { IconButton } from '@/components/ui/IconButton';
 import { InfoNote } from '@/components/ui/InfoNote';
 import { ListRow } from '@/components/ui/ListRow';
 import { Sheet } from '@/components/ui/Sheet';
+import { useCalendarPrefs, useUserSettings } from '@/state/userSettingsStore';
+import { HOLIDAY_COLOR } from '../holidays';
 import { useCalendarAccess, useSharing } from '@/services/sharing/hooks';
 import { useTheme } from '@/theme';
 import { useDeleteCalendar, useSetCalendarVisible, useShowAllCalendars, useUpdateCalendar } from '../hooks';
@@ -72,6 +74,8 @@ export function CalendarList({ calendars, onEdit, onCreate }: Props) {
   const sharedLabel = (c: Calendar) =>
     t('sharing.calendar.from', { name: access.ownerName(c) || t('sharing.someone'), role: t(`sharing.roles.${access.role(c) ?? 'view'}`) });
   const [showArchived, setShowArchived] = useState(false);
+  const calendarPrefs = useCalendarPrefs();
+  const setCalendarPrefs = useUserSettings((s) => s.setCalendarPrefs);
   const active = calendars.filter((c) => c.isActive);
   const archived = calendars.filter((c) => !c.isActive);
   const anyHidden = active.some((c) => !c.isVisible);
@@ -125,6 +129,14 @@ export function CalendarList({ calendars, onEdit, onCreate }: Props) {
             }
           />
         ))}
+        <Checkbox
+          checked={calendarPrefs.holidays}
+          onChange={(holidays) => void setCalendarPrefs({ holidays })}
+          label={t('calendars.holidays.title')}
+          description={t('calendars.holidays.description')}
+          color={HOLIDAY_COLOR}
+          right={<Icon name="flag" size={14} color={HOLIDAY_COLOR} />}
+        />
       </View>
       {archived.length ? (
         <View style={{ marginTop: spacing.sm }}>

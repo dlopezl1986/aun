@@ -5,6 +5,7 @@ import {
   defaultDashboard,
   defaultNotificationPrefs,
   normalizeSettings,
+  type CalendarPrefs,
   type NotificationPrefs,
   type UserSettings,
 } from '@/services/settings/userSettings';
@@ -35,6 +36,7 @@ interface UserSettingsState {
   resetDashboard: () => Promise<void>;
   setStorageProvider: (provider: StorageProviderId) => Promise<void>;
   setNotificationPrefs: (patch: Partial<NotificationPrefs>) => Promise<void>;
+  setCalendarPrefs: (patch: Partial<CalendarPrefs>) => Promise<void>;
   clear: () => void;
 }
 
@@ -120,6 +122,10 @@ export const useUserSettings = create<UserSettingsState>()((set, get) => {
       const s = current();
       await commit({ ...s, notifications: { ...s.notifications, ...patch } });
     },
+    async setCalendarPrefs(patch) {
+      const s = current();
+      await commit({ ...s, calendars: { ...s.calendars, ...patch } });
+    },
     clear() {
       set({ userId: null, settings: null, status: 'idle' });
     },
@@ -184,4 +190,9 @@ export function useDashboardWidgets(): DashboardWidgetState[] {
       return { definition, visible: pref?.visible ?? definition.defaultVisible, size };
     });
   }, [settings, modules]);
+}
+
+/** Calendar display preferences (holidays on by default). */
+export function useCalendarPrefs(): CalendarPrefs {
+  return useUserSettings((s) => s.settings?.calendars) ?? { holidays: true };
 }

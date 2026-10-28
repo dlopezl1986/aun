@@ -364,6 +364,10 @@ export const es = {
     },
   },
   calendars: {
+    holidays: {
+      title: 'Festivos',
+      description: 'España y Comunidad de Madrid',
+    },
     duplicateCal: {
       action: 'Duplicar',
       title: 'Duplicar «{{name}}»',
@@ -1147,6 +1151,9 @@ export const es = {
     stats: { toBuy: 'por comprar' },
   },
   sharing: {
+    allCalendars: 'Todos a la vez',
+    familyEditsNote:
+      'Ahora toda la familia puede editarlo. Al guardar, la familia pasará a solo verlo (quien deba editarlo lo tendrá aquí).',
     leave: {
       button: 'Salir de esta familia',
       title: '¿Salir de la familia de {{name}}?',

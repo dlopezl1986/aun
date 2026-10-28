@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { useDialog } from '@/components/feedback/DialogProvider';
 import { useToast } from '@/components/feedback/ToastProvider';
 import { useCalendarAccess } from '@/services/sharing/hooks';
+import { useCalendarPrefs } from '@/state/userSettingsStore';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Screen } from '@/components/layout/Screen';
 import { AppText } from '@/components/ui/AppText';
@@ -46,6 +47,7 @@ import { formatHours, shiftTotals } from './shiftHours';
 import { SHIFT_HOURS_REV } from './shifts';
 import { ShiftTypesSheet } from './components/ShiftTypesSheet';
 import { MonthGrid } from './components/MonthGrid';
+import { holidayOccurrences, holidaysBetween, isHoliday } from './holidays';
 import { TimeGrid } from './components/TimeGrid';
 import {
   useCalendars,
@@ -118,7 +120,7 @@ export function CalendarsScreen() {
     date: today,
     time: null,
   });
-  const [detail, setDetail] = useState<EventOccurrence | null>(null);
+  const [detail, setDetailState] = useState<EventOccurrence | null>(null);
   const [noteSheet, setNoteSheet] = useState<{ date: string; note: DayNote | null } | null>(null);
   const [dayLayout, setDayLayout] = useState<DayLayout>('list');
   /** Day opened in detail (double click / "+N más" in the month grid). */
@@ -141,6 +143,10 @@ export function CalendarsScreen() {
   const anchor = fromDateKey(selected);
   const range = rangeFor(mode, anchor);
   const occurrences = useOccurrences(range.start, range.days);
+  // Public holidays (Spain + Comunidad de Madrid): a read-only layer on every view.
+  const calendarPrefs = useCalendarPrefs();
+  const holidays = calendarPrefs.holidays ? holidaysBetween(range.start, range.days) : new Map<string, string>();
+  const occ = [...holidayOccurrences(holidays, t('calendars.holidays.title')), ...(occurrences.data ?? [])];
   const notesQuery = useDayNotes(range.start, range.days);
   const dialog = useDialog();
   const toast = useToast();
@@ -182,11 +188,17 @@ export function CalendarsScreen() {
       { onSuccess: (change) => (change.added.length || change.removed.length) && setShiftChanges((c) => [...c, change]) },
     );
   };
+  // Holidays are not events: a tap just says which holiday it is.
+  const setDetail = (o: EventOccurrence | null) => {
+    if (o && isHoliday(o)) toast.show(`${t('calendars.holidays.title')}: ${o.event.title}`, 'info');
+    else setDetailState(o);
+  };
   const moveOccurrence = useMoveOccurrence();
   const moveDayNote = useMoveDayNote();
 
   // Drag & drop: a repeating event asks whether to move just that day or the whole series.
   const moveEvent = async (o: EventOccurrence, from: string, to: string, toTime: string | null = null) => {
+    if (isHoliday(o)) return;
     if (!access.canEdit(o.calendar)) {
       toast.show(t('sharing.readOnly'), 'info');
       return;
@@ -292,7 +304,7 @@ export function CalendarsScreen() {
       <ShiftTypesSheet visible={manageShifts} types={shiftTypes.data ?? []} onClose={() => setManageShifts(false)} />
       <DaySheet
         date={daySheet}
-        occurrences={occurrences.data ?? []}
+        occurrences={occ}
         notes={notesQuery.data ?? []}
         onClose={() => setDaySheet(null)}
         onEvent={setDetail}
@@ -364,7 +376,6 @@ export function CalendarsScreen() {
     );
   }
 
-  const occ = occurrences.data ?? [];
   // Hours of the shifts in the month shown (summary under the grid and in shift mode).
   const monthShiftTotals = mode === 'month' ? shiftTotals(occ, shiftTypes.data ?? [], anchor) : [];
   const notes = notesQuery.data ?? [];
@@ -515,6 +526,7 @@ export function CalendarsScreen() {
             setDaySheet(d);
           }}
           onPaint={shiftMode ? paintDay : undefined}
+          holidays={holidays}
         />
         <ShiftHoursSummary totals={monthShiftTotals} month={anchor} />
         <Divider />
