@@ -77,6 +77,7 @@ export const en: Translation = {
       afternoon: 'Good afternoon, {{name}}',
       evening: 'Good evening, {{name}}',
     },
+    family: { title: 'Your family', add: 'Add', addFirst: 'Your family' },
     customize: 'Customise dashboard',
     customizeShort: 'Customise',
     emptyTitle: 'Your dashboard is empty',
@@ -1655,6 +1656,7 @@ export const en: Translation = {
       dark: 'Dark',
       system: 'Match system',
       palettes: {
+        aire: { name: 'Air', description: 'Soft lavender and white cards. Bright and visual.' },
         nitido: { name: 'Crisp', description: 'Navy and cream. Clear and professional.' },
         bosque: { name: 'Forest', description: 'Forest green and ivory. Natural and cosy.' },
         grafito: { name: 'Warm graphite', description: 'Warm charcoal and amber. Calm and elegant.' },

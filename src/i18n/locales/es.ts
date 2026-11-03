@@ -75,6 +75,7 @@ export const es = {
       afternoon: 'Buenas tardes, {{name}}',
       evening: 'Buenas noches, {{name}}',
     },
+    family: { title: 'Tu familia', add: 'Añadir', addFirst: 'Tu familia' },
     customize: 'Personalizar panel',
     customizeShort: 'Personalizar',
     emptyTitle: 'Tu panel está vacío',
@@ -1656,6 +1657,7 @@ export const es = {
       dark: 'Oscuro',
       system: 'Según el sistema',
       palettes: {
+        aire: { name: 'Aire', description: 'Lavanda suave y tarjetas blancas. Luminoso y visual.' },
         nitido: { name: 'Nítido', description: 'Azul marino y crema. Claro y profesional.' },
         bosque: { name: 'Bosque', description: 'Verde bosque y marfil. Natural y acogedor.' },
         grafito: { name: 'Grafito cálido', description: 'Carbón cálido y ámbar. Sobrio y elegante.' },

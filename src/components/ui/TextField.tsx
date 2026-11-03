@@ -18,6 +18,8 @@ interface TextFieldProps extends Omit<TextInputProps, 'style'> {
   /** Shows an eye toggle for password fields. */
   revealable?: boolean;
   compact?: boolean;
+  /** Rounded, raised search-style field (e.g. the Inicio search box). */
+  pill?: boolean;
 }
 
 const TextFieldBase = forwardRef<TextInput, TextFieldProps>(function TextFieldBase(
@@ -31,6 +33,7 @@ const TextFieldBase = forwardRef<TextInput, TextFieldProps>(function TextFieldBa
     revealable,
     secureTextEntry,
     compact,
+    pill,
     onFocus,
     onBlur,
     autoFocus,
@@ -52,7 +55,7 @@ const TextFieldBase = forwardRef<TextInput, TextFieldProps>(function TextFieldBa
   const { t } = useTranslation();
   const [focused, setFocused] = useState(false);
   const [revealed, setRevealed] = useState(false);
-  const borderColor = error ? colors.danger : focused ? colors.primary : colors.borderStrong;
+  const borderColor = error ? colors.danger : focused ? colors.primary : pill ? colors.border : colors.borderStrong;
 
   return (
     <View style={styles.wrapper}>
@@ -61,7 +64,7 @@ const TextFieldBase = forwardRef<TextInput, TextFieldProps>(function TextFieldBa
           {label}
         </AppText>
       ) : null}
-      <View style={[styles.field, compact && styles.compact, { borderColor }, focused && styles.focused]}>
+      <View style={[styles.field, compact && styles.compact, pill && styles.pill, { borderColor }, focused && styles.focused]}>
         {leftIcon && onLeftIconPress ? (
           <Pressable
             onPress={onLeftIconPress}
@@ -138,6 +141,7 @@ const useStyles = makeStyles((t) => ({
     backgroundColor: t.colors.surface,
   },
   compact: { minHeight: 40 },
+  pill: { minHeight: 52, borderRadius: t.radius.pill, paddingHorizontal: t.spacing.lg, boxShadow: t.shadow.card },
   focused: { boxShadow: `0px 0px 0px 3px ${t.colors.primarySoft}` },
   input: {
     flex: 1,

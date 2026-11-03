@@ -30,15 +30,16 @@ export function PageHeader({ title, subtitle, icon, accent, actions, onBack }: P
         {icon ? (
           <View
             style={{
-              width: 44,
-              height: 44,
-              borderRadius: radius.lg,
-              backgroundColor: withAlpha(color, 0.12),
+              width: 48,
+              height: 48,
+              borderRadius: radius.md + 4,
+              backgroundColor: color,
               alignItems: 'center',
               justifyContent: 'center',
+              boxShadow: `0px 8px 18px ${withAlpha(color, 0.3)}`,
             }}
           >
-            <Icon name={icon} size={22} color={color} />
+            <Icon name={icon} size={22} color="#FFFFFF" />
           </View>
         ) : null}
         <View style={{ flex: 1 }}>

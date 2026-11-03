@@ -3,19 +3,20 @@ import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 
+import { Backdrop } from '@/components/layout/Backdrop';
 import { BrandMark } from '@/components/layout/BrandMark';
 import { AppText } from '@/components/ui/AppText';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { makeStyles, useTheme } from '@/theme';
-import { withAlpha } from '@/utils/color';
+import { isLight, withAlpha } from '@/utils/color';
 
-const highlights: { icon: IconName; key: string; color: string }[] = [
-  { icon: 'book-open', key: 'secondBrain', color: '#9D94FF' },
-  { icon: 'calendar', key: 'calendars', color: '#60A5FA' },
-  { icon: 'check-square', key: 'todo', color: '#4ADE80' },
-  { icon: 'users', key: 'family', color: '#FBBF24' },
-  { icon: 'mail', key: 'email', color: '#FB7185' },
+const highlights: { icon: IconName; key: string; color: string; solid: string }[] = [
+  { icon: 'book-open', key: 'secondBrain', color: '#9D94FF', solid: '#7C3AED' },
+  { icon: 'calendar', key: 'calendars', color: '#60A5FA', solid: '#2563EB' },
+  { icon: 'check-square', key: 'todo', color: '#4ADE80', solid: '#16A34A' },
+  { icon: 'users', key: 'family', color: '#FBBF24', solid: '#EA580C' },
+  { icon: 'mail', key: 'email', color: '#FB7185', solid: '#E11D48' },
 ];
 
 interface Props {
@@ -30,12 +31,15 @@ export function AuthLayout({ title, subtitle, children }: PropsWithChildren<Prop
   const { breakpoint } = useBreakpoint();
   const insets = useSafeAreaInsets();
   const split = breakpoint === 'expanded' || breakpoint === 'wide';
+  // Light styles («Aire»): the brand panel shows the page glow and solid icon tiles.
+  const light = isLight(colors.sidebar);
 
   return (
     <View style={styles.root}>
       {split ? (
-        <View style={styles.brandPanel}>
-          <BrandMark onDark size={40} />
+        <View style={[styles.brandPanel, light && { backgroundColor: colors.background }]}>
+          {light ? <Backdrop /> : null}
+          <BrandMark onDark={!light} size={40} />
           <View style={{ gap: 20 }}>
             <AppText variant="display" color={colors.sidebarText} style={{ fontSize: 36, lineHeight: 44 }}>
               {t('auth.tagline')}
@@ -46,8 +50,8 @@ export function AuthLayout({ title, subtitle, children }: PropsWithChildren<Prop
             <View style={{ gap: 14, marginTop: 12 }}>
               {highlights.map((h) => (
                 <View key={h.key} style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-                  <View style={[styles.highlightIcon, { backgroundColor: withAlpha(h.color, 0.16) }]}>
-                    <Icon name={h.icon} size={18} color={h.color} />
+                  <View style={[styles.highlightIcon, { backgroundColor: light ? h.solid : withAlpha(h.color, 0.16) }]}>
+                    <Icon name={h.icon} size={18} color={light ? '#FFFFFF' : h.color} />
                   </View>
                   <AppText variant="bodyStrong" color={colors.sidebarText}>
                     {t(`auth.highlights.${h.key}`)}

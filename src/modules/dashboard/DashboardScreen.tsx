@@ -3,9 +3,13 @@ import { router } from 'expo-router';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { View } from 'react-native';
+
 import { useDialog } from '@/components/feedback/DialogProvider';
 import { useToast } from '@/components/feedback/ToastProvider';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { AppText } from '@/components/ui/AppText';
+import { Avatar } from '@/components/ui/Avatar';
 import { Screen } from '@/components/layout/Screen';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -24,6 +28,8 @@ import { VerifyEmailNotice } from '@/modules/settings/components/VerifyEmailNoti
 import { GlobalSearch } from './components/GlobalSearch';
 import { HiddenWidgets } from './components/HiddenWidgets';
 import { WidgetGrid } from './components/WidgetGrid';
+import { useTheme } from '@/theme';
+import { FamilyStrip } from './components/FamilyStrip';
 import { useDashboardEditMode } from './editMode';
 
 const greetingEmoji = { morning: '☀️', afternoon: '🌤️', evening: '🌙' } as const;
@@ -43,6 +49,7 @@ export function DashboardScreen() {
   const setWidgetSize = useUserSettings((s) => s.setWidgetSize);
   const setWidgetVisible = useUserSettings((s) => s.setWidgetVisible);
   const resetDashboard = useUserSettings((s) => s.resetDashboard);
+  const { spacing } = useTheme();
   const editing = useDashboardEditMode((s) => s.editing);
   const setEditing = useDashboardEditMode((s) => s.setEditing);
 
@@ -69,42 +76,54 @@ export function DashboardScreen() {
     toast.show(t('settings.dashboard.resetDone'));
   };
 
-  const actions = editing ? (
-    <>
-      <Button label={t('settings.dashboard.reset')} variant="ghost" icon="rotate-ccw" onPress={() => void reset()} />
-      <Button label={t('dashboard.edit.done')} icon="check" onPress={() => setEditing(false)} />
-    </>
+  const header = editing ? (
+    <PageHeader
+      title={t('dashboard.edit.title')}
+      subtitle={t('dashboard.edit.subtitle')}
+      actions={
+        <>
+          <Button label={t('settings.dashboard.reset')} variant="ghost" icon="rotate-ccw" onPress={() => void reset()} />
+          <Button label={t('dashboard.edit.done')} icon="check" onPress={() => setEditing(false)} />
+        </>
+      }
+    />
   ) : (
-    <>
-      <IconButton
-        icon="bell"
-        label={t('modules.notifications.title')}
-        badge={badge}
-        variant="surface"
-        onPress={() => router.navigate('/notifications')}
-      />
-      <Button
-        label={isCompact ? t('dashboard.customizeShort') : t('dashboard.customize')}
-        variant="secondary"
-        icon="sliders"
-        onPress={() => setEditing(true)}
-      />
-    </>
+    // Hero: avatar + greeting on the left, bell and "Personalizar" on the right (one row, also on phones).
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+      {user ? <Avatar name={user.displayName} size={isCompact ? 44 : 52} /> : null}
+      <View style={{ flex: 1 }}>
+        <AppText variant="small" tone="textMuted" numberOfLines={1}>
+          {formatLongDate(new Date(), locale)}
+        </AppText>
+        <AppText variant={isCompact ? 'heading' : 'title'} accessibilityRole="header" numberOfLines={2}>
+          {`${t(`dashboard.greeting.${greeting}`, { name: firstName })} ${greetingEmoji[greeting]}`}
+        </AppText>
+      </View>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+        <IconButton
+          icon="bell"
+          label={t('modules.notifications.title')}
+          badge={badge}
+          variant="surface"
+          onPress={() => router.navigate('/notifications')}
+        />
+        {isCompact ? (
+          <IconButton icon="sliders" label={t('dashboard.customize')} variant="surface" onPress={() => setEditing(true)} />
+        ) : (
+          <Button label={t('dashboard.customize')} variant="secondary" icon="sliders" onPress={() => setEditing(true)} />
+        )}
+      </View>
+    </View>
   );
 
   return (
     <Screen onRefresh={refresh}>
-      <PageHeader
-        title={
-          editing ? t('dashboard.edit.title') : `${t(`dashboard.greeting.${greeting}`, { name: firstName })} ${greetingEmoji[greeting]}`
-        }
-        subtitle={editing ? t('dashboard.edit.subtitle') : formatLongDate(new Date(), locale)}
-        actions={actions}
-      />
+      {header}
 
       {editing ? null : <SyncProblemNotice />}
       {editing ? null : <VerifyEmailNotice />}
       {editing ? null : <GlobalSearch />}
+      {editing ? null : <FamilyStrip />}
 
       {visible.length ? (
         <WidgetGrid

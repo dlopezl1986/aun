@@ -12,6 +12,8 @@ export interface Theme {
   typography: typeof typography;
   fontFamily: typeof fontFamily;
   layout: typeof layout;
+  /** CSS gradient painted behind pages (null = flat background colour). */
+  backdrop: string | null;
   shadow: {
     card: string;
     raised: string;
@@ -31,12 +33,13 @@ export function buildTheme(mode: ColorMode, paletteId?: PaletteId, canvas = fals
     typography,
     fontFamily,
     layout,
+    backdrop: palette.backdrop ? palette.backdrop[mode] : null,
     // `boxShadow` is supported by React Native's New Architecture on every platform.
     shadow:
       mode === 'light'
         ? {
-            card: '0px 1px 2px rgba(11, 18, 32, 0.06), 0px 4px 12px rgba(11, 18, 32, 0.05)',
-            raised: '0px 16px 40px rgba(11, 18, 32, 0.18)',
+            card: '0px 1px 2px rgba(20, 26, 46, 0.04), 0px 8px 24px rgba(40, 52, 110, 0.07)',
+            raised: '0px 18px 48px rgba(20, 26, 46, 0.16)',
             none: 'none',
           }
         : {

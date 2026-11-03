@@ -67,13 +67,15 @@ export function BottomBar({ activeRoute, onNavigate }: BottomBarProps) {
 
   return (
     <>
-      <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, 6) }]} accessibilityRole="tablist">
-        {mobileBar.map(({ module }) =>
-          tab(module.id, t(module.shortTitleKey ?? module.titleKey), module.icon, activeRoute === module.routeName, () =>
-            go(module.routeName),
-          ),
-        )}
-        {tab('more', t('nav.more'), 'menu', moreActive || moreOpen, () => setMoreOpen(true), notificationBadge)}
+      <View style={[styles.dock, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+        <View style={styles.bar} accessibilityRole="tablist">
+          {mobileBar.map(({ module }) =>
+            tab(module.id, t(module.shortTitleKey ?? module.titleKey), module.icon, activeRoute === module.routeName, () =>
+              go(module.routeName),
+            ),
+          )}
+          {tab('more', t('nav.more'), 'menu', moreActive || moreOpen, () => setMoreOpen(true), notificationBadge)}
+        </View>
       </View>
 
       <Sheet visible={moreOpen} onClose={() => setMoreOpen(false)} title={t('nav.more')}>
@@ -126,16 +128,21 @@ export function BottomBar({ activeRoute, onNavigate }: BottomBarProps) {
 }
 
 const useStyles = makeStyles((t) => ({
+  // A floating, rounded dock over the page background.
+  dock: { backgroundColor: t.colors.background, paddingHorizontal: t.spacing.md, paddingTop: t.spacing.xs },
   bar: {
     flexDirection: 'row',
     backgroundColor: t.colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: t.colors.border,
-    paddingTop: 6,
+    borderRadius: t.radius.xl,
+    borderWidth: 1,
+    borderColor: t.colors.border,
+    boxShadow: t.shadow.raised,
+    paddingVertical: 6,
+    paddingHorizontal: t.spacing.xs,
   },
-  tab: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 2, minHeight: 50 },
-  iconPill: { width: 52, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
-  dot: { position: 'absolute', top: 4, right: 12, width: 8, height: 8, borderRadius: 4, backgroundColor: t.colors.danger },
+  tab: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 2, minHeight: 52 },
+  iconPill: { width: 48, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  dot: { position: 'absolute', top: 4, right: 10, width: 8, height: 8, borderRadius: 4, backgroundColor: t.colors.danger },
   userRow: { flexDirection: 'row', alignItems: 'center', gap: t.spacing.md, paddingHorizontal: t.spacing.md },
   countPill: {
     minWidth: 22,

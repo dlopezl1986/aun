@@ -31,7 +31,7 @@ function IconButtonBase({ icon, label, onPress, color, size = 20, badge, variant
         return {
           width: hitSize - 4,
           height: hitSize - 4,
-          borderRadius: radius.md,
+          borderRadius: variant === 'surface' ? radius.pill : radius.md,
           alignItems: 'center',
           justifyContent: 'center',
           backgroundColor: pressed || hovered ? colors.surfacePressed : variant === 'surface' ? colors.surface : 'transparent',
