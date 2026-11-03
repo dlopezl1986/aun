@@ -1,3 +1,4 @@
+import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { Platform } from 'react-native';
 
@@ -23,4 +24,11 @@ export async function pickProfilePhoto(): Promise<UploadSource | 'denied' | null
   const mimeType = a.mimeType ?? 'image/jpeg';
   const ext = mimeType.split('/')[1]?.replace('jpeg', 'jpg') ?? 'jpg';
   return { uri: a.uri, name: a.fileName ?? `profile-${Date.now()}.${ext}`, mimeType, size: a.fileSize, file: a.file };
+}
+
+/** Small square-ish JPEG (data URI) of a photo, light enough to sync with the family. */
+export async function makeThumbnail(uri: string): Promise<string> {
+  const out = await manipulateAsync(uri, [{ resize: { width: 320 } }], { compress: 0.7, format: SaveFormat.JPEG, base64: true });
+  if (!out.base64) throw new Error('No image data');
+  return `data:image/jpeg;base64,${out.base64}`;
 }

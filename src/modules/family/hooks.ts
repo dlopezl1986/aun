@@ -7,6 +7,7 @@ import { useDataMutation, useDataQuery } from '@/state/queryClient';
 import { getStorageProvider } from '@/storage/providers/factory';
 import type { StoredFileRef, UploadSource } from '@/storage/providers/types';
 import type { ActivityInput, ChildInput, ItemInput, MemberInput } from './service';
+import { makeThumbnail } from './photo';
 import type { Child, FamilyItem, FamilyListKind } from './types';
 
 export function useChildren() {
@@ -36,6 +37,8 @@ export function useCreateChild() {
       if (!photoSource) return created;
       const uploaded = await getStorageProvider('local', s.userId).uploadFile(photoSource, null);
       await s.family.setChildPhoto(created.id, { providerId: 'local', providerFileId: uploaded.providerFileId });
+      // Also the small synced copy, so the photo shows on every device of the family.
+      await s.personPhotos.set(`child:${created.id}`, await makeThumbnail(photoSource.uri)).catch(() => undefined);
       return { ...created, photo: { providerId: 'local', providerFileId: uploaded.providerFileId } };
     },
     { invalidate: ['family', 'calendars'], successMessage: t('family.toast.childCreated') },
@@ -91,6 +94,8 @@ export function useSetChildPhoto() {
         uploaded ? { providerId: 'local', providerFileId: uploaded.providerFileId } : null,
       );
       if (v.child.photo) await deletePhoto(s.userId, v.child.photo);
+      const image = v.source ? await makeThumbnail(v.source.uri).catch(() => null) : null;
+      if (image || !v.source) await s.personPhotos.set(`child:${v.child.id}`, image);
       return updated;
     },
     { invalidate: ['family'], successMessage: t('family.photo.saved') },
