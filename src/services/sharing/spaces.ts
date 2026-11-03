@@ -67,6 +67,7 @@ export const FAMILY_COLLECTIONS = new Set([
   'shoppingItems',
   'shoppingCategories',
   'payments',
+  'personPhotos',
 ]);
 
 const isFamilySpace = (s: Pick<Space, 'id'>) => s.id.startsWith('fam_');

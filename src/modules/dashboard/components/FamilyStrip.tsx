@@ -14,13 +14,13 @@ import { interaction } from '@/components/ui/interaction';
 import { ChildAvatar } from '@/modules/family/components/ChildAvatar';
 import { EditablePhoto } from '@/modules/family/components/EditablePhoto';
 import { useChildren, useMembers } from '@/modules/family/hooks';
-import { useHasPersonPhoto, usePersonPhotoUri, useSetPersonPhoto } from '@/modules/family/personPhotos';
+import { photoKey, usePersonPhoto, useSetPersonPhoto, useUploadDevicePhotos } from '@/modules/family/personPhotos';
 import { useFamily } from '@/services/sharing/hooks';
 import { useAuthStore } from '@/state/authStore';
 import { useEnabledModules } from '@/state/userSettingsStore';
 import { useTheme } from '@/theme';
 
-/** Inicio: a row with every family member (tap a face → their profile) + "Añadir". Only with Familia on. */
+/** Inicio: a row with every family member (tap a face → their profile or photo). Only with Familia on. Adding people is done in Familia. */
 export function FamilyStrip({ size = 56 }: { size?: number }) {
   const enabled = useEnabledModules().some((m) => m.id === 'family');
   if (!enabled) return null;
@@ -34,6 +34,7 @@ function FamilyStripRow({ size: SIZE }: { size: number }) {
   const members = children.data ?? [];
   const adults = useAdults(members.map((m) => m.name));
   const [open, setOpen] = useState<Adult | null>(null);
+  useUploadDevicePhotos(members, !children.isLoading);
   if (children.isLoading) return null;
 
   const person = (key: string, label: string, onPress: () => void, avatar: ReactNode) => (
@@ -76,26 +77,6 @@ function FamilyStripRow({ size: SIZE }: { size: number }) {
             </View>,
           ),
         )}
-        {person(
-          'add',
-          members.length ? t('dashboard.family.add') : t('dashboard.family.addFirst'),
-          () => router.navigate('/family'),
-          <View
-            style={{
-              width: SIZE,
-              height: SIZE,
-              borderRadius: SIZE / 2,
-              borderWidth: 1.5,
-              borderStyle: 'dashed',
-              borderColor: colors.borderStrong,
-              backgroundColor: colors.surface,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Icon name="plus" size={22} color={colors.primary} />
-          </View>,
-        )}
       </ScrollView>
       {open ? <AdultSheet adult={open} onClose={() => setOpen(null)} /> : null}
     </View>
@@ -103,8 +84,8 @@ function FamilyStripRow({ size: SIZE }: { size: number }) {
 }
 
 function AdultAvatar({ adult, size }: { adult: Adult; size: number }) {
-  const local = usePersonPhotoUri(adult.key);
-  const uri = local ?? adult.photo ?? null;
+  const synced = usePersonPhoto(adult.photoKey);
+  const uri = synced ?? adult.photo ?? null;
   if (!uri) return <Avatar name={adult.name} size={size} />;
   return (
     <Image
@@ -120,17 +101,17 @@ function AdultAvatar({ adult, size }: { adult: Adult; size: number }) {
 function AdultSheet({ adult, onClose }: { adult: Adult; onClose: () => void }) {
   const { t } = useTranslation();
   const { spacing } = useTheme();
-  const hasPhoto = useHasPersonPhoto(adult.key);
+  const hasPhoto = !!usePersonPhoto(adult.photoKey);
   const setPhoto = useSetPersonPhoto();
   return (
     <Sheet visible onClose={onClose} title={adult.name}>
       <View style={{ alignItems: 'center', gap: spacing.md }}>
-        <EditablePhoto size={112} hasPhoto={hasPhoto} onPick={(source) => void setPhoto(adult.key, source)}>
+        <EditablePhoto size={112} hasPhoto={hasPhoto} onPick={(source) => void setPhoto(adult.photoKey, source)}>
           <AdultAvatar adult={adult} size={112} />
         </EditablePhoto>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: spacing.sm }}>
           {hasPhoto ? (
-            <Button label={t('family.photo.remove')} variant="ghost" size="sm" onPress={() => void setPhoto(adult.key, null)} />
+            <Button label={t('family.photo.remove')} variant="ghost" size="sm" onPress={() => void setPhoto(adult.photoKey, null)} />
           ) : null}
           <Button
             label={adult.key === 'me' ? t('dashboard.family.openProfile') : t('dashboard.family.openFamily')}
@@ -155,6 +136,8 @@ const firstName = (name: string) => name.trim().split(/\s+/)[0]?.toLocaleLowerCa
 
 interface Adult {
   key: string;
+  /** Where their photo is kept (synced with the family). */
+  photoKey: string;
   name: string;
   photo?: string | null;
   onPress: () => void;
@@ -177,12 +160,20 @@ function useAdults(profileNames: string[]): Adult[] {
     taken.add(k);
     out.push(a);
   };
-  if (user) add({ key: 'me', name: user.displayName, photo: user.avatarUrl, onPress: () => router.navigate('/settings/profile') });
+  if (user)
+    add({
+      key: 'me',
+      photoKey: photoKey.user(user.id),
+      name: user.displayName,
+      photo: user.avatarUrl,
+      onPress: () => router.navigate('/settings/profile'),
+    });
   for (const id of family?.memberIds ?? []) {
     if (id === me) continue;
     const name = family?.names[id];
-    if (name) add({ key: `space:${id}`, name, onPress: () => router.navigate('/family') });
+    if (name) add({ key: `space:${id}`, photoKey: photoKey.user(id), name, onPress: () => router.navigate('/family') });
   }
-  for (const m of shared) add({ key: `member:${m.id}`, name: m.name, onPress: () => router.navigate('/family') });
+  for (const m of shared)
+    add({ key: `member:${m.id}`, photoKey: photoKey.member(m.id), name: m.name, onPress: () => router.navigate('/family') });
   return out;
 }
