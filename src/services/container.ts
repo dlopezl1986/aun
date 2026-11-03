@@ -12,6 +12,8 @@ import { NotificationService } from '@/modules/notifications/service';
 import type { AppNotification, Reminder } from '@/modules/notifications/types';
 import { SecondBrainService } from '@/modules/second-brain/service';
 import type { DocumentItem, Folder } from '@/modules/second-brain/types';
+import { PaymentService } from '@/modules/payments/service';
+import type { Payment } from '@/modules/payments/types';
 import { ShoppingService } from '@/modules/shopping/service';
 import type { ShoppingCategory, ShoppingItem, ShoppingList } from '@/modules/shopping/types';
 import { TaskService } from '@/modules/todo/service';
@@ -64,6 +66,8 @@ export interface Services {
   secondBrain: SecondBrainService;
   family: FamilyService;
   shopping: ShoppingService;
+  /** Pagos: bills, instalments and what to save for them. */
+  payments: PaymentService;
   email: EmailService;
   notifications: NotificationService;
   relations: RelationService;
@@ -103,6 +107,7 @@ export const SYNCED_COLLECTIONS = [
   'shoppingLists',
   'shoppingItems',
   'shoppingCategories',
+  'payments',
   'reminders',
   'notifications',
   'relations',
@@ -165,6 +170,7 @@ export function createServices(
       repo<ShoppingCategory>('shoppingCategories'),
       repo<FamilyItem>('familyItems'),
     ),
+    payments: new PaymentService(repo<Payment>('payments')),
     email: new EmailService(repo<EmailAccount>('emailAccounts'), userId, createEmailProviders(store, userId)),
     notifications: new NotificationService(repo<AppNotification>('notifications'), repo<Reminder>('reminders')),
     relations: new RelationService(repo<Relation>('relations')),
