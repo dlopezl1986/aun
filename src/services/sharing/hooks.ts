@@ -105,7 +105,7 @@ export function useLeaveSpaces() {
       await s.sharing!.leave(spaceIds);
       await syncNow();
     },
-    { invalidate: ['sharing', 'calendars', 'events', 'family', 'shopping'], successMessage: t('sharing.leave.done') },
+    { invalidate: ['sharing', 'calendars', 'events', 'family', 'shopping', 'payments'], successMessage: t('sharing.leave.done') },
   );
 }
 

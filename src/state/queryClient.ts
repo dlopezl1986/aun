@@ -25,6 +25,7 @@ export type DataScope =
   | 'folders'
   | 'family'
   | 'shopping'
+  | 'payments'
   | 'email'
   | 'notifications'
   | 'storage'
