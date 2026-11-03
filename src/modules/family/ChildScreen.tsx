@@ -24,8 +24,9 @@ import { formatLongDate, fromDateKey, weekdayNames } from '@/utils/date';
 import { ActivitiesSheet } from './components/ActivitiesSheet';
 import { ChildAvatar } from './components/ChildAvatar';
 import { ChildFormSheet } from './components/ChildFormSheet';
+import { EditablePhoto } from './components/EditablePhoto';
 import { FamilyChecklist } from './components/FamilyChecklist';
-import { useChild, useRemoveChild } from './hooks';
+import { useChild, useRemoveChild, useSetChildPhoto } from './hooks';
 import { familyMeta } from './meta';
 import { ageFrom, nextBirthday } from './selectors';
 import { SIZE_PRESETS, type Member } from './types';
@@ -81,6 +82,7 @@ export function ChildScreen() {
   const id = typeof params.id === 'string' ? params.id : null;
   const child = useChild(id);
   const removeChild = useRemoveChild();
+  const setPhoto = useSetChildPhoto();
   const [editing, setEditing] = useState(false);
   const [activitiesFor, setActivitiesFor] = useState<Member | null>(null);
   const back = () => (router.canGoBack() ? router.back() : router.navigate('/family'));
@@ -122,7 +124,9 @@ export function ChildScreen() {
   const info = (
     <Card>
       <View style={{ flexDirection: 'row', gap: spacing.lg, alignItems: 'center' }}>
-        <ChildAvatar child={c} size={84} />
+        <EditablePhoto size={84} hasPhoto={!!c.photo} onPick={(source) => setPhoto.mutate({ child: c, source })}>
+          <ChildAvatar child={c} size={84} />
+        </EditablePhoto>
         <View style={{ flex: 1, gap: spacing.sm }}>
           {birthday ? (
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, alignItems: 'center' }}>
