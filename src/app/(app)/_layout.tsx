@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { featureFlags } from '@/config/featureFlags';
+import { featureFlags, hiddenModules } from '@/config/featureFlags';
 import { Tabs } from 'expo-router/js-tabs';
 import { useEffect, useMemo } from 'react';
 import { View } from 'react-native';
@@ -50,6 +50,10 @@ function AppTabs() {
             href: enabledRoutes.has(m.routeName) ? undefined : null,
           }}
         />
+      ))}
+      {/* Modules taken out of the app keep their route files: never a tab. */}
+      {hiddenModules.map((id) => (
+        <Tabs.Screen key={id} name={id} options={{ href: null }} />
       ))}
     </Tabs>
   );

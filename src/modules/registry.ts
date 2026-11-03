@@ -1,3 +1,4 @@
+import { hiddenModules } from '@/config/featureFlags';
 import type { AppModule } from '@/types/module';
 import { calendarsModule } from './calendars/definition';
 import { dashboardModule } from './dashboard/definition';
@@ -18,7 +19,7 @@ import { todoModule } from './todo/definition';
  *   3. register it here and declare its tab in `src/app/(app)/_layout.tsx`.
  * Navigation, dashboard, settings and notifications pick it up automatically.
  */
-const modules: AppModule[] = [
+const allModules: AppModule[] = [
   dashboardModule,
   secondBrainModule,
   calendarsModule,
@@ -31,6 +32,9 @@ const modules: AppModule[] = [
   notificationsModule,
   settingsModule,
 ];
+
+/** Hidden modules (featureFlags.hiddenModules) are left out of the app entirely. */
+const modules = allModules.filter((m) => !hiddenModules.includes(m.id));
 
 export function getModuleRegistry(): AppModule[] {
   return modules;
