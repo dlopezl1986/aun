@@ -581,6 +581,7 @@ export const es = {
       sharing: 'Calendarios compartidos con invitaciones y permisos (Administrador, Editor, Lector).',
       sync: 'Sincronización entre dispositivos al activar el backend (Fase 9).',
     },
+    overview: { title: 'Tus calendarios', description: 'El mes con todos tus calendarios visibles.' },
     widget: { title: 'Agenda de hoy', description: 'Eventos de hoy de tus calendarios visibles.', open: 'Ver calendario' },
     summary: { none: 'Sin eventos', events_one: '{{count}} evento', events_other: '{{count}} eventos' },
   },

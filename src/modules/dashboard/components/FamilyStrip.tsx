@@ -1,4 +1,5 @@
 import { router, type Href } from 'expo-router';
+import type { ReactNode } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
@@ -10,23 +11,21 @@ import { useChildren } from '@/modules/family/hooks';
 import { useEnabledModules } from '@/state/userSettingsStore';
 import { useTheme } from '@/theme';
 
-const SIZE = 56;
-
-/** Inicio: a row of family avatars (tap to open a member) + "Añadir". Only with Familia on. */
-export function FamilyStrip() {
+/** Inicio: a row with every family member (tap a face → their profile) + "Añadir". Only with Familia on. */
+export function FamilyStrip({ size = 56 }: { size?: number }) {
   const enabled = useEnabledModules().some((m) => m.id === 'family');
   if (!enabled) return null;
-  return <FamilyStripRow />;
+  return <FamilyStripRow size={size} />;
 }
 
-function FamilyStripRow() {
+function FamilyStripRow({ size: SIZE }: { size: number }) {
   const { t } = useTranslation();
   const { colors, spacing } = useTheme();
   const children = useChildren();
   const members = children.data ?? [];
   if (children.isLoading) return null;
 
-  const person = (key: string, label: string, onPress: () => void, avatar: React.ReactNode) => (
+  const person = (key: string, label: string, onPress: () => void, avatar: ReactNode) => (
     <Pressable
       key={key}
       onPress={onPress}
@@ -35,7 +34,7 @@ function FamilyStripRow() {
       style={(s) => ({ alignItems: 'center', gap: spacing.xs, width: SIZE + 16, opacity: interaction(s).pressed ? 0.7 : 1 })}
     >
       {avatar}
-      <AppText variant="caption" tone="textMuted" numberOfLines={1}>
+      <AppText variant="smallStrong" tone="textMuted" numberOfLines={1}>
         {label}
       </AppText>
     </Pressable>
@@ -43,7 +42,7 @@ function FamilyStripRow() {
 
   return (
     <View accessibilityLabel={t('dashboard.family.title')}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.xs }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.sm }}>
         {members.map((m) =>
           person(
             m.id,

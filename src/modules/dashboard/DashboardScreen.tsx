@@ -9,7 +9,6 @@ import { useDialog } from '@/components/feedback/DialogProvider';
 import { useToast } from '@/components/feedback/ToastProvider';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { AppText } from '@/components/ui/AppText';
-import { Avatar } from '@/components/ui/Avatar';
 import { Screen } from '@/components/layout/Screen';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -88,30 +87,32 @@ export function DashboardScreen() {
       }
     />
   ) : (
-    // Hero: avatar + greeting on the left, bell and "Personalizar" on the right (one row, also on phones).
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-      {user ? <Avatar name={user.displayName} size={isCompact ? 44 : 52} /> : null}
-      <View style={{ flex: 1 }}>
-        <AppText variant="small" tone="textMuted" numberOfLines={1}>
-          {formatLongDate(new Date(), locale)}
-        </AppText>
-        <AppText variant={isCompact ? 'heading' : 'title'} accessibilityRole="header" numberOfLines={2}>
-          {`${t(`dashboard.greeting.${greeting}`, { name: firstName })} ${greetingEmoji[greeting]}`}
-        </AppText>
-      </View>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-        <IconButton
-          icon="bell"
-          label={t('modules.notifications.title')}
-          badge={badge}
-          variant="surface"
-          onPress={() => router.navigate('/notifications')}
-        />
-        {isCompact ? (
-          <IconButton icon="sliders" label={t('dashboard.customize')} variant="surface" onPress={() => setEditing(true)} />
-        ) : (
-          <Button label={t('dashboard.customize')} variant="secondary" icon="sliders" onPress={() => setEditing(true)} />
-        )}
+    // Top: the whole family (tap a face → profile); below, the greeting with bell and "Personalizar".
+    <View style={{ gap: spacing.md }}>
+      <FamilyStrip size={isCompact ? 60 : 68} />
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+        <View style={{ flex: 1 }}>
+          <AppText variant="small" tone="textMuted" numberOfLines={1}>
+            {formatLongDate(new Date(), locale)}
+          </AppText>
+          <AppText variant={isCompact ? 'heading' : 'title'} accessibilityRole="header" numberOfLines={2}>
+            {`${t(`dashboard.greeting.${greeting}`, { name: firstName })} ${greetingEmoji[greeting]}`}
+          </AppText>
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+          <IconButton
+            icon="bell"
+            label={t('modules.notifications.title')}
+            badge={badge}
+            variant="surface"
+            onPress={() => router.navigate('/notifications')}
+          />
+          {isCompact ? (
+            <IconButton icon="sliders" label={t('dashboard.customize')} variant="surface" onPress={() => setEditing(true)} />
+          ) : (
+            <Button label={t('dashboard.customize')} variant="secondary" icon="sliders" onPress={() => setEditing(true)} />
+          )}
+        </View>
       </View>
     </View>
   );
@@ -123,7 +124,6 @@ export function DashboardScreen() {
       {editing ? null : <SyncProblemNotice />}
       {editing ? null : <VerifyEmailNotice />}
       {editing ? null : <GlobalSearch />}
-      {editing ? null : <FamilyStrip />}
 
       {visible.length ? (
         <WidgetGrid
