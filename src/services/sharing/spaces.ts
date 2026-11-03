@@ -3,7 +3,7 @@
  *
  * A *space* is a set of rows shared with other people, with a role each:
  *   cal_<ownerUid>_<calendarId>  a calendar and its events
- *   fam_<ownerUid>               the family: members, "para mañana", shopping
+ *   fam_<ownerUid>               the family: members, "para mañana", shopping, payments
  * Every other row (tasks, documents, notes, e-mail…) is private. The space
  * id embeds its owner, which the security rules (firestore.rules) rely on.
  *
@@ -66,6 +66,7 @@ export const FAMILY_COLLECTIONS = new Set([
   'shoppingLists',
   'shoppingItems',
   'shoppingCategories',
+  'payments',
 ]);
 
 const isFamilySpace = (s: Pick<Space, 'id'>) => s.id.startsWith('fam_');
