@@ -26,6 +26,13 @@ export const featureFlags = {
   remoteNotices: false,
 } as const;
 
+/**
+ * Modules taken out of the app for now (user's decision, 2026-11-03): they
+ * disappear everywhere, including Settings → Modules. Code and stored data are
+ * kept; remove an id from this list to bring the module back.
+ */
+export const hiddenModules: readonly string[] = ['op', 'email'];
+
 export type FeatureFlag = keyof typeof featureFlags;
 
 /** Public, non-secret configuration read from EXPO_PUBLIC_* env vars. */

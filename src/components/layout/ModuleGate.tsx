@@ -1,6 +1,6 @@
 import type { PropsWithChildren } from 'react';
 import { View } from 'react-native';
-import { router } from 'expo-router';
+import { Redirect, router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/Button';
@@ -22,6 +22,8 @@ export function ModuleGate({ moduleId, children }: PropsWithChildren<{ moduleId:
   if (enabled) return <>{children}</>;
 
   const mod = modules.find((m) => m.id === moduleId);
+  // A module taken out of the app (featureFlags.hiddenModules): its URL goes back to Inicio.
+  if (!mod) return <Redirect href="/" />;
   const name = mod ? t(mod.titleKey) : moduleId;
   return (
     <View style={{ flex: 1, backgroundColor: colors.background, justifyContent: 'center' }}>
