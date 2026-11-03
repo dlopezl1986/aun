@@ -2,12 +2,11 @@ import { canvasColors, type ColorScheme } from './colors';
 
 /**
  * Colour styles the user can pick in Settings → Appearance. Every palette
- * keeps the same three layers (dark canvas → light cards → coloured module
- * tiles) and only overrides the base schemes in colors.ts. Module colours
+ * keeps the same three layers (canvas → cards → coloured module tiles) and only overrides the base schemes in colors.ts. Module colours
  * (Calendarios azul, ToDo verde…) never change, so each module stays
  * recognisable whatever the style.
  */
-export type PaletteId = 'nitido' | 'bosque' | 'grafito' | 'medianoche';
+export type PaletteId = 'aire' | 'nitido' | 'bosque' | 'grafito' | 'medianoche';
 
 export interface Palette {
   id: PaletteId;
@@ -17,9 +16,71 @@ export interface Palette {
   canvas: Partial<ColorScheme>;
   /** Swatches for the settings preview. */
   preview: { outer: string; menu: string; card: string; accent: string };
+  /**
+   * Soft gradient painted behind every page (CSS gradient syntax, works on
+   * web and on the New Architecture). Omitted = flat `background`.
+   */
+  backdrop?: { light: string; dark: string };
 }
 
 export const palettes: Palette[] = [
+  {
+    // Light and airy: lavender canvas with a soft glow, white cards, light menu.
+    id: 'aire',
+    light: {
+      background: '#EEF1FA',
+      surface: '#FFFFFF',
+      surfaceMuted: '#F3F5FB',
+      surfacePressed: '#E9EDF7',
+      border: '#E6E9F3',
+      borderStrong: '#D2D8E8',
+      text: '#141A2E',
+      textMuted: '#465170',
+      textSubtle: '#646E8C',
+      primary: '#3D5AFE',
+      primaryPressed: '#2F49DB',
+      primarySoft: '#E8ECFF',
+      focus: '#5C77FF',
+      sidebar: '#FFFFFF',
+      sidebarSurface: '#F3F5FB',
+      sidebarActive: '#E8ECFF',
+      sidebarBorder: '#E6E9F3',
+      sidebarText: '#141A2E',
+      sidebarTextMuted: '#646E8C',
+      sidebarAccent: '#3D5AFE',
+    },
+    dark: {
+      background: '#0B0F1E',
+      surface: '#151A2E',
+      surfaceMuted: '#1C2238',
+      surfacePressed: '#242B45',
+      border: '#262D47',
+      borderStrong: '#363F60',
+      primary: '#8C9DFF',
+      primaryPressed: '#7084FF',
+      primarySoft: '#1F274D',
+      onPrimary: '#0B0F1E',
+      sidebar: '#111628',
+      sidebarSurface: '#1A2038',
+      sidebarActive: '#232B4C',
+      sidebarBorder: '#1C2238',
+      sidebarAccent: '#8C9DFF',
+    },
+    // The canvas is light: content on it uses the normal palette.
+    canvas: {},
+    preview: { outer: '#E6EAFB', menu: '#FFFFFF', card: '#FFFFFF', accent: '#3D5AFE' },
+    backdrop: {
+      light:
+        'radial-gradient(circle at 20% 0%, rgba(120, 140, 255, 0.30) 0%, rgba(120, 140, 255, 0) 45%), ' +
+        'radial-gradient(circle at 100% 0%, rgba(236, 160, 220, 0.26) 0%, rgba(236, 160, 220, 0) 38%), ' +
+        'radial-gradient(circle at 80% 100%, rgba(120, 220, 200, 0.18) 0%, rgba(120, 220, 200, 0) 40%), ' +
+        'linear-gradient(180deg, #E6EBFC 0%, #F1F2FA 55%, #EEF1FA 100%)',
+      dark:
+        'radial-gradient(circle at 20% 0%, rgba(92, 110, 255, 0.26) 0%, rgba(92, 110, 255, 0) 45%), ' +
+        'radial-gradient(circle at 100% 0%, rgba(200, 90, 200, 0.16) 0%, rgba(200, 90, 200, 0) 40%), ' +
+        'linear-gradient(180deg, #11162C 0%, #0B0F1E 60%)',
+    },
+  },
   {
     id: 'nitido',
     light: {},
@@ -194,6 +255,6 @@ export const palettes: Palette[] = [
   },
 ];
 
-export const DEFAULT_PALETTE: PaletteId = 'nitido';
+export const DEFAULT_PALETTE: PaletteId = 'aire';
 
 export const getPalette = (id: PaletteId | string | undefined): Palette => palettes.find((p) => p.id === id) ?? palettes[0];

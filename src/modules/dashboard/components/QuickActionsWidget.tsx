@@ -11,6 +11,8 @@ import { useTheme } from '@/theme';
 import type { QuickAction } from '@/types/module';
 import { withAlpha } from '@/utils/color';
 
+const TILE = 100;
+
 /**
  * "Acciones rápidas": capture anything without leaving Inicio. Each enabled
  * module contributes its own shortcuts and form (AppModule.quickActions).
@@ -29,6 +31,7 @@ export function QuickActionsWidget() {
 
   const renderSheet = ({ id, Sheet }: QuickAction) => <Sheet key={id} visible={open === id} onClose={() => setOpen(null)} />;
 
+  // Square tiles (icon in a coloured square + label), like app shortcuts.
   return (
     <Card style={{ flex: 1 }}>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
@@ -41,36 +44,32 @@ export function QuickActionsWidget() {
             style={(s) => {
               const { hovered, pressed } = interaction(s);
               return {
-                flexGrow: 1,
-                flexBasis: 150,
-                flexDirection: 'row',
+                width: TILE,
                 alignItems: 'center',
                 gap: spacing.sm,
-                minHeight: 48,
-                paddingHorizontal: spacing.md,
-                borderRadius: radius.md,
-                borderWidth: 1,
-                borderColor: hovered ? withAlpha(accent, 0.5) : colors.border,
-                backgroundColor: pressed ? withAlpha(accent, 0.1) : hovered ? withAlpha(accent, 0.05) : colors.surface,
+                paddingVertical: spacing.md,
+                paddingHorizontal: spacing.xs,
+                borderRadius: radius.lg,
+                backgroundColor: pressed ? withAlpha(accent, 0.14) : hovered ? withAlpha(accent, 0.08) : colors.surfaceMuted,
               };
             }}
           >
             <View
               style={{
-                width: 30,
-                height: 30,
-                borderRadius: radius.sm + 2,
-                backgroundColor: withAlpha(accent, 0.13),
+                width: 48,
+                height: 48,
+                borderRadius: radius.md + 2,
+                backgroundColor: accent,
                 alignItems: 'center',
                 justifyContent: 'center',
+                boxShadow: `0px 6px 14px ${withAlpha(accent, 0.32)}`,
               }}
             >
-              <Icon name={action.icon} size={16} color={accent} />
+              <Icon name={action.icon} size={22} color="#FFFFFF" />
             </View>
-            <AppText variant="smallStrong" numberOfLines={1} style={{ flex: 1 }}>
+            <AppText variant="caption" numberOfLines={2} style={{ textAlign: 'center' }}>
               {t(action.labelKey)}
             </AppText>
-            <Icon name="plus" size={16} color={colors.textSubtle} />
           </Pressable>
         ))}
       </View>

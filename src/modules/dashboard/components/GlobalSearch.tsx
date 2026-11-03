@@ -75,6 +75,7 @@ export function GlobalSearch() {
       <TextField
         ref={inputRef}
         leftIcon="search"
+        pill
         placeholder={Platform.OS === 'web' ? t('search.placeholderWeb') : t('search.placeholder')}
         accessibilityLabel={t('search.placeholder')}
         value={text}

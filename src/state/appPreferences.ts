@@ -59,7 +59,14 @@ export const useAppPreferences = create<AppPreferencesState>()(
     {
       name: storageKeys.device('preferences'),
       storage: createJSONStorage(() => AsyncStorage),
-      version: 1,
+      version: 2,
+      // v2: «Aire» became the default style; devices still on the previous
+      // default («Nítido») move to it once. Any other choice is kept.
+      migrate: (persisted, version) => {
+        const state = (persisted ?? {}) as Partial<AppPreferencesState>;
+        if (version < 2 && (!state.palette || state.palette === 'nitido')) return { ...state, palette: DEFAULT_PALETTE };
+        return state;
+      },
       partialize: ({ themeMode, palette, language, sidebarCollapsed, shiftHours, shiftColors, hiddenSharedCalendars }) => ({
         themeMode,
         palette,

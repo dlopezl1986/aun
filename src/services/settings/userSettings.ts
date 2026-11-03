@@ -20,6 +20,8 @@ export interface UserSettings {
     widgets: WidgetPreference[];
     /** Modules whose tile is hidden in the "Hoy" panel (e.g. 'email'). */
     todayHidden: string[];
+    /** Default-layout revision already applied to `widgets` (missing = 1). */
+    layoutVersion?: number;
   };
   secondBrain: {
     storageProvider: StorageProviderId;
@@ -68,19 +70,41 @@ export function normalizeSettings(raw: Partial<UserSettings> | null, modules: Ap
     }
   }
 
+  // Layout v2: «Tus calendarios» first, «Hoy» after the quick actions. Applied once.
+  const layoutVersion = raw?.dashboard?.layoutVersion ?? 1;
+  const ordered = layoutVersion < DASHBOARD_LAYOUT_VERSION ? applyLayoutV2(widgets) : widgets;
+
   return {
     schemaVersion: 1,
     modules: moduleEntries,
-    dashboard: { widgets, todayHidden: raw?.dashboard?.todayHidden ?? [] },
+    dashboard: { widgets: ordered, todayHidden: raw?.dashboard?.todayHidden ?? [], layoutVersion: DASHBOARD_LAYOUT_VERSION },
     secondBrain: { storageProvider: raw?.secondBrain?.storageProvider ?? 'local' },
     notifications: { ...defaultNotificationPrefs(), ...(raw?.notifications ?? {}) },
     calendars: { holidays: true, ...(raw?.calendars ?? {}) },
   };
 }
 
+export const DASHBOARD_LAYOUT_VERSION = 2;
+
+/** Moves one widget so it sits right after `afterId` (or first when `afterId` is null). */
+function placeWidget(list: WidgetPreference[], id: string, afterId: string | null): WidgetPreference[] {
+  const item = list.find((w) => w.id === id);
+  if (!item) return list;
+  const rest = list.filter((w) => w.id !== id);
+  const at = afterId === null ? 0 : rest.findIndex((w) => w.id === afterId) + 1;
+  if (afterId !== null && at === 0) return list;
+  return [...rest.slice(0, at), item, ...rest.slice(at)];
+}
+
+/** Inicio order: all calendars → quick actions → Hoy → everything else as it was. */
+export function applyLayoutV2(widgets: WidgetPreference[]): WidgetPreference[] {
+  return placeWidget(placeWidget(widgets, 'calendars.overview', null), 'dashboard.today', 'dashboard.quickActions');
+}
+
 export function defaultDashboard(modules: AppModule[]): UserSettings['dashboard'] {
   return {
-    widgets: modules.flatMap((m) => (m.widgets ?? []).map((w) => ({ id: w.id, visible: w.defaultVisible }))),
+    widgets: applyLayoutV2(modules.flatMap((m) => (m.widgets ?? []).map((w) => ({ id: w.id, visible: w.defaultVisible })))),
     todayHidden: [],
+    layoutVersion: DASHBOARD_LAYOUT_VERSION,
   };
 }

@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { CanvasScope, useTheme } from '@/theme';
+import { Backdrop } from './Backdrop';
 
 interface ScreenProps {
   scroll?: boolean;
@@ -47,20 +48,30 @@ export function Screen({ children, scroll = true, maxWidth, onRefresh }: PropsWi
     paddingBottom: isCompact ? spacing.xxl : spacing.huge,
   };
 
-  if (!scroll) return <View style={[{ flex: 1, backgroundColor: colors.background }, padding]}>{inner}</View>;
+  if (!scroll) {
+    return (
+      <View style={[{ flex: 1, backgroundColor: colors.background }, padding]}>
+        <Backdrop />
+        {inner}
+      </View>
+    );
+  }
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: colors.background }}
-      contentContainerStyle={padding}
-      keyboardShouldPersistTaps="handled"
-      keyboardDismissMode="on-drag"
-      refreshControl={
-        onRefresh ? (
-          <RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} tintColor={colors.primary} colors={[colors.primary]} />
-        ) : undefined
-      }
-    >
-      {inner}
-    </ScrollView>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <Backdrop />
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={padding}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        refreshControl={
+          onRefresh ? (
+            <RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} tintColor={colors.primary} colors={[colors.primary]} />
+          ) : undefined
+        }
+      >
+        {inner}
+      </ScrollView>
+    </View>
   );
 }

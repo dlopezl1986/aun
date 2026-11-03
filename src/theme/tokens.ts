@@ -19,9 +19,9 @@ export const spacing = {
 export const radius = {
   xs: 4,
   sm: 6,
-  md: 10,
-  lg: 16,
-  xl: 22,
+  md: 12,
+  lg: 20,
+  xl: 28,
   pill: 999,
 } as const;
 
@@ -62,8 +62,8 @@ export const hitSize = 44;
 
 export const layout = {
   sidebarWidth: 252,
-  sidebarRailWidth: 76,
-  bottomBarHeight: 60,
+  sidebarRailWidth: 84,
+  bottomBarHeight: 64,
   contentMaxWidth: 1280,
   formMaxWidth: 440,
 } as const;

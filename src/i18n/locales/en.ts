@@ -77,6 +77,7 @@ export const en: Translation = {
       afternoon: 'Good afternoon, {{name}}',
       evening: 'Good evening, {{name}}',
     },
+    family: { title: 'Your family', add: 'Add', addFirst: 'Your family' },
     customize: 'Customise dashboard',
     customizeShort: 'Customise',
     emptyTitle: 'Your dashboard is empty',
@@ -581,6 +582,7 @@ export const en: Translation = {
       sharing: 'Shared calendars with invitations and permissions (Admin, Editor, Viewer).',
       sync: 'Sync across devices once the backend is enabled (Phase 9).',
     },
+    overview: { title: 'Your calendars', description: 'The month with all your visible calendars.' },
     widget: { title: "Today's agenda", description: "Today's events from your visible calendars.", open: 'Open calendar' },
     summary: { none: 'No events', events_one: '{{count}} event', events_other: '{{count}} events' },
   },
@@ -1655,6 +1657,7 @@ export const en: Translation = {
       dark: 'Dark',
       system: 'Match system',
       palettes: {
+        aire: { name: 'Air', description: 'Soft lavender and white cards. Bright and visual.' },
         nitido: { name: 'Crisp', description: 'Navy and cream. Clear and professional.' },
         bosque: { name: 'Forest', description: 'Forest green and ivory. Natural and cosy.' },
         grafito: { name: 'Warm graphite', description: 'Warm charcoal and amber. Calm and elegant.' },

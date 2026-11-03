@@ -75,6 +75,7 @@ export const es = {
       afternoon: 'Buenas tardes, {{name}}',
       evening: 'Buenas noches, {{name}}',
     },
+    family: { title: 'Tu familia', add: 'Añadir', addFirst: 'Tu familia' },
     customize: 'Personalizar panel',
     customizeShort: 'Personalizar',
     emptyTitle: 'Tu panel está vacío',
@@ -580,6 +581,7 @@ export const es = {
       sharing: 'Calendarios compartidos con invitaciones y permisos (Administrador, Editor, Lector).',
       sync: 'Sincronización entre dispositivos al activar el backend (Fase 9).',
     },
+    overview: { title: 'Tus calendarios', description: 'El mes con todos tus calendarios visibles.' },
     widget: { title: 'Agenda de hoy', description: 'Eventos de hoy de tus calendarios visibles.', open: 'Ver calendario' },
     summary: { none: 'Sin eventos', events_one: '{{count}} evento', events_other: '{{count}} eventos' },
   },
@@ -1656,6 +1658,7 @@ export const es = {
       dark: 'Oscuro',
       system: 'Según el sistema',
       palettes: {
+        aire: { name: 'Aire', description: 'Lavanda suave y tarjetas blancas. Luminoso y visual.' },
         nitido: { name: 'Nítido', description: 'Azul marino y crema. Claro y profesional.' },
         bosque: { name: 'Bosque', description: 'Verde bosque y marfil. Natural y acogedor.' },
         grafito: { name: 'Grafito cálido', description: 'Carbón cálido y ámbar. Sobrio y elegante.' },

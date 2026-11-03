@@ -1,3 +1,4 @@
+import { CalendarsOverviewWidget } from './components/CalendarsOverviewWidget';
 import type { AppModule } from '@/types/module';
 import { dayNoteAlertSource, eventAlertSource } from './alerts';
 import { eventLinkSource, linkedEventsSource } from './links';
@@ -25,6 +26,17 @@ export const calendarsModule: AppModule = {
   related: [{ ...linkedEventsSource, Create: QuickEventSheet }],
   search: { search: (q, s) => s.calendars.search(q.text) },
   widgets: [
+    {
+      id: 'calendars.overview',
+      moduleId: calendarsMeta.id,
+      titleKey: 'calendars.overview.title',
+      descriptionKey: 'calendars.overview.description',
+      icon: 'calendar',
+      size: 'full',
+      sizes: ['lg', 'full'],
+      defaultVisible: true,
+      component: CalendarsOverviewWidget,
+    },
     {
       id: 'calendars.agenda',
       moduleId: calendarsMeta.id,
