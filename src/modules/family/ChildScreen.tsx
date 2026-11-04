@@ -222,7 +222,11 @@ export function ChildScreen() {
     ) : null;
 
   const related = (
-    <RelatedPanel target={{ module: familyMeta.id, type: 'child', id: c.id }} accent={c.color} context={{ calendarId: c.calendarId }} />
+    <RelatedPanel
+      target={{ module: familyMeta.id, type: 'child', id: c.id }}
+      accent={c.color}
+      context={{ calendarId: c.calendarId, personName: c.name }}
+    />
   );
   const tomorrow = <FamilyChecklist list="tomorrow" childId={c.id} />;
   const wide = breakpoint === 'expanded' || breakpoint === 'wide';

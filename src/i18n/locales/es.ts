@@ -210,7 +210,7 @@ export const es = {
       emptyHint: 'Marca una tarea como P1 o P2 para verla aquí.',
     },
     stats: { completedWeek: 'completadas en 7 días', open: 'tareas pendientes' },
-    quick: { title: 'Nueva tarea', action: 'Nueva tarea' },
+    quick: { title: 'Nueva tarea', action: 'Nueva tarea', assignedTo: 'Se asignará a {{name}}' },
     subtitle: 'Captura rápido, prioriza y termina lo importante.',
     pending: {
       subtitle_one: '{{count}} tarea por hacer',

@@ -17,6 +17,8 @@ export interface QuickTaskInput {
   tagIds?: string[];
   /** Cross-module links set at creation (e.g. a task created from a child's profile). */
   attachments?: EntityRef[];
+  /** Responsible person (e.g. the person whose profile the task was created from). */
+  assigneeName?: string | null;
 }
 
 /** Editable fields of a task (detail editor). */
@@ -93,7 +95,7 @@ export class TaskService {
       projectId: input.projectId ?? null,
       sectionId: input.sectionId ?? null,
       parentTaskId: input.parentTaskId ?? null,
-      assigneeName: null,
+      assigneeName: input.assigneeName?.trim() || null,
       tagIds: input.tagIds ?? [],
       links: [],
       attachments: input.attachments ?? [],

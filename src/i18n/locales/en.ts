@@ -212,7 +212,7 @@ export const en: Translation = {
       emptyHint: 'Mark a task as P1 or P2 to see it here.',
     },
     stats: { completedWeek: 'completed in 7 days', open: 'open tasks' },
-    quick: { title: 'New task', action: 'New task' },
+    quick: { title: 'New task', action: 'New task', assignedTo: 'It will be assigned to {{name}}' },
     subtitle: 'Capture fast, prioritise and get the important things done.',
     pending: {
       subtitle_one: '{{count}} task to do',
