@@ -56,7 +56,7 @@ export const es = {
     enable: 'Activar {{name}}',
     goHome: 'Ir a Inicio',
     dashboard: { title: 'Inicio', description: 'Tu centro de mando: qué pasa hoy en tu vida.' },
-    secondBrain: { title: '2ndBrain', description: 'Tus documentos organizados en carpetas.' },
+    secondBrain: { title: 'Docs', description: 'Tus documentos organizados en carpetas.' },
     calendars: { title: 'Calendarios', short: 'Agenda', description: 'Todos tus calendarios y eventos.' },
     todo: { title: 'ToDo', description: 'Tareas, proyectos y prioridades.' },
     op: { title: 'OP', description: 'Tu oposición: qué estudias cada día, horas y notas.' },
@@ -499,7 +499,7 @@ export const es = {
       title: 'Consejos',
       slot: 'En Día y Semana, toca una hora libre para crear un evento a esa hora.',
       recurring: 'Los eventos repetidos se pueden borrar solo un día o toda la serie.',
-      links: 'Vincula documentos de 2ndBrain o a tus hijos para tenerlo todo conectado.',
+      links: 'Vincula documentos o a tus hijos para tenerlo todo conectado.',
     },
     share: {
       action: 'Compartir',
@@ -594,7 +594,7 @@ export const es = {
     summary: { none: 'Sin eventos', events_one: '{{count}} evento', events_other: '{{count}} eventos' },
   },
   secondBrain: {
-    quick: { subtitle: 'Se creará en la raíz de 2ndBrain.' },
+    quick: { subtitle: 'Se creará en la raíz de Docs.' },
     subtitle: 'Tu archivo personal: documentos y carpetas sin límite de profundidad.',
     newFolder: 'Nueva carpeta',
     folderName: 'Nombre de la carpeta',
@@ -634,7 +634,7 @@ export const es = {
       action: 'Importar documento',
       title: 'Importar documentos',
       subtitle: 'Se guardarán en esta carpeta, en tu almacenamiento activo.',
-      quickSubtitle: 'Se guardarán en la raíz de 2ndBrain.',
+      quickSubtitle: 'Se guardarán en la raíz de Docs.',
       fromFiles: 'Desde Archivos',
       chooseFiles: 'Elegir archivos',
       fromFilesHint: 'PDF, Word, Excel e imágenes. Puedes elegir varios.',
@@ -663,13 +663,13 @@ export const es = {
       title_other: 'Mover {{count}} elementos',
       subtitle: 'Elige la carpeta de destino.',
       confirm: 'Mover aquí',
-      root: '2ndBrain (raíz)',
+      root: 'Docs (raíz)',
     },
     viewer: {
       loading: 'Abriendo documento…',
       notFound: 'Este documento ya no existe',
       missing: 'No se encuentra el archivo',
-      missingHint: 'El archivo ya no está en el almacenamiento. Puedes eliminar este documento de 2ndBrain.',
+      missingHint: 'El archivo ya no está en el almacenamiento. Puedes eliminar este documento.',
       reconnect: 'Volver a conectar',
       reconnectTitle: 'Reconecta tu almacenamiento',
       openWith: 'Abrir con… / Compartir',
@@ -1649,7 +1649,7 @@ export const es = {
     subtitle: 'Relaciona este elemento con otros de AUN.',
     done_one: 'Listo (1 vínculo)',
     done_other: 'Listo ({{count}} vínculos)',
-    noSources: 'Activa otros módulos (2ndBrain, Calendarios, ToDo, Familia) para poder vincular.',
+    noSources: 'Activa otros módulos (Docs, Calendarios, ToDo, Familia) para poder vincular.',
     search: 'Buscar…',
     noResults: 'Sin resultados',
     empty: 'Todavía no hay nada que vincular aquí.',
@@ -1681,7 +1681,7 @@ export const es = {
         'Tareas, calendarios, documentos, familia, avisos y correo conectado. Lo que otros comparten contigo no se toca. Tu cuenta y tus preferencias se mantienen.',
       wipeTitle: '¿Borrar todo el contenido?',
       wipeMessage:
-        'Se eliminarán todas tus tareas, calendarios y eventos, carpetas y documentos de 2ndBrain (también sus archivos: los de este dispositivo se borran y los de Google Drive van a su papelera), hijos y listas de Familia, avisos y notificaciones, y se desconectarán tus cuentas de correo (sin borrar ningún correo). No se puede deshacer.',
+        'Se eliminarán todas tus tareas, calendarios y eventos, carpetas y documentos (también sus archivos: los de este dispositivo se borran y los de Google Drive van a su papelera), hijos y listas de Familia, avisos y notificaciones, y se desconectarán tus cuentas de correo (sin borrar ningún correo). No se puede deshacer.',
       continue: 'Continuar',
       typeTitle: 'Confirma el borrado',
       typeMessage: 'Para confirmar, escribe {{word}}.',
@@ -1808,7 +1808,7 @@ export const es = {
       },
     },
     storage: {
-      title: 'Almacenamiento de 2ndBrain',
+      title: 'Almacenamiento de Docs',
       question: '¿Dónde quieres guardar tus documentos?',
       changeTitle: '¿Cambiar a {{provider}}?',
       changeWarning:
@@ -1838,7 +1838,7 @@ export const es = {
       },
       oneProviderTitle: 'Un único proveedor activo',
       oneProvider:
-        '2ndBrain guarda los documentos nuevos en un solo lugar. Los que ya tienes se siguen abriendo desde el almacenamiento donde se guardaron.',
+        'Docs guarda los documentos nuevos en un solo lugar. Los que ya tienes se siguen abriendo desde el almacenamiento donde se guardaron.',
       webSessionTitle: 'Conexión segura en el navegador',
       webSession:
         'En la web, AUN no guarda tus credenciales de Google: la conexión dura mientras la pestaña esté abierta y tendrás que reconectar al volver.',
@@ -1898,7 +1898,7 @@ export const es = {
     tagline: 'Todo lo que necesitas para organizar tu vida, en un solo lugar.',
     taglineSub: 'Tu segundo cerebro: documentos, calendarios, tareas, correo y familia conectados.',
     highlights: {
-      secondBrain: '2ndBrain: tus documentos, ordenados',
+      secondBrain: 'Docs: tus documentos, ordenados',
       calendars: 'Calendarios de toda la familia',
       todo: 'Tareas con prioridades',
       family: 'Familia, "para mañana" y compras',
