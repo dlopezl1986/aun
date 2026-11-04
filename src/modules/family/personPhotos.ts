@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 import { create } from 'zustand';
@@ -75,10 +75,24 @@ function legacyToKey(userId: string, key: string): string | null {
 export function useUploadDevicePhotos(children: Child[], ready: boolean) {
   const services = useServices();
   const client = useQueryClient();
+  const { t } = useTranslation();
+  const toast = useToast();
   const done = useRef(false);
   const synced = useDataQuery('family', ['personPhotos'], (s) => s.personPhotos.map());
+  // The old store is read from storage asynchronously: wait for it.
+  const [hydrated, setHydrated] = useState(() => useLegacyPhotos.persist.hasHydrated());
   useEffect(() => {
-    if (done.current || !ready || !synced.data) return;
+    if (hydrated) return;
+    const off = useLegacyPhotos.persist.onFinishHydration(() => setHydrated(true));
+    // Hydration may have finished between the first render and this subscription.
+    const check = setTimeout(() => useLegacyPhotos.persist.hasHydrated() && setHydrated(true), 0);
+    return () => {
+      off();
+      clearTimeout(check);
+    };
+  }, [hydrated]);
+  useEffect(() => {
+    if (done.current || !ready || !hydrated || !synced.data) return;
     done.current = true;
     const have = synced.data;
     const local = getStorageProvider('local', services.userId);
@@ -91,16 +105,29 @@ export function useUploadDevicePhotos(children: Child[], ready: boolean) {
     if (!pending.length) return;
     void (async () => {
       let changed = false;
+      let failed = false;
       for (const p of pending) {
+        let file: Awaited<ReturnType<typeof local.downloadFile>>;
         try {
-          const { uri } = await local.downloadFile(p.ref);
-          await services.personPhotos.set(p.key, await makeThumbnail(uri));
-          changed = true;
+          file = await local.downloadFile(p.ref);
         } catch {
-          // The file is gone from this device: nothing to upload.
+          continue; // The file is gone from this device: nothing to upload.
+        }
+        try {
+          await services.personPhotos.set(p.key, await makeThumbnail(file.uri));
+          changed = true;
+        } catch (e) {
+          console.warn('[photos] upload failed', p.key, e);
+          failed = true;
+        } finally {
+          file.release?.();
         }
       }
-      if (changed) await client.invalidateQueries({ queryKey: ['u', services.userId, 'family'] });
+      if (changed) {
+        await client.invalidateQueries({ queryKey: ['u', services.userId, 'family'] });
+        toast.show(t('family.photo.uploaded'));
+      }
+      if (failed) toast.show(t('family.photo.uploadFailed'), 'error');
     })();
-  }, [ready, synced.data, children, services, client]);
+  }, [ready, hydrated, synced.data, children, services, client, t, toast]);
 }

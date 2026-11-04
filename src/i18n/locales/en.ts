@@ -81,7 +81,7 @@ export const en: Translation = {
     family: {
       openProfile: 'My profile',
       openFamily: 'Open Family',
-      photoHint: 'Tap the circle to pick a photo. It is kept only on this device.',
+      photoHint: 'Tap the circle to pick a photo. The whole family sees it, on all their devices.',
       title: 'Your family',
       add: 'Add',
       addFirst: 'Your family',
@@ -894,7 +894,9 @@ export const en: Translation = {
       removeTitle: 'Remove the profile photo?',
       saved: 'Photo updated',
       denied: 'AUN is not allowed to access your photos. You can allow it in the device settings.',
-      privacy: 'The photo is stored only on this device.',
+      privacy: 'The whole family sees the photo, on all their devices.',
+      uploaded: 'Photos from this device saved for the whole family',
+      uploadFailed: 'Some photos on this device could not be uploaded. Set them again from their profile.',
     },
     profile: {
       noSizes: 'No sizes saved.',
