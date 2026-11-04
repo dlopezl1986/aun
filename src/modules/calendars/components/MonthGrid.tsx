@@ -9,7 +9,7 @@ import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { useLocale } from '@/hooks/useLocale';
 import { makeStyles, useTheme } from '@/theme';
 import { withAlpha } from '@/utils/color';
-import { addMonths, formatLongDate, formatMonthYear, monthMatrix, toDateKey, weekdayNames } from '@/utils/date';
+import { addDays, addMonths, formatLongDate, formatMonthYear, monthMatrix, toDateKey, weekdayNames } from '@/utils/date';
 import {
   canDrag,
   DragGhost,
@@ -46,6 +46,17 @@ interface MonthGridProps {
   onPaint?: (dateKey: string) => void;
   /** Public holidays shown (date → name): the day is tinted light red. */
   holidays?: Map<string, string>;
+  /** Only these days instead of a month (whole weeks are drawn; days outside are faded and empty). No month arrows. */
+  range?: { start: Date; days: number; title: string };
+}
+
+/** Whole weeks (Monday first, like monthMatrix) covering `days` days from `start`. */
+function rangeWeeks(start: Date, days: number): Date[][] {
+  const first = addDays(start, -((start.getDay() + 6) % 7));
+  const last = addDays(start, days - 1);
+  const weeks: Date[][] = [];
+  for (let w = first; w <= last; w = addDays(w, 7)) weeks.push(Array.from({ length: 7 }, (_, d) => addDays(w, d)));
+  return weeks;
 }
 
 /** Two presses on the same day within this time are a double click / double tap. */
@@ -71,13 +82,18 @@ export function MonthGrid({
   onDayOpen,
   holidays,
   onPaint,
+  range,
 }: MonthGridProps) {
   const styles = useStyles();
   const { colors } = useTheme();
   const locale = useLocale();
   const { t } = useTranslation();
   const { isCompact } = useBreakpoint();
-  const weeks = useMemo(() => monthMatrix(month), [month]);
+  const weeks = useMemo(() => (range ? rangeWeeks(range.start, range.days) : monthMatrix(month)), [month, range]);
+  const rangeKeys = useMemo(
+    () => (range ? new Set(Array.from({ length: range.days }, (_, i) => toDateKey(addDays(range.start, i)))) : null),
+    [range],
+  );
   const names = useMemo(() => weekdayNames(locale), [locale]);
   // Phones have ~50px wide cells: fewer, shorter lines.
   const maxLines = isCompact ? 3 : 4;
@@ -163,18 +179,22 @@ export function MonthGrid({
     <View>
       <View style={styles.header}>
         <AppText variant="heading" accessibilityRole="header" style={{ flex: 1 }}>
-          {formatMonthYear(month, locale)}
+          {range ? range.title : formatMonthYear(month, locale)}
         </AppText>
-        <IconButton icon="chevron-left" label={t('calendars.prevMonth')} onPress={() => onMonthChange(addMonths(month, -1))} />
-        <IconButton
-          icon="crosshair"
-          label={t('calendars.goToday')}
-          onPress={() => {
-            onMonthChange(new Date());
-            onSelect(today);
-          }}
-        />
-        <IconButton icon="chevron-right" label={t('calendars.nextMonth')} onPress={() => onMonthChange(addMonths(month, 1))} />
+        {range ? null : (
+          <>
+            <IconButton icon="chevron-left" label={t('calendars.prevMonth')} onPress={() => onMonthChange(addMonths(month, -1))} />
+            <IconButton
+              icon="crosshair"
+              label={t('calendars.goToday')}
+              onPress={() => {
+                onMonthChange(new Date());
+                onSelect(today);
+              }}
+            />
+            <IconButton icon="chevron-right" label={t('calendars.nextMonth')} onPress={() => onMonthChange(addMonths(month, 1))} />
+          </>
+        )}
       </View>
       <View style={styles.row}>
         {names.map((n) => (
@@ -192,7 +212,7 @@ export function MonthGrid({
           <View key={toDateKey(week[0])} style={[styles.row, { position: 'relative' }]}>
             {week.map((day, col) => {
               const key = toDateKey(day);
-              const inMonth = day.getMonth() === month.getMonth();
+              const inMonth = rangeKeys ? rangeKeys.has(key) : day.getMonth() === month.getMonth();
               const isSelected = key === selected;
               const isToday = key === today;
               const holiday = holidays?.get(key) ?? null;
@@ -210,7 +230,7 @@ export function MonthGrid({
                   {...dropDay(key)}
                   style={[
                     styles.dayCell,
-                    { minHeight: isCompact ? 76 : 104, padding: isCompact ? 1 : 2, opacity: inMonth ? 1 : 0.55 },
+                    { minHeight: isCompact ? 76 : 104, padding: isCompact ? 1 : 2, opacity: inMonth ? 1 : rangeKeys ? 0.35 : 0.55 },
                     holiday && { backgroundColor: withAlpha(HOLIDAY_COLOR, 0.12) },
                     isSelected && { borderColor: colors.primary, backgroundColor: withAlpha(colors.primary, 0.06) },
                     drag?.over === key &&
