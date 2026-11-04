@@ -79,7 +79,7 @@ export const es = {
     family: {
       openProfile: 'Ver mi perfil',
       openFamily: 'Abrir Familia',
-      photoHint: 'Toca el círculo para elegir una foto. Se guarda solo en este dispositivo.',
+      photoHint: 'Toca el círculo para elegir una foto. La verá toda la familia, en todos sus dispositivos.',
       title: 'Tu familia',
       add: 'Añadir',
       addFirst: 'Tu familia',
@@ -894,7 +894,9 @@ export const es = {
       removeTitle: '¿Quitar la foto del perfil?',
       saved: 'Foto actualizada',
       denied: 'AUN no tiene permiso para acceder a tus fotos. Puedes darlo en los ajustes del dispositivo.',
-      privacy: 'La foto se guarda solo en este dispositivo.',
+      privacy: 'La foto la ve toda la familia, en todos sus dispositivos.',
+      uploaded: 'Fotos de este dispositivo guardadas para toda la familia',
+      uploadFailed: 'No se pudieron subir algunas fotos de este dispositivo. Vuelve a ponerlas desde su perfil.',
     },
     profile: {
       noSizes: 'Sin tallas guardadas.',

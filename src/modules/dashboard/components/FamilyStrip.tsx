@@ -9,7 +9,6 @@ import { AppText } from '@/components/ui/AppText';
 import { Avatar } from '@/components/ui/Avatar';
 import { Button } from '@/components/ui/Button';
 import { Sheet } from '@/components/ui/Sheet';
-import { Icon } from '@/components/ui/Icon';
 import { interaction } from '@/components/ui/interaction';
 import { ChildAvatar } from '@/modules/family/components/ChildAvatar';
 import { EditablePhoto } from '@/modules/family/components/EditablePhoto';
