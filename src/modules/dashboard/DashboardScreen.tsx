@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { View } from 'react-native';
@@ -43,6 +43,7 @@ export function DashboardScreen() {
   const { spacing } = useTheme();
   const editing = useDashboardEditMode((s) => s.editing);
   const setEditing = useDashboardEditMode((s) => s.setEditing);
+  const [searching, setSearching] = useState(false);
 
   const visible = useMemo(() => widgets.filter((w) => w.visible), [widgets]);
   const hidden = useMemo(() => widgets.filter((w) => !w.visible), [widgets]);
@@ -77,25 +78,17 @@ export function DashboardScreen() {
       }
     />
   ) : (
-    // Top: just the family circles (tap a face → profile), with bell and "Personalizar" on the right.
+    // Top: just the family circles (tap a face → profile) and the magnifier that opens the search.
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
       <View style={{ flex: 1, minWidth: 0 }}>
         <FamilyStrip size={isCompact ? 60 : 72} />
       </View>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-        <IconButton
-          icon="bell"
-          label={t('modules.notifications.title')}
-          badge={badge}
-          variant="surface"
-          onPress={() => router.navigate('/notifications')}
-        />
-        {isCompact ? (
-          <IconButton icon="sliders" label={t('dashboard.customize')} variant="surface" onPress={() => setEditing(true)} />
-        ) : (
-          <Button label={t('dashboard.customize')} variant="secondary" icon="sliders" onPress={() => setEditing(true)} />
-        )}
-      </View>
+      <IconButton
+        icon={searching ? 'x' : 'search'}
+        label={searching ? t('search.close') : t('search.open')}
+        variant="surface"
+        onPress={() => setSearching((v) => !v)}
+      />
     </View>
   );
 
@@ -105,7 +98,7 @@ export function DashboardScreen() {
 
       {editing ? null : <SyncProblemNotice />}
       {editing ? null : <VerifyEmailNotice />}
-      {editing ? null : <GlobalSearch />}
+      {editing ? null : <GlobalSearch open={searching} onOpenChange={setSearching} />}
 
       {visible.length ? (
         <WidgetGrid
@@ -132,7 +125,18 @@ export function DashboardScreen() {
           <HiddenWidgets widgets={hidden} onShow={(id) => void setWidgetVisible(id, true)} />
           <InfoNote title={t('dashboard.edit.tipTitle')} description={t('dashboard.edit.tip')} icon="info" />
         </>
-      ) : null}
+      ) : (
+        // Bottom of Inicio: notifications and "Personalizar panel".
+        <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: spacing.sm, paddingTop: spacing.sm }}>
+          <Button
+            label={badge ? `${t('modules.notifications.title')} (${badge})` : t('modules.notifications.title')}
+            variant="secondary"
+            icon="bell"
+            onPress={() => router.navigate('/notifications')}
+          />
+          <Button label={t('dashboard.customize')} variant="secondary" icon="sliders" onPress={() => setEditing(true)} />
+        </View>
+      )}
     </Screen>
   );
 }
