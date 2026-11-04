@@ -1565,6 +1565,8 @@ export const en: Translation = {
     },
   },
   search: {
+    open: 'Search',
+    close: 'Close search',
     placeholder: 'Search AUN: tasks, events, folders, family…',
     placeholderWeb: 'Search AUN…  (press / to search)',
     noResults: 'Nothing matches "{{query}}"',

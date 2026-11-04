@@ -1565,6 +1565,8 @@ export const es = {
     },
   },
   search: {
+    open: 'Buscar',
+    close: 'Cerrar búsqueda',
     placeholder: 'Buscar en AUN: tareas, eventos, carpetas, familia…',
     placeholderWeb: 'Buscar en AUN…  (pulsa / para buscar)',
     noResults: 'Nada coincide con «{{query}}»',

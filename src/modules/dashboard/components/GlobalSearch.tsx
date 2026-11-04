@@ -28,9 +28,9 @@ function useDebounced<T>(value: T, ms: number): T {
 
 /**
  * Inicio search box: searches every enabled module at once (section 49).
- * Web: press "/" anywhere to focus, Esc to clear.
+ * Hidden behind the magnifier until opened. Web: press "/" anywhere to open, Esc to close.
  */
-export function GlobalSearch() {
+export function GlobalSearch({ open: shown, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const { t } = useTranslation();
   const locale = useLocale();
   const { spacing } = useTheme();
@@ -55,20 +55,25 @@ export function GlobalSearch() {
       const typing = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
       if (e.key === '/' && !typing) {
         e.preventDefault();
+        onOpenChange(true);
         inputRef.current?.focus();
       } else if (e.key === 'Escape' && document.activeElement === (inputRef.current as unknown as Element)) {
         setText('');
+        onOpenChange(false);
       }
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, []);
+  }, [onOpenChange]);
 
   const open = (route?: string) => {
     if (!route) return;
     setText('');
+    onOpenChange(false);
     router.navigate(route as Href);
   };
+
+  if (!shown) return null;
 
   return (
     <View style={{ gap: spacing.sm }}>
@@ -82,6 +87,7 @@ export function GlobalSearch() {
         onChangeText={setText}
         returnKeyType="search"
         autoCorrect={false}
+        autoFocus
       />
       {active ? (
         <Card padded={false} style={{ padding: spacing.sm }}>
