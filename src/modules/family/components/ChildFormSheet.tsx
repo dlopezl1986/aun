@@ -29,6 +29,8 @@ interface Props {
   onClose: () => void;
   child?: Member | null;
   onCreated?: (member: Member) => void;
+  /** New profile for someone who already has an AUN account (you, your partner): prefilled. */
+  initial?: { name: string; relation: MemberRelation; accountUid: string };
 }
 
 function Section({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
@@ -145,15 +147,15 @@ function CalendarChoice({
   );
 }
 
-function MemberForm({ onClose, child, onCreated }: Props) {
+function MemberForm({ onClose, child, onCreated, initial }: Props) {
   const { t } = useTranslation();
   const { spacing, radius } = useTheme();
   const toast = useToast();
   const create = useCreateChild();
   const update = useUpdateChild();
   const setPhoto = useSetChildPhoto();
-  const [relation, setRelation] = useState<MemberRelation>(child?.relation ?? 'child');
-  const [name, setName] = useState(child?.name ?? '');
+  const [relation, setRelation] = useState<MemberRelation>(child?.relation ?? initial?.relation ?? 'child');
+  const [name, setName] = useState(child?.name ?? initial?.name ?? '');
   const [color, setColor] = useState<string>(child?.color ?? accentPalette[18]);
   const [birth, setBirth] = useState(child?.birthDate ? formatDateInput(child.birthDate) : '');
   const [phone, setPhone] = useState(child?.phone ?? '');
@@ -211,11 +213,13 @@ function MemberForm({ onClose, child, onCreated }: Props) {
       schoolClass: isChild ? schoolClass : '',
       occupation: isChild ? '' : occupation,
       sizes: allSizes,
-      health: Object.values(health).some((v) => v.trim()) ? health : null,
+      // Keep the health details edited on the profile itself (intolerances, vaccines…).
+      health: { ...child?.health, ...Object.fromEntries(Object.entries(health).map(([k, v]) => [k, v.trim() || null])) },
       extraFields: extra.filter((f) => f.label.trim() && f.value.trim()),
       importantInfo: info,
       notes,
       ...(calendarId && calendarId !== child?.calendarId ? { calendarId } : {}),
+      ...(initial && !child ? { accountUid: initial.accountUid } : {}),
     };
     if (child) update.mutate({ id: child.id, input }, { onSuccess: onClose });
     else
@@ -241,7 +245,7 @@ function MemberForm({ onClose, child, onCreated }: Props) {
     <Sheet
       visible
       onClose={onClose}
-      title={child ? t('family.editChild') : t('family.addMember')}
+      title={child ? t('family.editChild') : initial ? t('family.profile.createFor', { name: initial.name }) : t('family.addMember')}
       subtitle={child ? undefined : calendarId ? t('family.form.calendarLinkedNote') : t('family.calendarNote')}
       footer={
         <>

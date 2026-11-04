@@ -11,8 +11,11 @@ import type {
   FamilyRole,
   Member,
   MemberActivity,
+  MemberEmergency,
+  MemberFavorite,
   MemberField,
   MemberHealth,
+  MemberMeasurement,
   MemberRelation,
   MemberSize,
 } from './types';
@@ -32,6 +35,10 @@ export interface ChildInput {
   extraFields?: MemberField[];
   importantInfo?: string | null;
   notes?: string | null;
+  measurements?: MemberMeasurement[];
+  favorites?: MemberFavorite[];
+  giftIdeas?: string[];
+  emergency?: MemberEmergency | null;
   /**
    * An existing calendar to use as the member's calendar (e.g. one created
    * before in Calendarios). Without it, a new calendar is created.
@@ -176,6 +183,7 @@ export class FamilyService {
       photo: null,
       calendarId,
       calendarLinked: linked,
+      accountUid: input.accountUid ?? null,
     });
     return normalizeMember(created);
   }
