@@ -18,6 +18,17 @@ function setup() {
 }
 
 describe('TaskService', () => {
+  it('assigns a task created from a profile to that person', async () => {
+    const s = setup();
+    const task = await s.quickAdd({
+      title: 'Comprar zapatillas',
+      assigneeName: ' Elisa ',
+      attachments: [{ module: 'family', type: 'child', id: 'c1' }],
+    });
+    expect(task.assigneeName).toBe('Elisa');
+    expect((await s.quickAdd({ title: 'Otra' })).assigneeName).toBeNull();
+  });
+
   it('moves a recurring task to its next date instead of completing it', async () => {
     const s = setup();
     const task = await s.quickAdd({ title: 'Sacar basura', dueDate: '2026-10-07' });

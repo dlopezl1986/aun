@@ -28,6 +28,8 @@ interface QuickAddTaskProps {
   tagId?: string | null;
   /** Links the new task to another entity (e.g. a child). */
   attachments?: EntityRef[];
+  /** New tasks are assigned to this person (e.g. created from their profile). */
+  assigneeName?: string | null;
   autoFocus?: boolean;
   /** Called after a task is saved (e.g. to close a sheet). */
   onAdded?: () => void;
@@ -47,6 +49,7 @@ export function QuickAddTask({
   sectionId,
   tagId,
   attachments,
+  assigneeName,
   autoFocus,
   onAdded,
   compact,
@@ -81,6 +84,7 @@ export function QuickAddTask({
         tagIds: tagId ? [tagId] : [],
         tagNames: parsed.tagNames,
         attachments,
+        assigneeName,
       },
       {
         onSuccess: () => {

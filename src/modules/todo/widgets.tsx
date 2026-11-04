@@ -1,4 +1,5 @@
 import type { EntityRef } from '@/types/entity';
+import type { RelatedContext } from '@/types/module';
 import { router } from 'expo-router';
 import { View } from 'react-native';
 import { useMemo } from 'react';
@@ -130,22 +131,38 @@ export function TodoWeeklyStats() {
   );
 }
 
-function QuickTaskForm({ onClose, link }: { onClose: () => void; link?: EntityRef }) {
+function QuickTaskForm({ onClose, link, assigneeName }: { onClose: () => void; link?: EntityRef; assigneeName?: string | null }) {
   const { t } = useTranslation();
   const today = useToday();
   return (
-    <Sheet visible onClose={onClose} title={t('todo.quick.title')}>
+    <Sheet
+      visible
+      onClose={onClose}
+      title={t('todo.quick.title')}
+      subtitle={assigneeName ? t('todo.quick.assignedTo', { name: assigneeName }) : undefined}
+    >
       <QuickAddTask
         today={today}
         autoFocus
         onAdded={onClose}
         attachments={link ? [link] : undefined}
+        assigneeName={assigneeName}
         defaultWhen={link ? 'none' : 'today'}
       />
     </Sheet>
   );
 }
 
-export function QuickTaskSheet({ visible, onClose, link }: { visible: boolean; onClose: () => void; link?: EntityRef }) {
-  return visible ? <QuickTaskForm onClose={onClose} link={link} /> : null;
+export function QuickTaskSheet({
+  visible,
+  onClose,
+  link,
+  context,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  link?: EntityRef;
+  context?: RelatedContext;
+}) {
+  return visible ? <QuickTaskForm onClose={onClose} link={link} assigneeName={context?.personName} /> : null;
 }

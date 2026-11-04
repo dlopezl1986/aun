@@ -65,6 +65,8 @@ export interface RelatedItem extends LinkItem {
 /** Extra hints from the profile page, e.g. a family member's own calendar. */
 export interface RelatedContext {
   calendarId?: string | null;
+  /** Name of the person whose profile this is: things created there are assigned to them. */
+  personName?: string | null;
 }
 
 /**
