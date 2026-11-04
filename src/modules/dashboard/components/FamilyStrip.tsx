@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/Button';
 import { Sheet } from '@/components/ui/Sheet';
 import { interaction } from '@/components/ui/interaction';
 import { ChildAvatar } from '@/modules/family/components/ChildAvatar';
+import { ChildFormSheet } from '@/modules/family/components/ChildFormSheet';
 import { EditablePhoto } from '@/modules/family/components/EditablePhoto';
 import { useChildren, useMembers } from '@/modules/family/hooks';
 import { photoKey, usePersonPhoto, useSetPersonPhoto, useUploadDevicePhotos } from '@/modules/family/personPhotos';
@@ -31,7 +32,8 @@ function FamilyStripRow({ size: SIZE }: { size: number }) {
   const { colors, spacing } = useTheme();
   const children = useChildren();
   const members = children.data ?? [];
-  const adults = useAdults(members.map((m) => m.name));
+  const adults = useAdults(members);
+  const [creating, setCreating] = useState<Adult | null>(null);
   const [open, setOpen] = useState<Adult | null>(null);
   useUploadDevicePhotos(members, !children.isLoading);
   if (children.isLoading) return null;
@@ -58,7 +60,8 @@ function FamilyStripRow({ size: SIZE }: { size: number }) {
           person(
             a.key,
             a.name.split(' ')[0],
-            () => setOpen(a),
+            // You and the people of the family get a full profile, like the children's.
+            () => (a.uid ? setCreating(a) : setOpen(a)),
             <View
               style={{ padding: 3, borderRadius: SIZE, backgroundColor: colors.surface, boxShadow: `0px 4px 14px ${colors.primary}22` }}
             >
@@ -78,6 +81,12 @@ function FamilyStripRow({ size: SIZE }: { size: number }) {
         )}
       </ScrollView>
       {open ? <AdultSheet adult={open} onClose={() => setOpen(null)} /> : null}
+      <ChildFormSheet
+        visible={!!creating}
+        initial={creating?.uid ? { name: creating.name, relation: 'parent', accountUid: creating.uid } : undefined}
+        onClose={() => setCreating(null)}
+        onCreated={(m) => router.navigate(`/family/child/${m.id}` as Href)}
+      />
     </View>
   );
 }
@@ -135,6 +144,8 @@ const firstName = (name: string) => name.trim().split(/\s+/)[0]?.toLocaleLowerCa
 
 interface Adult {
   key: string;
+  /** Their AUN account (you, people of the shared family): a profile can be created for them. */
+  uid?: string;
   /** Where their photo is kept (synced with the family). */
   photoKey: string;
   name: string;
@@ -147,21 +158,23 @@ interface Adult {
  * added in «Compartir familia»), skipping anyone who already has a profile in
  * Familia (that profile, with its photo, is shown instead).
  */
-function useAdults(profileNames: string[]): Adult[] {
+function useAdults(profiles: { name: string; accountUid?: string | null }[]): Adult[] {
   const user = useAuthStore((s) => s.session?.user);
   const { family, me } = useFamily();
   const shared = useMembers().data ?? [];
-  const taken = new Set(profileNames.map(firstName));
+  const taken = new Set(profiles.map((p) => firstName(p.name)));
+  const accounts = new Set(profiles.map((p) => p.accountUid).filter(Boolean));
   const out: Adult[] = [];
   const add = (a: Adult) => {
     const k = firstName(a.name);
-    if (!k || taken.has(k)) return;
+    if (!k || taken.has(k) || (a.uid && accounts.has(a.uid))) return;
     taken.add(k);
     out.push(a);
   };
   if (user)
     add({
       key: 'me',
+      uid: user.id,
       photoKey: photoKey.user(user.id),
       name: user.displayName,
       photo: user.avatarUrl,
@@ -170,7 +183,7 @@ function useAdults(profileNames: string[]): Adult[] {
   for (const id of family?.memberIds ?? []) {
     if (id === me) continue;
     const name = family?.names[id];
-    if (name) add({ key: `space:${id}`, photoKey: photoKey.user(id), name, onPress: () => router.navigate('/family') });
+    if (name) add({ key: `space:${id}`, uid: id, photoKey: photoKey.user(id), name, onPress: () => router.navigate('/family') });
   }
   for (const m of shared)
     add({ key: `member:${m.id}`, photoKey: photoKey.member(m.id), name: m.name, onPress: () => router.navigate('/family') });

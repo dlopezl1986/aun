@@ -26,11 +26,54 @@ export interface MemberSize {
 
 export interface MemberHealth {
   allergies?: string | null;
+  /** Food intolerances (lactose, gluten…). */
+  intolerances?: string | null;
+  /** Chronic conditions (asthma, diabetes…). */
+  conditions?: string | null;
   bloodType?: string | null;
   doctor?: string | null;
   medication?: string | null;
+  vaccines?: string | null;
+  /** Health card / social security number. */
+  healthCard?: string | null;
+  /** Private health insurance (company and policy). */
+  insurance?: string | null;
   notes?: string | null;
 }
+
+/** A height / weight check on a date (growth history). */
+export interface MemberMeasurement {
+  id: string;
+  date: DateKey;
+  heightCm?: number | null;
+  weightKg?: number | null;
+}
+
+/** "Comida favorita: pasta". `key` is a FAVORITE_PRESETS id. */
+export interface MemberFavorite {
+  key: string;
+  value: string;
+}
+
+export interface MemberEmergency {
+  name?: string | null;
+  phone?: string | null;
+  relation?: string | null;
+}
+
+export const FAVORITE_PRESETS = ['food', 'color', 'animal', 'toy', 'sport', 'music', 'movie', 'book', 'place', 'dislike'] as const;
+export const FAVORITE_EMOJI: Record<string, string> = {
+  food: '🍕',
+  color: '🎨',
+  animal: '🐾',
+  toy: '🧸',
+  sport: '⚽',
+  music: '🎵',
+  movie: '🎬',
+  book: '📚',
+  place: '🏖️',
+  dislike: '🙅',
+};
 
 /** Free "más especificaciones": any label/value the user wants to keep. */
 export interface MemberField {
@@ -69,6 +112,12 @@ export interface Child extends BaseEntity {
   extraFields?: MemberField[];
   importantInfo?: string | null;
   notes?: string | null;
+  /** Height / weight history, oldest first. */
+  measurements?: MemberMeasurement[];
+  favorites?: MemberFavorite[];
+  /** Gift ideas / wish list. */
+  giftIdeas?: string[];
+  emergency?: MemberEmergency | null;
   /** The member's own calendar in Calendarios. */
   calendarId?: string | null;
   /**

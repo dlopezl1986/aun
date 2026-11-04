@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import { View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
@@ -10,26 +10,35 @@ import { Screen } from '@/components/layout/Screen';
 import { AppText } from '@/components/ui/AppText';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { Card, CardHeader } from '@/components/ui/Card';
-import type { IconName } from '@/components/ui/Icon';
 import { IconButton } from '@/components/ui/IconButton';
-import { InfoNote } from '@/components/ui/InfoNote';
 import { EmptyState, LoadingState } from '@/components/ui/States';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { useLocale } from '@/hooks/useLocale';
 import { useToday } from '@/hooks/useToday';
 import { useTheme } from '@/theme';
 import { withAlpha } from '@/utils/color';
-import { formatLongDate, fromDateKey, weekdayNames } from '@/utils/date';
+import { fromDateKey, weekdayNames } from '@/utils/date';
 import { ActivitiesSheet } from './components/ActivitiesSheet';
 import { ChildAvatar } from './components/ChildAvatar';
 import { ChildFormSheet } from './components/ChildFormSheet';
 import { EditablePhoto } from './components/EditablePhoto';
 import { FamilyChecklist } from './components/FamilyChecklist';
+import {
+  EmergencyCard,
+  FavoritesCard,
+  GiftIdeasCard,
+  GrowthCard,
+  HealthCard,
+  KeyAlerts,
+  MeasurementSheet,
+  ProfileHero,
+  SectionCard,
+  StatTiles,
+} from './components/ProfileSections';
 import { useChild, useRemoveChild } from './hooks';
 import { photoKey, usePersonPhoto, useSetPersonPhoto } from './personPhotos';
 import { familyMeta } from './meta';
-import { ageFrom, nextBirthday } from './selectors';
+import { ageFrom } from './selectors';
 import { SIZE_PRESETS, type Member } from './types';
 
 function Row({ icon, label, value }: { icon: string; label: string; value?: string | null }) {
@@ -50,27 +59,6 @@ function Row({ icon, label, value }: { icon: string; label: string; value?: stri
   );
 }
 
-function SectionCard({
-  title,
-  icon,
-  accent,
-  action,
-  children,
-}: {
-  title: string;
-  icon: IconName;
-  accent: string;
-  action?: { label: string; onPress: () => void };
-  children: ReactNode;
-}) {
-  return (
-    <Card>
-      <CardHeader title={title} icon={icon} accent={accent} actionLabel={action?.label} onAction={action?.onPress} />
-      {children}
-    </Card>
-  );
-}
-
 /** Member profile: everything about one person + their calendar, tasks and shopping. */
 export function ChildScreen() {
   const { t } = useTranslation();
@@ -86,6 +74,7 @@ export function ChildScreen() {
   const setPhoto = useSetPersonPhoto();
   const syncedPhoto = usePersonPhoto(id ? photoKey.child(id) : null);
   const [editing, setEditing] = useState(false);
+  const [measuring, setMeasuring] = useState(false);
   const [activitiesFor, setActivitiesFor] = useState<Member | null>(null);
   const back = () => (router.canGoBack() ? router.back() : router.navigate('/family'));
 
@@ -101,7 +90,6 @@ export function ChildScreen() {
   }
 
   const days = weekdayNames(locale);
-  const birthday = nextBirthday(c, today);
   const subtitle = [
     t(`family.relations.${c.relation}`),
     c.birthDate ? t('family.age', { count: ageFrom(c.birthDate, today) }) : null,
@@ -121,66 +109,55 @@ export function ChildScreen() {
   };
 
   const sizeLabel = (key: string) => ((SIZE_PRESETS as readonly string[]).includes(key) ? t(`family.sizes.${key}`) : key);
-  const health = c.health;
 
-  const info = (
-    <Card>
-      <View style={{ flexDirection: 'row', gap: spacing.lg, alignItems: 'center' }}>
-        <EditablePhoto size={84} hasPhoto={!!syncedPhoto || !!c.photo} onPick={(source) => void setPhoto(photoKey.child(c.id), source)}>
-          <ChildAvatar child={c} size={84} />
-        </EditablePhoto>
-        <View style={{ flex: 1, gap: spacing.sm }}>
-          {birthday ? (
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, alignItems: 'center' }}>
-              <Badge
-                icon="gift"
-                tone={birthday.daysUntil <= 7 ? 'warning' : 'neutral'}
-                label={birthday.daysUntil === 0 ? t('family.birthdays.today') : t('family.birthdays.inDays', { count: birthday.daysUntil })}
-              />
-              <AppText variant="small" tone="textMuted">
-                {t('family.birthdays.turns', { count: birthday.turns })} · {formatLongDate(birthday.date, locale)}
-              </AppText>
-            </View>
-          ) : (
-            <AppText variant="small" tone="textMuted">
-              {t('family.noBirthDate')}
-            </AppText>
-          )}
-          {c.calendarId ? (
-            <Button
-              label={t('family.profile.openCalendar')}
-              icon="calendar"
-              size="sm"
-              variant="secondary"
-              onPress={() => router.navigate('/calendars')}
-              style={{ alignSelf: 'flex-start' }}
-            />
-          ) : null}
-        </View>
-      </View>
-      <View style={{ gap: spacing.sm, marginTop: spacing.lg }}>
-        <Row
-          icon="🎂"
-          label={t('family.form.birthDate')}
-          value={
-            c.birthDate ? fromDateKey(c.birthDate).toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' }) : null
-          }
-        />
-        <Row icon="📞" label={t('family.form.phone')} value={c.phone} />
-        <Row icon="✉️" label={t('family.form.email')} value={c.email} />
-        {c.relation === 'child' ? (
-          <Row icon="🏫" label={t('family.profile.school')} value={[c.school, c.schoolClass].filter(Boolean).join(' · ')} />
-        ) : (
-          <Row icon="💼" label={t('family.form.occupation')} value={c.occupation} />
-        )}
-      </View>
-      {c.importantInfo ? (
-        <View style={{ marginTop: spacing.md }}>
-          <InfoNote tone="warning" icon="alert-triangle" title={t('family.form.importantInfo')} description={c.importantInfo} />
-        </View>
-      ) : null}
-    </Card>
+  const photo = (
+    <EditablePhoto size={96} hasPhoto={!!syncedPhoto || !!c.photo} onPick={(source) => void setPhoto(photoKey.child(c.id), source)}>
+      <ChildAvatar child={c} size={96} />
+    </EditablePhoto>
   );
+  const hero = (
+    <ProfileHero
+      member={c}
+      photo={photo}
+      actions={
+        c.calendarId ? (
+          <Button
+            label={t('family.profile.openCalendar')}
+            icon="calendar"
+            size="sm"
+            variant="secondary"
+            onPress={() => router.navigate('/calendars')}
+          />
+        ) : null
+      }
+    />
+  );
+  const contact =
+    c.phone || c.email || c.school || c.occupation || c.birthDate ? (
+      <SectionCard
+        title={t('family.profile.about')}
+        icon="user"
+        accent={c.color}
+        action={{ label: t('common.edit'), onPress: () => setEditing(true) }}
+      >
+        <View style={{ gap: spacing.sm }}>
+          <Row
+            icon="🎂"
+            label={t('family.form.birthDate')}
+            value={
+              c.birthDate ? fromDateKey(c.birthDate).toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' }) : null
+            }
+          />
+          <Row icon="📞" label={t('family.form.phone')} value={c.phone} />
+          <Row icon="✉️" label={t('family.form.email')} value={c.email} />
+          {c.relation === 'child' ? (
+            <Row icon="🏫" label={t('family.profile.school')} value={[c.school, c.schoolClass].filter(Boolean).join(' · ')} />
+          ) : (
+            <Row icon="💼" label={t('family.form.occupation')} value={c.occupation} />
+          )}
+        </View>
+      </SectionCard>
+    ) : null;
 
   const activities = (
     <SectionCard
@@ -221,25 +198,7 @@ export function ChildScreen() {
     </SectionCard>
   );
 
-  const healthCard =
-    health && Object.values(health).some(Boolean) ? (
-      <SectionCard
-        title={t('family.form.health')}
-        icon="heart"
-        accent="#E11D48"
-        action={{ label: t('common.edit'), onPress: () => setEditing(true) }}
-      >
-        <View style={{ gap: spacing.sm }}>
-          {health.allergies ? (
-            <InfoNote tone="warning" icon="alert-triangle" title={t('family.form.allergies')} description={health.allergies} />
-          ) : null}
-          <Row icon="🩸" label={t('family.form.bloodType')} value={health.bloodType} />
-          <Row icon="🩺" label={c.relation === 'child' ? t('family.form.pediatrician') : t('family.form.doctor')} value={health.doctor} />
-          <Row icon="💊" label={t('family.form.medication')} value={health.medication} />
-          <Row icon="📝" label={t('family.form.healthNotes')} value={health.notes} />
-        </View>
-      </SectionCard>
-    ) : null;
+  const healthCard = <HealthCard member={c} />;
 
   const extra =
     c.extraFields?.length || c.notes ? (
@@ -286,28 +245,43 @@ export function ChildScreen() {
       {wide ? (
         <View style={{ flexDirection: 'row', gap: spacing.xl, alignItems: 'flex-start' }}>
           <View style={{ flex: 1, gap: spacing.xl, minWidth: 0 }}>
-            {info}
+            {hero}
+            <KeyAlerts member={c} />
+            <StatTiles member={c} onMeasure={() => setMeasuring(true)} />
+            {healthCard}
+            <FavoritesCard member={c} />
             {activities}
             {sizes}
-            {healthCard}
             {extra}
           </View>
           <View style={{ width: 380, gap: spacing.xl }}>
+            <GrowthCard member={c} onAdd={() => setMeasuring(true)} />
+            <EmergencyCard member={c} />
+            <GiftIdeasCard member={c} />
+            {contact}
             {related}
             {tomorrow}
           </View>
         </View>
       ) : (
         <>
-          {info}
+          {hero}
+          <KeyAlerts member={c} />
+          <StatTiles member={c} onMeasure={() => setMeasuring(true)} />
+          {healthCard}
+          <FavoritesCard member={c} />
+          <GrowthCard member={c} onAdd={() => setMeasuring(true)} />
           {activities}
+          <EmergencyCard member={c} />
+          <GiftIdeasCard member={c} />
+          {contact}
           {related}
           {tomorrow}
           {sizes}
-          {healthCard}
           {extra}
         </>
       )}
+      <MeasurementSheet member={c} visible={measuring} onClose={() => setMeasuring(false)} />
       <ChildFormSheet visible={editing} child={c} onClose={() => setEditing(false)} />
       <ActivitiesSheet member={activitiesFor} onClose={() => setActivitiesFor(null)} />
     </Screen>
