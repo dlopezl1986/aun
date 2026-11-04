@@ -59,7 +59,7 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "AUN necesita acceder a tus fotos para guardarlas en 2ndBrain.",
+          "photosPermission": "AUN necesita acceder a tus fotos para guardarlas en Docs.",
           "cameraPermission": false,
           "microphonePermission": false
         }

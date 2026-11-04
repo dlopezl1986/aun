@@ -36,7 +36,7 @@ const es = {
         heading: 'Qué datos guardamos',
         bullets: [
           'Tu cuenta: nombre, email y la fecha de alta. La contraseña la gestiona Firebase Authentication (Google); AUN nunca la ve ni la guarda.',
-          'Lo que creas: tareas, calendarios y eventos, notas del día, carpetas y datos de documentos de 2ndBrain, miembros de la familia, «Para mañana», listas de la compra, recordatorios y avisos.',
+          'Lo que creas: tareas, calendarios y eventos, notas del día, carpetas y datos de documentos, miembros de la familia, «Para mañana», listas de la compra, recordatorios y avisos.',
           'Datos de menores que tú introduces como madre, padre o tutor (por ejemplo nombre, fecha de nacimiento, colegio, actividades o tallas de tus hijos). La foto de un hijo se guarda solo en tu dispositivo.',
           'Si activas los avisos fuera de la app: tu email para el resumen diario y, si conectas Telegram, el identificador de ese chat.',
           'Con quién compartes: las personas que invitas, su papel (ver o editar) y su nombre.',
@@ -46,7 +46,7 @@ const es = {
         heading: 'Lo que no guardamos',
         bullets: [
           'Tus correos: si conectas Gmail u Outlook se consultan directamente a Google o Microsoft; los permisos de acceso quedan solo en tu dispositivo.',
-          'Los archivos de 2ndBrain: se guardan en tu dispositivo o en tu propio Google Drive (AUN solo ve los archivos que crea él).',
+          'Los archivos de Docs: se guardan en tu dispositivo o en tu propio Google Drive (AUN solo ve los archivos que crea él).',
           'No hay publicidad, no vendemos datos y no usamos herramientas de analítica ni de seguimiento de terceros.',
         ],
       },
@@ -168,7 +168,7 @@ const en = {
         heading: 'What we store',
         bullets: [
           'Your account: name, e-mail and sign-up date. Your password is handled by Firebase Authentication (Google); AUN never sees or stores it.',
-          'What you create: tasks, calendars and events, day notes, 2ndBrain folders and document details, family members, “For tomorrow”, shopping lists, reminders and notices.',
+          'What you create: tasks, calendars and events, day notes, folders and document details, family members, “For tomorrow”, shopping lists, reminders and notices.',
           'Data about minors that you enter as their parent or guardian (e.g. your children’s name, birth date, school, activities or sizes). A child’s photo is kept only on your device.',
           'If you turn on notices outside the app: your e-mail for the daily summary and, if you connect Telegram, that chat’s id.',
           'Who you share with: the people you invite, their role (view or edit) and their name.',
@@ -178,7 +178,7 @@ const en = {
         heading: 'What we do not store',
         bullets: [
           'Your e-mails: if you connect Gmail or Outlook they are read directly from Google or Microsoft; the access permission stays on your device.',
-          '2ndBrain files: they are kept on your device or in your own Google Drive (AUN only sees the files it creates).',
+          'Docs files: they are kept on your device or in your own Google Drive (AUN only sees the files it creates).',
           'No advertising, we do not sell data and we use no third-party analytics or tracking.',
         ],
       },
