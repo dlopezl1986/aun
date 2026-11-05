@@ -1,33 +1,17 @@
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
-import { View } from 'react-native';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { AppText } from '@/components/ui/AppText';
-import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { Card, CardHeader } from '@/components/ui/Card';
 import { Sheet } from '@/components/ui/Sheet';
-import { EmptyState, LoadingState } from '@/components/ui/States';
 import { TextField } from '@/components/ui/TextField';
-import { useLocale } from '@/hooks/useLocale';
-import { useToday } from '@/hooks/useToday';
 import { StatTile } from '@/modules/dashboard/components/StatTile';
 import { SummaryTile } from '@/modules/dashboard/components/SummaryTile';
-import { useTheme } from '@/theme';
-import { formatShortDate } from '@/utils/date';
-import { ChildAvatar } from './components/ChildAvatar';
-import { FamilyChecklist } from './components/FamilyChecklist';
 import { PersonPicker, usePeople } from './components/PersonPicker';
-import { useAddFamilyItem, useChildren, useFamilyList } from './hooks';
+import { useAddFamilyItem, useFamilyList } from './hooks';
 import { familyMeta } from './meta';
-import { upcomingBirthdays } from './selectors';
 
 const openFamily = () => router.navigate('/family');
-
-export function TomorrowWidget() {
-  return <FamilyChecklist list="tomorrow" compact onOpen={openFamily} />;
-}
 
 export function FamilyTodaySummary() {
   const { t } = useTranslation();
@@ -47,60 +31,6 @@ export function FamilyTodaySummary() {
       ]}
       onPress={openFamily}
     />
-  );
-}
-
-/** "Cumpleaños": upcoming birthdays of the children (next 90 days). */
-export function BirthdaysWidget() {
-  const { t } = useTranslation();
-  const locale = useLocale();
-  const { spacing } = useTheme();
-  const today = useToday();
-  const { data, isLoading } = useChildren();
-  const list = useMemo(() => upcomingBirthdays(data ?? [], today), [data, today]);
-
-  return (
-    <Card style={{ flex: 1 }}>
-      <CardHeader
-        title={t('family.birthdays.title')}
-        icon="gift"
-        accent={familyMeta.accent}
-        actionLabel={t('common.open')}
-        onAction={openFamily}
-      />
-      {isLoading ? (
-        <LoadingState />
-      ) : list.length === 0 ? (
-        <EmptyState
-          compact
-          icon="gift"
-          accent={familyMeta.accent}
-          title={t('family.birthdays.empty')}
-          description={data?.length ? t('family.birthdays.emptyHint') : t('family.birthdays.noChildren')}
-        />
-      ) : (
-        <View style={{ gap: spacing.sm }}>
-          {list.slice(0, 4).map((b) => (
-            <View key={b.child.id} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 44 }}>
-              <ChildAvatar child={b.child} size={34} />
-              <View style={{ flex: 1 }}>
-                <AppText variant="bodyStrong" numberOfLines={1}>
-                  {b.child.name}
-                </AppText>
-                <AppText variant="small" tone="textMuted">
-                  {t('family.birthdays.turns', { count: b.turns })} · {formatShortDate(b.date, locale)}
-                </AppText>
-              </View>
-              <Badge
-                label={b.daysUntil === 0 ? t('family.birthdays.today') : t('family.birthdays.inDays', { count: b.daysUntil })}
-                tone={b.daysUntil <= 7 ? 'warning' : 'neutral'}
-                icon="gift"
-              />
-            </View>
-          ))}
-        </View>
-      )}
-    </Card>
   );
 }
 

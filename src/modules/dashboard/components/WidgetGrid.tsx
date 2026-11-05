@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { View, useWindowDimensions } from 'react-native';
 
+import { InlineEmptyStates } from '@/components/ui/States';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { useAppPreferences } from '@/state/appPreferences';
 import type { DashboardWidgetState } from '@/state/userSettingsStore';
@@ -46,40 +47,49 @@ export function WidgetGrid({ widgets, editing, onMove, onResize, onHide }: Props
   const gutter = !hasSidebar ? spacing.lg : breakpoint === 'medium' ? spacing.xxl : spacing.xxxl;
   const estimate = Math.min(viewport.width - sidebar - gutter * 2, layout.contentMaxWidth);
   const width = measured.width && measured.viewport === viewport.width ? measured.width : estimate;
-  const gap = spacing.xl;
+  // Phones: tighter gaps between widgets, less scrolling.
+  const gap = width < 680 ? spacing.md : spacing.xl;
   const columns = columnsFor(width);
   const colWidth = columns > 0 ? (width - gap * (columns - 1)) / columns : width;
 
   return (
-    <View
-      onLayout={(e) => setMeasured({ width: e.nativeEvent.layout.width, viewport: viewport.width })}
-      style={{ flexDirection: 'row', flexWrap: 'wrap', gap, alignItems: 'stretch' }}
-    >
-      {width > 0
-        ? widgets.map((w, i) => {
-            const span = spanFor(w.size, columns);
-            const Component = w.definition.component;
-            return (
-              <View key={w.definition.id} style={{ width: colWidth * span + gap * (span - 1) }}>
-                {editing ? (
-                  <WidgetFrame
-                    definition={w.definition}
-                    size={w.size}
-                    isFirst={i === 0}
-                    isLast={i === widgets.length - 1}
-                    onMove={(d) => onMove?.(w.definition.id, d)}
-                    onResize={(s) => onResize?.(w.definition.id, s)}
-                    onHide={() => onHide?.(w.definition.id)}
-                  >
+    <InlineEmptyStates>
+      <View
+        onLayout={(e) => setMeasured({ width: e.nativeEvent.layout.width, viewport: viewport.width })}
+        style={{
+          flexDirection: 'row',
+          flexWrap: 'wrap',
+          gap,
+          // Each widget keeps its own height (grows with its content) instead of matching its neighbour.
+          alignItems: 'flex-start',
+        }}
+      >
+        {width > 0
+          ? widgets.map((w, i) => {
+              const span = spanFor(w.size, columns);
+              const Component = w.definition.component;
+              return (
+                <View key={w.definition.id} style={{ width: colWidth * span + gap * (span - 1) }}>
+                  {editing ? (
+                    <WidgetFrame
+                      definition={w.definition}
+                      size={w.size}
+                      isFirst={i === 0}
+                      isLast={i === widgets.length - 1}
+                      onMove={(d) => onMove?.(w.definition.id, d)}
+                      onResize={(s) => onResize?.(w.definition.id, s)}
+                      onHide={() => onHide?.(w.definition.id)}
+                    >
+                      <Component />
+                    </WidgetFrame>
+                  ) : (
                     <Component />
-                  </WidgetFrame>
-                ) : (
-                  <Component />
-                )}
-              </View>
-            );
-          })
-        : null}
-    </View>
+                  )}
+                </View>
+              );
+            })
+          : null}
+      </View>
+    </InlineEmptyStates>
   );
 }

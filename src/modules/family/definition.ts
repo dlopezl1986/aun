@@ -2,7 +2,7 @@ import type { AppModule } from '@/types/module';
 import { birthdayAlertSource, tomorrowAlertSource } from './alerts';
 import { childLinkSource } from './links';
 import { familyMeta } from './meta';
-import { BirthdaysWidget, FamilyTodaySummary, FamilyWeeklyStats, QuickFamilyItemSheet, TomorrowWidget } from './widgets';
+import { FamilyTodaySummary, FamilyWeeklyStats, QuickFamilyItemSheet } from './widgets';
 
 export const familyModule: AppModule = {
   id: familyMeta.id,
@@ -22,26 +22,5 @@ export const familyModule: AppModule = {
   quickActions: [{ id: 'family.addItem', labelKey: 'family.quick.action', icon: 'briefcase', Sheet: QuickFamilyItemSheet }],
   search: { search: (q, s) => s.family.search(q.text) },
   linkSources: [childLinkSource],
-  widgets: [
-    {
-      id: 'family.tomorrow',
-      moduleId: familyMeta.id,
-      titleKey: 'family.tomorrow.title',
-      descriptionKey: 'family.tomorrow.description',
-      icon: 'briefcase',
-      size: 'md',
-      defaultVisible: true,
-      component: TomorrowWidget,
-    },
-    {
-      id: 'family.birthdays',
-      moduleId: familyMeta.id,
-      titleKey: 'family.birthdays.title',
-      descriptionKey: 'family.birthdays.description',
-      icon: 'gift',
-      size: 'md',
-      defaultVisible: true,
-      component: BirthdaysWidget,
-    },
-  ],
+  // No widgets on Inicio (user's decision, 2026-11-05): their «Hoy» tile is enough.
 };
