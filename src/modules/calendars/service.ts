@@ -295,6 +295,27 @@ export class CalendarService {
     return n;
   }
 
+  /**
+   * Shifts saved from the event form ("Turno de tarde"…) before they were tied to
+   * a shift label: tie them to it, so they count in the month's hours.
+   * `byTitle` maps each usual shift title to its label. Returns how many changed.
+   */
+  async linkFormShifts(byTitle: Map<string, ShiftType>): Promise<number> {
+    let n = 0;
+    for (const e of await this.events.list()) {
+      if (e.shiftTypeId || e.allDay) continue;
+      const type = byTitle.get(e.title);
+      if (!type) continue;
+      try {
+        await this.events.update(e.id, { shiftTypeId: type.id, shiftHours: countedHours(type) });
+        n += 1;
+      } catch {
+        // A calendar shared with me read-only: leave it as it is.
+      }
+    }
+    return n;
+  }
+
   /** The eraser: removes every shift painted on that day in that calendar. */
   async eraseShifts(calendarId: string, date: DateKey): Promise<{ added: CalendarEvent[]; removed: CalendarEvent[] }> {
     const removed = await this.shiftsOn(calendarId, date);

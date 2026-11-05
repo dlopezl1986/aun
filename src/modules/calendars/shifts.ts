@@ -43,6 +43,18 @@ export function countedHours(s: { allDay: boolean; start: string; end: string; h
   return typeof s.hours === 'number' ? s.hours : shiftDuration(s);
 }
 
+/**
+ * The shift label that stands for a usual shift of the event form: the one with
+ * its name ("Tarde"), else the one with its times.
+ */
+export function usualShiftLabel<T extends { name: string; allDay: boolean; start: string; end: string }>(
+  types: T[],
+  name: string,
+  hours: ShiftHours,
+): T | null {
+  return types.find((s) => s.name === name) ?? types.find((s) => !s.allDay && s.start === hours.start && s.end === hours.end) ?? null;
+}
+
 /** End date of a shift starting on `startDate`: the next day when it ends past midnight. */
 export function shiftEndDate(startDate: DateKey, hours: ShiftHours): DateKey {
   return hours.end <= hours.start ? toDateKey(addDays(fromDateKey(startDate), 1)) : startDate;

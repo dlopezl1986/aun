@@ -1,5 +1,5 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, View, useWindowDimensions } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
@@ -44,7 +44,7 @@ import { DaySheet } from './components/DaySheet';
 import { ShiftHoursSummary } from './components/ShiftHoursSummary';
 import { ShiftModeBar, type ShiftBrush } from './components/ShiftModeBar';
 import { formatHours, shiftTotals } from './shiftHours';
-import { SHIFT_HOURS_REV } from './shifts';
+import { SHIFT_HOURS_REV, SHIFT_IDS } from './shifts';
 import { ShiftTypesSheet } from './components/ShiftTypesSheet';
 import { MonthGrid } from './components/MonthGrid';
 import { holidayOccurrences, holidaysBetween, isHoliday } from './holidays';
@@ -171,6 +171,22 @@ export function CalendarsScreen() {
     if (needsHours && !ensureShiftTypes.isPending) ensureShiftTypes.mutate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [needsHours]);
+  // Shifts saved from the event form before they were tied to a label ("Turno de tarde"…):
+  // tie them once, so they count in the hours under the month.
+  const formShiftTitles = useMemo(
+    () => new Set(SHIFT_IDS.map((id) => t('calendars.shifts.title', { shift: t(`calendars.shifts.names.${id}`).toLowerCase() }))),
+    [t],
+  );
+  const linkedFormShifts = useRef(false);
+  const hasUnlinkedFormShifts = !!occurrences.data?.some(
+    (o) => !o.event.shiftTypeId && !o.event.allDay && formShiftTitles.has(o.event.title) && access.canEdit(o.calendar),
+  );
+  useEffect(() => {
+    if (!hasUnlinkedFormShifts || linkedFormShifts.current || ensureShiftTypes.isPending) return;
+    linkedFormShifts.current = true;
+    ensureShiftTypes.mutate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasUnlinkedFormShifts]);
   const finishShiftMode = () => {
     setShiftMode(false);
     setBrush(null);
