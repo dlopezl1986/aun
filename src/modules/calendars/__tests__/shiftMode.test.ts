@@ -1,6 +1,7 @@
 import { createServices } from '@/services/container';
 import { memoryStore } from '@/test/memoryStore';
 import { shiftTotals } from '../shiftHours';
+import { usualShiftLabel } from '../shifts';
 
 // jest.mock factories run lazily and must use require().
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -193,5 +194,45 @@ describe('shift hours', () => {
       ['Mañanas', '#1E3A8A'],
       ['Tarde', byName('Tarde').color],
     ]);
+  });
+  it('shifts saved from the event form count in the month once tied to their label', async () => {
+    const { s, cal, byName } = await setup();
+    const form = (title: string, date: string, start: string, end: string) =>
+      s.calendars.createEvent({ calendarId: cal.id, title, allDay: false, startDate: date, startTime: start, endDate: date, endTime: end });
+    // New ones: the form ties them to the label, like shift mode does.
+    const tarde = usualShiftLabel(await s.shiftTypes.list(), 'Tarde', { start: '15:00', end: '23:00' })!;
+    await s.calendars.createEvent({
+      calendarId: cal.id,
+      title: 'Turno de tarde',
+      allDay: false,
+      startDate: '2026-11-02',
+      startTime: '15:00',
+      endDate: '2026-11-02',
+      endTime: '23:00',
+      shiftTypeId: tarde.id,
+      shiftHours: 7,
+    });
+    // Old ones (saved before): tied by their title.
+    await form('Turno de mañana', '2026-11-03', '06:00', '14:00');
+    await form('Médico', '2026-11-04', '10:00', '11:00');
+    const month = () =>
+      s.calendars
+        .occurrencesBetween(new Date('2026-10-26T00:00'), new Date('2026-12-07T00:00'))
+        .then(async (occ) => shiftTotals(occ, await s.shiftTypes.list(), new Date(2026, 10, 1)));
+    expect((await month())[0]).toMatchObject({ count: 1, hours: 7 });
+    expect(await s.calendars.linkFormShifts(new Map([['Turno de mañana', byName('Mañana')]]))).toBe(1);
+    expect((await month())[0]).toMatchObject({ count: 2, hours: 14 });
+    // Only once.
+    expect(await s.calendars.linkFormShifts(new Map([['Turno de mañana', byName('Mañana')]]))).toBe(0);
+  });
+
+  it('a usual shift of the form finds its label by name, else by its times', () => {
+    const types = [
+      { name: 'Mañanas', allDay: false, start: '07:00', end: '15:00' },
+      { name: 'Tarde', allDay: false, start: '14:00', end: '22:00' },
+    ];
+    expect(usualShiftLabel(types, 'Tarde', { start: '15:00', end: '23:00' })?.name).toBe('Tarde');
+    expect(usualShiftLabel(types, 'Mañana', { start: '07:00', end: '15:00' })?.name).toBe('Mañanas');
+    expect(usualShiftLabel(types, 'Noche', { start: '23:00', end: '07:00' })).toBeNull();
   });
 });

@@ -24,10 +24,20 @@ import { withAlpha } from '@/utils/color';
 import { addDays, combine, fromDateKey, timeOf, toDateKey, weekdayNames, type DateKey } from '@/utils/date';
 import { mondayIndex } from '@/utils/recurrence';
 import { describeReminder, REMINDER_PRESETS } from '@/utils/recurrenceText';
-import { useCreateEvent, useUpdateEvent } from '../hooks';
+import { useCreateEvent, useEnsureShiftTypes, useUpdateEvent } from '../hooks';
 import { calendarsMeta } from '../meta';
 import { eventLinks } from '../service';
-import { DEFAULT_SHIFT_COLORS, DEFAULT_SHIFT_HOURS, detectShift, endOfMonth, SHIFT_IDS, shiftEndDate, type ShiftId } from '../shifts';
+import {
+  countedHours,
+  DEFAULT_SHIFT_COLORS,
+  DEFAULT_SHIFT_HOURS,
+  detectShift,
+  endOfMonth,
+  SHIFT_IDS,
+  shiftEndDate,
+  usualShiftLabel,
+  type ShiftId,
+} from '../shifts';
 import type { Calendar, CalendarEvent } from '../types';
 import { EventColorPicker } from './EventColorPicker';
 
@@ -83,6 +93,7 @@ function EventForm({ onClose, calendars: allCalendars, event, date, time, initia
   const { spacing, radius, colors } = useTheme();
   const create = useCreateEvent();
   const update = useUpdateEvent();
+  const ensureShiftTypes = useEnsureShiftTypes();
   const linkSources = useLinkSources(calendarsMeta.id);
   const init = initialState(event, date, time);
   const locale = useLocale();
@@ -118,9 +129,10 @@ function EventForm({ onClose, calendars: allCalendars, event, date, time, initia
   const [links, setLinks] = useState<EntityRef[]>(event ? eventLinks(event) : (initialLinks ?? []));
   const [linking, setLinking] = useState(false);
   const [invalid, setInvalid] = useState<Set<string>>(new Set());
-  const [shift, setShift] = useState<ShiftId | null>(() =>
+  const [initialShift] = useState<ShiftId | null>(() =>
     event && !event.allDay ? detectShift(init.startTime, init.endTime, shiftHours) : null,
   );
+  const [shift, setShift] = useState<ShiftId | null>(initialShift);
   // Remounts the advanced recurrence editor when the quick weekday picker changes the rule.
   const [recurrenceKey, setRecurrenceKey] = useState(0);
 
@@ -187,7 +199,26 @@ function EventForm({ onClose, calendars: allCalendars, event, date, time, initia
   const relevantInvalid = [...invalid].filter((f) => !allDay || !f.endsWith('Time'));
   const canSave = !!(title.trim() || shift) && !!calendarId && relevantInvalid.length === 0;
 
-  const save = () => {
+  /**
+   * A shift from the form is tied to its shift label (as if painted in shift mode),
+   * so it counts in the month's hours. One that already had a label keeps it.
+   */
+  const shiftLink = async (): Promise<{ shiftTypeId?: string | null; shiftHours?: number | null }> => {
+    if (!shift) {
+      // The shift chip was taken off: it is a normal event now.
+      return event?.shiftTypeId && initialShift ? { shiftTypeId: null, shiftHours: null } : {};
+    }
+    if (event?.shiftTypeId) return {};
+    try {
+      const name = t(`calendars.shifts.names.${shift}`);
+      const type = usualShiftLabel(await ensureShiftTypes.mutateAsync(), name, shiftHours[shift]);
+      return type ? { shiftTypeId: type.id, shiftHours: countedHours(type) } : {};
+    } catch {
+      return {};
+    }
+  };
+
+  const save = async () => {
     if (!canSave || !calendarId) return;
     // Adjusted shift hours become the new default for that shift.
     if (shift && !allDay && (shiftHours[shift].start !== startTime || shiftHours[shift].end !== endTime))
@@ -210,6 +241,7 @@ function EventForm({ onClose, calendars: allCalendars, event, date, time, initia
       reminders,
       recurrence,
       links,
+      ...(await shiftLink()),
     };
     if (event) update.mutate({ id: event.id, input }, { onSuccess: onClose });
     else create.mutate(input, { onSuccess: onClose });
@@ -224,7 +256,12 @@ function EventForm({ onClose, calendars: allCalendars, event, date, time, initia
       footer={
         <>
           <Button label={t('common.cancel')} variant="ghost" onPress={onClose} />
-          <Button label={t('common.save')} onPress={save} disabled={!canSave} loading={create.isPending || update.isPending} />
+          <Button
+            label={t('common.save')}
+            onPress={save}
+            disabled={!canSave}
+            loading={create.isPending || update.isPending || ensureShiftTypes.isPending}
+          />
         </>
       }
     >

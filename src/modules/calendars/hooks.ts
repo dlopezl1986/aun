@@ -5,7 +5,8 @@ import { useDataMutation, useDataQuery } from '@/state/queryClient';
 import { addDays, startOfDay, toDateKey } from '@/utils/date';
 import { EventValidationError, type CalendarInput, type DayNoteInput, type EventInput, type MoveScope } from './service';
 import type { ShiftTypeInput } from './shiftTypes';
-import type { CalendarEvent } from './types';
+import { DEFAULT_SHIFT_HOURS, SHIFT_IDS, usualShiftLabel } from './shifts';
+import type { CalendarEvent, ShiftType } from './types';
 
 export function useCalendars() {
   return useDataQuery('calendars', [], (s) => s.calendars.listCalendars());
@@ -181,7 +182,15 @@ export function useEnsureShiftTypes() {
       // Corrected hours on labels also correct the shifts already painted with the old ones.
       const corrections = await s.shiftTypes.fixHours(names);
       if (corrections.length) await s.calendars.recountShiftHours(corrections);
-      return s.shiftTypes.ensureDefaults(names, { hours, colors });
+      const types = await s.shiftTypes.ensureDefaults(names, { hours, colors });
+      // Shifts saved from the event form before they were tied to a label now count in the hours too.
+      const byTitle = new Map<string, ShiftType>();
+      for (const id of SHIFT_IDS) {
+        const type = usualShiftLabel(types, names[id], { ...DEFAULT_SHIFT_HOURS[id], ...hours[id] });
+        if (type) byTitle.set(t('calendars.shifts.title', { shift: names[id].toLowerCase() }), type);
+      }
+      await s.calendars.linkFormShifts(byTitle);
+      return types;
     },
     { invalidate: ['calendars', 'events'] },
   );
