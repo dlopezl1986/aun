@@ -2,7 +2,7 @@ import type { AppModule } from '@/types/module';
 import { reminderAlertSource } from './alerts';
 import { ReminderFormSheet } from './components/ReminderFormSheet';
 import { notificationsMeta } from './meta';
-import { NotificationsTodaySummary, RemindersWidget } from './widgets';
+import { RemindersWidget } from './widgets';
 
 /** Core module: the central notification hub cannot be disabled. */
 export const notificationsModule: AppModule = {
@@ -18,7 +18,7 @@ export const notificationsModule: AppModule = {
   notificationSource: true,
   alerts: [reminderAlertSource],
   entitlement: null,
-  todaySummary: NotificationsTodaySummary,
+  // No «Hoy» tile for now (user's decision, 2026-11-05); the component is kept.
   quickActions: [{ id: 'notifications.newReminder', labelKey: 'notifications.newReminder', icon: 'bell', Sheet: ReminderFormSheet }],
   search: { search: (q, s) => s.notifications.search(q.text) },
   widgets: [
