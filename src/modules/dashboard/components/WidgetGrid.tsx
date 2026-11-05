@@ -56,7 +56,13 @@ export function WidgetGrid({ widgets, editing, onMove, onResize, onHide }: Props
     <InlineEmptyStates>
       <View
         onLayout={(e) => setMeasured({ width: e.nativeEvent.layout.width, viewport: viewport.width })}
-        style={{ flexDirection: 'row', flexWrap: 'wrap', gap, alignItems: 'stretch' }}
+        style={{
+          flexDirection: 'row',
+          flexWrap: 'wrap',
+          gap,
+          // Each widget keeps its own height (grows with its content) instead of matching its neighbour.
+          alignItems: 'flex-start',
+        }}
       >
         {width > 0
           ? widgets.map((w, i) => {
