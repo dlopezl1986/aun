@@ -24,7 +24,10 @@ interface SummaryTileProps {
 export function SummaryTile({ icon, accent, label, value, details, onPress, loading, alert, alertLabel }: SummaryTileProps) {
   const { colors, spacing, radius, mode } = useTheme();
   const { isCompact } = useBreakpoint();
-  const pad = isCompact ? spacing.md : spacing.lg;
+  // Nothing to tell ("Sin eventos", "Todo listo"…): a smaller tile, so the panel
+  // only takes room where there is something; tiles with content stay big.
+  const quiet = !loading && !alert && !details?.length;
+  const pad = quiet ? spacing.sm + 2 : isCompact ? spacing.md : spacing.lg;
   const ink = mode === 'dark' ? lighten(accent, 0.35) : accent;
   return (
     <Pressable
@@ -36,8 +39,10 @@ export function SummaryTile({ icon, accent, label, value, details, onPress, load
         const { hovered, pressed } = interaction(s);
         return {
           flexGrow: 1,
-          flexBasis: 140,
-          gap: spacing.sm,
+          flexBasis: quiet ? 120 : 140,
+          // A quiet tile keeps its own small height next to a big one.
+          alignSelf: quiet ? 'flex-start' : 'stretch',
+          gap: quiet ? spacing.xs : spacing.sm,
           padding: pad,
           paddingTop: pad + 4,
           borderRadius: radius.lg,
@@ -53,15 +58,15 @@ export function SummaryTile({ icon, accent, label, value, details, onPress, load
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
         <View
           style={{
-            width: 30,
-            height: 30,
+            width: quiet ? 24 : 30,
+            height: quiet ? 24 : 30,
             borderRadius: radius.sm + 2,
             backgroundColor: withAlpha(accent, 0.16),
             alignItems: 'center',
             justifyContent: 'center',
           }}
         >
-          <Icon name={icon} size={16} color={ink} />
+          <Icon name={icon} size={quiet ? 13 : 16} color={ink} />
         </View>
         <AppText variant="overline" color={ink} style={{ flex: 1 }} numberOfLines={1}>
           {label}
@@ -92,7 +97,7 @@ export function SummaryTile({ icon, accent, label, value, details, onPress, load
         // Neutral placeholder: never show "no events" before data is known.
         <View style={{ height: 22, width: '60%', borderRadius: radius.sm, backgroundColor: colors.surfaceMuted, marginVertical: 1 }} />
       ) : (
-        <AppText variant="heading" numberOfLines={1}>
+        <AppText variant={quiet ? 'smallStrong' : 'heading'} numberOfLines={1}>
           {value}
         </AppText>
       )}
