@@ -48,6 +48,8 @@ interface MonthGridProps {
   holidays?: Map<string, string>;
   /** Only these days instead of a month (whole weeks are drawn; days outside are faded and empty). No month arrows. */
   range?: { start: Date; days: number; title: string };
+  /** Short day cells that only grow with what the day holds (Inicio), instead of a fixed tall grid. */
+  fitContent?: boolean;
 }
 
 /** Whole weeks (Monday first, like monthMatrix) covering `days` days from `start`. */
@@ -83,6 +85,7 @@ export function MonthGrid({
   holidays,
   onPaint,
   range,
+  fitContent,
 }: MonthGridProps) {
   const styles = useStyles();
   const { colors } = useTheme();
@@ -230,7 +233,11 @@ export function MonthGrid({
                   {...dropDay(key)}
                   style={[
                     styles.dayCell,
-                    { minHeight: isCompact ? 76 : 104, padding: isCompact ? 1 : 2, opacity: inMonth ? 1 : rangeKeys ? 0.35 : 0.55 },
+                    {
+                      minHeight: fitContent ? (isCompact ? 40 : 52) : isCompact ? 76 : 104,
+                      padding: isCompact ? 1 : 2,
+                      opacity: inMonth ? 1 : rangeKeys ? 0.35 : 0.55,
+                    },
                     holiday && { backgroundColor: withAlpha(HOLIDAY_COLOR, 0.12) },
                     isSelected && { borderColor: colors.primary, backgroundColor: withAlpha(colors.primary, 0.06) },
                     drag?.over === key &&

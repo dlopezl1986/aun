@@ -87,6 +87,7 @@ export function CalendarsOverviewWidget() {
         onNotePress={(n) => openDay(n.date)}
         onDayOpen={openDay}
         holidays={holidays}
+        fitContent
       />
     </Card>
   );
