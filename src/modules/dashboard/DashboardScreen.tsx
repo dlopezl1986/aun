@@ -22,6 +22,7 @@ import { SyncProblemNotice } from '@/modules/settings/components/SyncProblemNoti
 import { VerifyEmailNotice } from '@/modules/settings/components/VerifyEmailNotice';
 import { GlobalSearch } from './components/GlobalSearch';
 import { HiddenWidgets } from './components/HiddenWidgets';
+import { QuickActionsFab } from './components/QuickActionsFab';
 import { WidgetGrid } from './components/WidgetGrid';
 import { useTheme } from '@/theme';
 import { FamilyStrip } from './components/FamilyStrip';
@@ -93,50 +94,56 @@ export function DashboardScreen() {
   );
 
   return (
-    <Screen onRefresh={refresh}>
-      {header}
+    <View style={{ flex: 1 }}>
+      <Screen onRefresh={refresh}>
+        {header}
 
-      {editing ? null : <SyncProblemNotice />}
-      {editing ? null : <VerifyEmailNotice />}
-      {editing ? null : <GlobalSearch open={searching} onOpenChange={setSearching} />}
+        {editing ? null : <SyncProblemNotice />}
+        {editing ? null : <VerifyEmailNotice />}
+        {editing ? null : <GlobalSearch open={searching} onOpenChange={setSearching} />}
 
-      {visible.length ? (
-        <WidgetGrid
-          widgets={visible}
-          editing={editing}
-          onMove={(id, d) => void moveWidget(id, d, true)}
-          onResize={(id, size) => void setWidgetSize(id, size)}
-          onHide={(id) => void hide(id)}
-        />
-      ) : (
-        <Card>
-          <EmptyState
-            icon="layout"
-            title={t('dashboard.emptyTitle')}
-            description={t('dashboard.emptyDescription')}
-            actionLabel={editing ? undefined : t('dashboard.customize')}
-            onAction={editing ? undefined : () => setEditing(true)}
+        {visible.length ? (
+          <WidgetGrid
+            widgets={visible}
+            editing={editing}
+            onMove={(id, d) => void moveWidget(id, d, true)}
+            onResize={(id, size) => void setWidgetSize(id, size)}
+            onHide={(id) => void hide(id)}
           />
-        </Card>
-      )}
+        ) : (
+          <Card>
+            <EmptyState
+              icon="layout"
+              title={t('dashboard.emptyTitle')}
+              description={t('dashboard.emptyDescription')}
+              actionLabel={editing ? undefined : t('dashboard.customize')}
+              onAction={editing ? undefined : () => setEditing(true)}
+            />
+          </Card>
+        )}
 
-      {editing ? (
-        <>
-          <HiddenWidgets widgets={hidden} onShow={(id) => void setWidgetVisible(id, true)} />
-          <InfoNote title={t('dashboard.edit.tipTitle')} description={t('dashboard.edit.tip')} icon="info" />
-        </>
-      ) : (
-        // Bottom of Inicio: notifications and "Personalizar panel".
-        <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: spacing.sm, paddingTop: spacing.sm }}>
-          <Button
-            label={badge ? `${t('modules.notifications.title')} (${badge})` : t('modules.notifications.title')}
-            variant="secondary"
-            icon="bell"
-            onPress={() => router.navigate('/notifications')}
-          />
-          <Button label={t('dashboard.customize')} variant="secondary" icon="sliders" onPress={() => setEditing(true)} />
-        </View>
-      )}
-    </Screen>
+        {editing ? (
+          <>
+            <HiddenWidgets widgets={hidden} onShow={(id) => void setWidgetVisible(id, true)} />
+            <InfoNote title={t('dashboard.edit.tipTitle')} description={t('dashboard.edit.tip')} icon="info" />
+          </>
+        ) : (
+          // Bottom of Inicio: notifications and "Personalizar panel".
+          <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: spacing.sm, paddingTop: spacing.sm }}>
+            <Button
+              label={badge ? `${t('modules.notifications.title')} (${badge})` : t('modules.notifications.title')}
+              variant="secondary"
+              icon="bell"
+              onPress={() => router.navigate('/notifications')}
+            />
+            <Button label={t('dashboard.customize')} variant="secondary" icon="sliders" onPress={() => setEditing(true)} />
+          </View>
+        )}
+        {/* Room so the floating «+» never covers the end of the page. */}
+        {editing ? null : <View style={{ height: 56 }} />}
+      </Screen>
+      {/* Quick actions live behind the floating «+» (not while customising). */}
+      {editing ? null : <QuickActionsFab />}
+    </View>
   );
 }

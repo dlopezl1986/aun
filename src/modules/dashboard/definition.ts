@@ -1,5 +1,4 @@
 import type { AppModule } from '@/types/module';
-import { QuickActionsWidget } from './components/QuickActionsWidget';
 import { TodayEditControls, TodayPanel } from './components/TodayPanel';
 import { WeekWidget } from './components/WeekWidget';
 
@@ -26,17 +25,6 @@ export const dashboardModule: AppModule = {
       defaultVisible: true,
       component: TodayPanel,
       editControls: TodayEditControls,
-    },
-    {
-      id: 'dashboard.quickActions',
-      moduleId: 'dashboard',
-      titleKey: 'dashboard.quick.title',
-      descriptionKey: 'dashboard.quick.description',
-      icon: 'zap',
-      size: 'full',
-      sizes: ['lg', 'full'],
-      defaultVisible: true,
-      component: QuickActionsWidget,
     },
     {
       id: 'dashboard.week',
