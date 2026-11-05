@@ -2,7 +2,7 @@ import type { AppModule } from '@/types/module';
 import { taskAlertSource } from './alerts';
 import { linkedTasksSource, taskLinkSource } from './links';
 import { todoMeta } from './meta';
-import { PrioritiesWidget, QuickTaskSheet, TodayTasksWidget, TodoTodaySummary, TodoWeeklyStats } from './widgets';
+import { QuickTaskSheet, TodayTasksWidget, TodoTodaySummary, TodoWeeklyStats } from './widgets';
 
 export const todoModule: AppModule = {
   id: todoMeta.id,
@@ -33,16 +33,6 @@ export const todoModule: AppModule = {
       size: 'md',
       defaultVisible: true,
       component: TodayTasksWidget,
-    },
-    {
-      id: 'todo.priorities',
-      moduleId: 'todo',
-      titleKey: 'todo.priorities.title',
-      descriptionKey: 'todo.priorities.description',
-      icon: 'flag',
-      size: 'md',
-      defaultVisible: true,
-      component: PrioritiesWidget,
     },
   ],
 };

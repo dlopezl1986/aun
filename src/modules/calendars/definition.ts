@@ -3,7 +3,7 @@ import type { AppModule } from '@/types/module';
 import { dayNoteAlertSource, eventAlertSource } from './alerts';
 import { eventLinkSource, linkedEventsSource } from './links';
 import { calendarsMeta } from './meta';
-import { AgendaTodayWidget, CalendarsTodaySummary, CalendarsWeeklyStats, QuickEventSheet, UpcomingWidget } from './widgets';
+import { AgendaTodayWidget, CalendarsTodaySummary, CalendarsWeeklyStats, QuickEventSheet } from './widgets';
 
 export const calendarsModule: AppModule = {
   id: calendarsMeta.id,
@@ -46,16 +46,6 @@ export const calendarsModule: AppModule = {
       size: 'md',
       defaultVisible: true,
       component: AgendaTodayWidget,
-    },
-    {
-      id: 'calendars.upcoming',
-      moduleId: calendarsMeta.id,
-      titleKey: 'calendars.upcoming.title',
-      descriptionKey: 'calendars.upcoming.description',
-      icon: 'calendar',
-      size: 'md',
-      defaultVisible: true,
-      component: UpcomingWidget,
     },
   ],
 };
