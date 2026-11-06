@@ -2,6 +2,7 @@ import Feather from '@expo/vector-icons/Feather';
 import type { ComponentProps } from 'react';
 
 import { useTheme } from '@/theme';
+import { readableOn } from '@/utils/color';
 
 export type IconName = ComponentProps<typeof Feather>['name'];
 
@@ -19,7 +20,7 @@ export function Icon({ name, size = 20, color, accessibilityLabel }: IconProps) 
     <Feather
       name={name}
       size={size}
-      color={color ?? theme.colors.text}
+      color={color ? (theme.mode === 'dark' ? readableOn(color, theme.colors.surface, 3) : color) : theme.colors.text}
       accessible={!!accessibilityLabel}
       accessibilityLabel={accessibilityLabel}
       importantForAccessibility={accessibilityLabel ? 'yes' : 'no-hide-descendants'}

@@ -1,7 +1,7 @@
 import { View } from 'react-native';
 
 import { strongPalette } from '@/theme';
-import { colorFromString } from '@/utils/color';
+import { colorFromString, isLight } from '@/utils/color';
 import { AppText } from './AppText';
 
 interface AvatarProps {
@@ -23,7 +23,7 @@ export function Avatar({ name, size = 36, color }: AvatarProps) {
       accessibilityLabel={name}
       style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}
     >
-      <AppText variant={size >= 44 ? 'heading' : 'caption'} color="#FFFFFF" weight="semibold">
+      <AppText variant={size >= 44 ? 'heading' : 'caption'} color={isLight(bg) ? '#111827' : '#FFFFFF'} weight="semibold">
         {initials(name)}
       </AppText>
     </View>

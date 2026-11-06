@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { AppText } from '@/components/ui/AppText';
 import { Icon } from '@/components/ui/Icon';
 import { accentPalette, useTheme } from '@/theme';
-import { isLight, withAlpha } from '@/utils/color';
+import { isLight, swatchNeedsOutline, withAlpha } from '@/utils/color';
 
 interface Props {
   /** `null` = the calendar's colour. */
@@ -19,7 +19,7 @@ interface Props {
  */
 export function EventColorPicker({ value, calendarColor, onChange }: Props) {
   const { t } = useTranslation();
-  const { spacing, colors, radius } = useTheme();
+  const { spacing, colors, radius, mode } = useTheme();
   const same = (a: string | null, b: string) => !!a && a.toLowerCase() === b.toLowerCase();
   return (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: spacing.sm }} accessibilityRole="radiogroup">
@@ -70,8 +70,7 @@ export function EventColorPicker({ value, calendarColor, onChange }: Props) {
               backgroundColor: c,
               alignItems: 'center',
               justifyContent: 'center',
-              borderWidth: selected ? 3 : isLight(c) ? 1 : 0,
-              // Light colours get a thin outline so they show on light backgrounds.
+              borderWidth: selected ? 3 : swatchNeedsOutline(c, mode) ? 1 : 0,
               borderColor: selected ? colors.surface : colors.borderStrong,
               boxShadow: selected ? `0px 0px 0px 2px ${c}` : 'none',
             }}

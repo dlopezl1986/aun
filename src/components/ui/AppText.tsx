@@ -1,6 +1,7 @@
 import { Text, type TextProps, type TextStyle } from 'react-native';
 
 import { useTheme, type ColorScheme, type FontWeightToken, type TypographyVariant } from '@/theme';
+import { readableOn } from '@/utils/color';
 
 export interface AppTextProps extends TextProps {
   variant?: TypographyVariant;
@@ -27,7 +28,8 @@ export function AppText({ variant = 'body', tone = 'text', color, weight, align,
           lineHeight: t.lineHeight,
           letterSpacing: token.letterSpacing,
           textTransform: token.uppercase ? 'uppercase' : undefined,
-          color: color ?? theme.colors[tone],
+          // Raw colours (module accents, categories) are lifted in dark mode so they stay legible.
+          color: color ? (theme.mode === 'dark' ? readableOn(color, theme.colors.surface) : color) : theme.colors[tone],
           textAlign: align,
         },
         style,

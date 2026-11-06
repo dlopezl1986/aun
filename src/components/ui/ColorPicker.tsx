@@ -2,7 +2,7 @@ import { Pressable, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { accentPalette, useTheme } from '@/theme';
-import { isLight } from '@/utils/color';
+import { isLight, swatchNeedsOutline } from '@/utils/color';
 import { AppText } from './AppText';
 import { Icon } from './Icon';
 
@@ -13,7 +13,7 @@ interface ColorPickerProps {
 }
 
 export function ColorPicker({ value, onChange, label }: ColorPickerProps) {
-  const { spacing, colors } = useTheme();
+  const { spacing, colors, mode } = useTheme();
   const { t } = useTranslation();
   return (
     <View style={{ gap: spacing.sm }}>
@@ -35,8 +35,7 @@ export function ColorPicker({ value, onChange, label }: ColorPickerProps) {
                 backgroundColor: c,
                 alignItems: 'center',
                 justifyContent: 'center',
-                borderWidth: selected ? 3 : isLight(c) ? 1 : 0,
-                // Light colours get a thin outline so they show on light backgrounds.
+                borderWidth: selected ? 3 : swatchNeedsOutline(c, mode) ? 1 : 0,
                 borderColor: selected ? colors.surface : colors.borderStrong,
                 boxShadow: selected ? `0px 0px 0px 2px ${c}` : 'none',
               }}
