@@ -37,15 +37,21 @@ function ButtonBase({
   accessibilityHint,
   style,
 }: ButtonProps) {
-  const { colors, radius, spacing } = useTheme();
-  const palette = {
+  const { colors, radius, spacing, mode } = useTheme();
+  const isDisabled = disabled || loading;
+  const variants = {
     primary: { bg: colors.primary, hover: colors.primaryPressed, fg: colors.onPrimary, border: colors.primary },
     secondary: { bg: colors.surface, hover: colors.surfaceMuted, fg: colors.text, border: colors.borderStrong },
     soft: { bg: colors.primarySoft, hover: colors.primarySoft, fg: colors.primary, border: colors.primarySoft },
     ghost: { bg: 'transparent', hover: colors.surfaceMuted, fg: colors.text, border: 'transparent' },
     danger: { bg: colors.danger, hover: colors.danger, fg: '#FFFFFF', border: colors.danger },
-  }[variant];
-  const isDisabled = disabled || loading;
+  };
+  // In dark mode a half-transparent filled button turns into dark text on a dim
+  // tint; show disabled filled buttons as a muted surface instead.
+  const mutedDisabled = mode === 'dark' && !!disabled && !loading && (variant === 'primary' || variant === 'danger');
+  const palette = mutedDisabled
+    ? { bg: colors.surfaceMuted, hover: colors.surfaceMuted, fg: colors.textSubtle, border: colors.border }
+    : variants[variant];
 
   return (
     <Pressable
@@ -71,7 +77,7 @@ function ButtonBase({
             justifyContent: 'center',
             flexDirection: 'row',
             alignSelf: fullWidth ? 'stretch' : 'flex-start',
-            opacity: isDisabled ? 0.5 : pressed ? 0.88 : 1,
+            opacity: mutedDisabled ? 1 : isDisabled ? 0.5 : pressed ? 0.88 : 1,
           } satisfies ViewStyle,
           style,
         ];

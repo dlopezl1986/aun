@@ -88,7 +88,7 @@ export function MonthGrid({
   fitContent,
 }: MonthGridProps) {
   const styles = useStyles();
-  const { colors } = useTheme();
+  const { colors, mode } = useTheme();
   const locale = useLocale();
   const { t } = useTranslation();
   const { isCompact } = useBreakpoint();
@@ -236,7 +236,7 @@ export function MonthGrid({
                     {
                       minHeight: fitContent ? (isCompact ? 40 : 52) : isCompact ? 76 : 104,
                       padding: isCompact ? 1 : 2,
-                      opacity: inMonth ? 1 : rangeKeys ? 0.35 : 0.55,
+                      opacity: inMonth ? 1 : rangeKeys ? (mode === 'dark' ? 0.55 : 0.35) : mode === 'dark' ? 0.7 : 0.55,
                     },
                     holiday && { backgroundColor: withAlpha(HOLIDAY_COLOR, 0.12) },
                     isSelected && { borderColor: colors.primary, backgroundColor: withAlpha(colors.primary, 0.06) },

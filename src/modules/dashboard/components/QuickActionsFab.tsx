@@ -21,7 +21,7 @@ const ITEM = 48;
  */
 export function QuickActionsFab() {
   const { t } = useTranslation();
-  const { colors, spacing, radius } = useTheme();
+  const { colors, spacing, radius, mode } = useTheme();
   const { isCompact } = useBreakpoint();
   const modules = useEnabledModules();
   const [expanded, setExpanded] = useState(false);
@@ -56,7 +56,9 @@ export function QuickActionsFab() {
           accessibilityLabel={t('common.close')}
           style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9 }}
         >
-          <Animated.View style={{ flex: 1, backgroundColor: withAlpha('#0F172A', 0.28), opacity: progress }} />
+          <Animated.View
+            style={{ flex: 1, backgroundColor: mode === 'dark' ? 'rgba(0, 0, 0, 0.55)' : withAlpha('#0F172A', 0.28), opacity: progress }}
+          />
         </Pressable>
       ) : null}
 
@@ -103,7 +105,9 @@ export function QuickActionsFab() {
                       paddingVertical: spacing.xs + 2,
                       borderRadius: radius.pill,
                       backgroundColor: colors.surface,
-                      boxShadow: '0px 4px 14px rgba(15, 23, 42, 0.16)',
+                      boxShadow: mode === 'dark' ? '0px 4px 14px rgba(0, 0, 0, 0.5)' : '0px 4px 14px rgba(15, 23, 42, 0.16)',
+                      borderWidth: mode === 'dark' ? 1 : 0,
+                      borderColor: colors.border,
                     }}
                   >
                     <AppText variant="smallStrong" numberOfLines={1}>
