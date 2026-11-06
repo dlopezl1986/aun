@@ -122,7 +122,7 @@ export function canEditCalendar(spaces: Space[], calendar: { id: string; ownerId
 /** The space a row is stored in (null = private). */
 export async function spaceForRecord(
   collection: string,
-  data: { id: string; ownerId?: string; calendarId?: string },
+  data: { id: string; ownerId?: string; calendarId?: string; private?: boolean },
   ctx: { me: string; household: string; calendarOwner: (calendarId: string) => Promise<string | null> },
 ): Promise<string | null> {
   if (collection === 'calendars') return calendarSpaceId(data.ownerId || ctx.me, data.id);
@@ -131,6 +131,8 @@ export async function spaceForRecord(
     const owner = await ctx.calendarOwner(data.calendarId);
     return owner ? calendarSpaceId(owner, data.calendarId) : null;
   }
+  // A payment marked «Solo yo» stays private to its owner.
+  if (collection === 'payments' && data.private) return null;
   if (FAMILY_COLLECTIONS.has(collection)) return familySpaceId(ctx.household);
   return null;
 }

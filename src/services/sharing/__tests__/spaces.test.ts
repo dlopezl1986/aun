@@ -66,6 +66,10 @@ describe('sharing spaces', () => {
     expect(await spaceForRecord('tasks', { id: 't1' }, ctx)).toBeNull();
     expect(await spaceForRecord('documents', { id: 'd1' }, ctx)).toBeNull();
     expect(await spaceForRecord('dayNotes', { id: 'n1' }, ctx)).toBeNull();
+    // Payments: family unless marked «Solo yo».
+    expect(await spaceForRecord('payments', { id: 'p1' }, ctx)).toBe('fam_david');
+    expect(await spaceForRecord('payments', { id: 'p2', private: false }, ctx)).toBe('fam_david');
+    expect(await spaceForRecord('payments', { id: 'p3', private: true }, ctx)).toBeNull();
   });
 
   it('each person keeps the access chosen for them, even with the calendar shared with the whole family', () => {

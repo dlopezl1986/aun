@@ -65,7 +65,7 @@ export const en: Translation = {
     email: { title: 'Mail', description: 'Your Gmail and Outlook accounts.' },
     family: { title: 'Family', description: 'Kids, "for tomorrow" and the shopping list.' },
     shopping: { title: 'Shopping', description: 'Shopping lists by category, store and person.' },
-    payments: { title: 'Payments', description: 'What has to be paid, when, and how much to save for it.' },
+    payments: { title: 'Finances', description: 'What has to be paid, when, and how much to save for it.' },
     notifications: { title: 'Notifications', description: 'Alerts and reminders.' },
     settings: { title: 'Settings', description: 'Account, modules and preferences.' },
   },
@@ -1189,6 +1189,7 @@ export const en: Translation = {
     nextShort: 'next: {{date}}',
     finished: 'finished',
     paid: 'Paid',
+    privateLabel: 'Only you can see it',
     overdue: 'Overdue',
     overdueTitle: 'Overdue and unpaid',
     markPaid: 'Mark “{{title}}” as paid',
@@ -1227,6 +1228,10 @@ export const en: Translation = {
       category: 'Category',
       notes: 'Notes',
       notesPlaceholder: 'Account, reference, who gets paid…',
+      visibility: 'Who can see it',
+      visibilityFamily: '👨‍👩‍👧 Family',
+      visibilityPrivate: '🔒 Only me',
+      visibilityPrivateHint: "Only you will see it. The rest of the family won't.",
     },
     categories: {
       home: 'Home',
@@ -1275,7 +1280,7 @@ export const en: Translation = {
       inMonths_other: 'in {{count}} months',
     },
     widget: {
-      title: 'Payments',
+      title: 'Finances',
       description: 'What is due soon and what to put aside this month.',
     },
     summary: {
@@ -1595,7 +1600,7 @@ export const en: Translation = {
       birthdaysHint: 'The evening before and on the day at 9:00.',
       reminders: 'Manual reminders',
       remindersHint: 'Your reminders, one-off or recurring.',
-      payments: 'Payments',
+      payments: 'Finances',
       paymentsHint: 'Three days before and on the day at 9:00, if not paid yet.',
     },
     alerts: {
