@@ -63,7 +63,7 @@ export const es = {
     email: { title: 'Correo', description: 'Tus cuentas de Gmail y Outlook.' },
     family: { title: 'Familia', description: 'Hijos, "para mañana" y la lista de la compra.' },
     shopping: { title: 'Compras', description: 'Listas de la compra por categorías, tiendas y personas.' },
-    payments: { title: 'Pagos', description: 'Lo que hay que pagar, cuándo y cuánto ahorrar para ello.' },
+    payments: { title: 'Finanzas', description: 'Lo que hay que pagar, cuándo y cuánto ahorrar para ello.' },
     notifications: { title: 'Notificaciones', description: 'Avisos y recordatorios.' },
     settings: { title: 'Configuración', description: 'Cuenta, módulos y preferencias.' },
   },
@@ -1189,6 +1189,7 @@ export const es = {
     nextShort: 'próximo: {{date}}',
     finished: 'terminado',
     paid: 'Pagado',
+    privateLabel: 'Solo lo ves tú',
     overdue: 'Vencido',
     overdueTitle: 'Vencidos sin pagar',
     markPaid: 'Marcar «{{title}}» como pagado',
@@ -1227,6 +1228,10 @@ export const es = {
       category: 'Categoría',
       notes: 'Notas',
       notesPlaceholder: 'Cuenta de cargo, referencia, a quién se paga…',
+      visibility: 'Quién lo ve',
+      visibilityFamily: '👨‍👩‍👧 Familia',
+      visibilityPrivate: '🔒 Solo yo',
+      visibilityPrivateHint: 'Solo lo verás tú. El resto de la familia no lo verá.',
     },
     categories: {
       home: 'Casa',
@@ -1275,7 +1280,7 @@ export const es = {
       inMonths_other: 'en {{count}} meses',
     },
     widget: {
-      title: 'Pagos',
+      title: 'Finanzas',
       description: 'Lo que vence pronto y lo que hay que apartar este mes.',
     },
     summary: {
@@ -1595,7 +1600,7 @@ export const es = {
       birthdaysHint: 'La víspera y el mismo día a las 9:00.',
       reminders: 'Avisos manuales',
       remindersHint: 'Tus avisos, únicos o recurrentes.',
-      payments: 'Pagos',
+      payments: 'Finanzas',
       paymentsHint: 'Tres días antes y el mismo día a las 9:00, si aún no está pagado.',
     },
     alerts: {

@@ -20,6 +20,7 @@ import { formatMonthYear, formatShortDate, fromDateKey } from '@/utils/date';
 import { lighten, withAlpha } from '@/utils/color';
 import { DueRow } from './components/DueRow';
 import { PaymentSheet } from './components/PaymentSheet';
+import { PrivateMark } from './components/PrivateMark';
 import { monthsLeftLabel, relativeDay, scheduleLabel } from './describe';
 import { useAddSaving, useMoney, usePayments, useTogglePaid } from './hooks';
 import { paymentsMeta } from './meta';
@@ -119,7 +120,10 @@ function SavingRow({ goal, today, onSave, onOpen }: { goal: SavingGoal; today: s
     <View style={{ gap: spacing.sm, paddingVertical: spacing.sm }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
         <Pressable onPress={onOpen} accessibilityRole="button" style={{ flex: 1, minWidth: 0 }}>
-          <AppText variant="bodyStrong" numberOfLines={1}>{`${cat.emoji} ${goal.payment.title}`}</AppText>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
+            <AppText variant="bodyStrong" numberOfLines={1} style={{ flexShrink: 1 }}>{`${cat.emoji} ${goal.payment.title}`}</AppText>
+            <PrivateMark visible={goal.payment.private} />
+          </View>
           <AppText variant="caption" tone="textMuted" numberOfLines={1}>
             {`${money(goal.amount)} · ${formatShortDate(fromDateKey(goal.date), locale)} (${monthsLeftLabel(t, today, goal.date)})`}
           </AppText>
@@ -417,9 +421,12 @@ export function PaymentsScreen() {
                 <AppText variant="body">{cat.emoji}</AppText>
               </View>
               <View style={{ flex: 1, minWidth: 0 }}>
-                <AppText variant="bodyStrong" numberOfLines={1}>
-                  {p.title}
-                </AppText>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
+                  <AppText variant="bodyStrong" numberOfLines={1} style={{ flexShrink: 1 }}>
+                    {p.title}
+                  </AppText>
+                  <PrivateMark visible={p.private} />
+                </View>
                 <AppText variant="caption" tone="textMuted" numberOfLines={1}>
                   {scheduleLabel(t, p, today, locale)}
                 </AppText>

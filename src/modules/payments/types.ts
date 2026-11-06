@@ -19,6 +19,11 @@ export interface Payment extends BaseEntity {
   /** Built-in category (see PAYMENT_CATEGORIES). */
   categoryId: string;
   notes?: string | null;
+  /**
+   * Only its owner sees it (stored outside the family space). Missing/false =
+   * shared with the family, like before.
+   */
+  private?: boolean;
   /** Due dates already paid. */
   paidDates: DateKey[];
   /** Money already set aside for the next unpaid due date. */

@@ -138,4 +138,22 @@ describe('PaymentService', () => {
     await expect(s.create({ title: ' ', amount: 1, everyMonths: 0, startDate: '2026-11-03', categoryId: 'other' })).rejects.toThrow();
     await expect(s.create({ title: 'A', amount: 0, everyMonths: 0, startDate: '2026-11-03', categoryId: 'other' })).rejects.toThrow();
   });
+
+  it('makes a family payment private as a new row, keeping its history, and shares it back in place', async () => {
+    const s = setup();
+    const p = await s.create({ title: 'Gimnasio', amount: 30, everyMonths: 1, startDate: '2026-10-05', categoryId: 'health' });
+    expect(p.private).toBe(false);
+    await s.markPaid(p.id, '2026-10-05');
+    await s.addSaving(p.id, 10, '2026-11-01');
+
+    const mine = await s.update(p.id, { private: true, amount: 35 });
+    expect(mine.id).not.toBe(p.id);
+    expect(mine).toMatchObject({ private: true, amount: 35, title: 'Gimnasio', paidDates: ['2026-10-05'], saved: 10 });
+    expect(await s.get(p.id)).toBeNull(); // the family copy is deleted (tombstone)
+    expect((await s.list()).map((x) => x.id)).toEqual([mine.id]);
+
+    const shared = await s.update(mine.id, { private: false });
+    expect(shared).toMatchObject({ id: mine.id, private: false });
+    expect((await s.update(mine.id, { private: false, title: 'Gym' })).id).toBe(mine.id);
+  });
 });

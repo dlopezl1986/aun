@@ -11,6 +11,8 @@ export interface PaymentInput {
   endDate?: DateKey | null;
   categoryId: string;
   notes?: string | null;
+  /** Only me (true) or the whole family (false/missing). */
+  private?: boolean;
 }
 
 const cents = (n: number) => Math.round(n * 100) / 100;
@@ -43,6 +45,7 @@ export class PaymentService {
       endDate: input.everyMonths ? (input.endDate ?? null) : null,
       categoryId: input.categoryId,
       notes: input.notes?.trim() || null,
+      private: !!input.private,
       paidDates: [],
       saved: 0,
     });
@@ -50,7 +53,12 @@ export class PaymentService {
 
   async update(id: string, patch: Partial<PaymentInput>): Promise<Payment> {
     validate(patch);
+    if (patch.private) {
+      const current = await this.payments.get(id);
+      if (current && !current.private) return this.makePrivate(current, patch);
+    }
     const p: Partial<Payment> = { ...patch };
+    if (patch.private !== undefined) p.private = !!patch.private;
     if (patch.title !== undefined) p.title = patch.title.trim();
     if (patch.amount !== undefined) p.amount = cents(patch.amount);
     if ('notes' in patch) p.notes = patch.notes?.trim() || null;
@@ -60,6 +68,27 @@ export class PaymentService {
 
   remove(id: string): Promise<void> {
     return this.payments.remove(id);
+  }
+
+  /**
+   * Family → only me. The shared row is deleted (so everyone else's devices
+   * drop it through the family space) and a private copy, with its history,
+   * takes its place under a new id: a row cannot leave the family space
+   * without the others keeping their stale copy.
+   */
+  private async makePrivate(current: Payment, patch: Partial<PaymentInput>): Promise<Payment> {
+    const { id: _id, ownerId: _o, createdAt: _c, updatedAt: _u, deletedAt: _d, dirty: _dirty, space: _space, ...data } = current;
+    const merged = { ...data, ...patch };
+    const copy = await this.payments.create({
+      ...merged,
+      title: merged.title.trim(),
+      amount: cents(merged.amount),
+      endDate: merged.everyMonths ? (merged.endDate ?? null) : null,
+      notes: merged.notes?.trim() || null,
+      private: true,
+    });
+    await this.payments.remove(current.id);
+    return copy;
   }
 
   /** Marks one due date as paid; what was saved went into it. */

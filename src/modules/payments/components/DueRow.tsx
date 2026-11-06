@@ -12,6 +12,7 @@ import { occurrenceLabel, relativeDay } from '../describe';
 import { useMoney } from '../hooks';
 import type { Occurrence } from '../schedule';
 import { categoryOf } from '../types';
+import { PrivateMark } from './PrivateMark';
 
 interface DueRowProps {
   occurrence: Occurrence;
@@ -65,9 +66,17 @@ export function DueRow({ occurrence: o, today, onToggle, onOpen, compact }: DueR
           </AppText>
         </View>
         <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
-          <AppText variant="bodyStrong" numberOfLines={1} color={tone} style={o.paid ? { textDecorationLine: 'line-through' } : undefined}>
-            {`${cat.emoji} ${o.payment.title}`}
-          </AppText>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
+            <AppText
+              variant="bodyStrong"
+              numberOfLines={1}
+              color={tone}
+              style={[{ flexShrink: 1 }, o.paid ? { textDecorationLine: 'line-through' } : null]}
+            >
+              {`${cat.emoji} ${o.payment.title}`}
+            </AppText>
+            <PrivateMark visible={o.payment.private} />
+          </View>
           <AppText variant="caption" numberOfLines={1} color={late ? colors.danger : colors.textMuted}>
             {o.paid
               ? `${t('payments.paid')} · ${occurrenceLabel(t, o)}`

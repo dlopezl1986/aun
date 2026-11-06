@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { Sheet } from '@/components/ui/Sheet';
 import { TextField } from '@/components/ui/TextField';
 import { useLocale } from '@/hooks/useLocale';
+import { useCurrentUser } from '@/state/authStore';
 import { useTheme } from '@/theme';
 import { formatShortDate, fromDateKey, todayKey, type DateKey } from '@/utils/date';
 import { useCreatePayment, useMoney, useRemovePayment, useUpdatePayment } from '../hooks';
@@ -52,6 +53,10 @@ function Form({ payment, onClose }: { payment: Payment | null; onClose: () => vo
   const [categoryId, setCategoryId] = useState(payment?.categoryId ?? 'home');
   const [notes, setNotes] = useState(payment?.notes ?? '');
   const [datesValid, setDatesValid] = useState(true);
+  const me = useCurrentUser();
+  // Only whoever added it chooses who sees it.
+  const canChooseVisibility = !payment || payment.ownerId === me.id;
+  const [isPrivate, setIsPrivate] = useState(!!payment?.private);
 
   const amount = parseAmount(amountText);
   const count = Math.floor(Number(countText));
@@ -84,7 +89,16 @@ function Form({ payment, onClose }: { payment: Payment | null; onClose: () => vo
 
   const save = () => {
     if (!valid || amount === null) return;
-    const input = { title, amount, everyMonths, startDate, endDate: finalEnd, categoryId, notes };
+    const input = {
+      title,
+      amount,
+      everyMonths,
+      startDate,
+      endDate: finalEnd,
+      categoryId,
+      notes,
+      ...(canChooseVisibility ? { private: isPrivate } : {}),
+    };
     if (payment) update.mutate({ id: payment.id, patch: input }, { onSuccess: onClose });
     else create.mutate(input, { onSuccess: onClose });
   };
@@ -192,6 +206,27 @@ function Form({ payment, onClose }: { payment: Payment | null; onClose: () => vo
           <AppText variant="small" color={colors.warning}>
             {summary}
           </AppText>
+        </View>
+      ) : null}
+
+      {canChooseVisibility ? (
+        <View style={{ gap: spacing.sm }}>
+          <Label>{t('payments.form.visibility')}</Label>
+          <ChipGroup<'family' | 'private'>
+            accessibilityLabel={t('payments.form.visibility')}
+            color={paymentsMeta.accent}
+            selected={isPrivate ? 'private' : 'family'}
+            onToggle={(v) => setIsPrivate(v === 'private')}
+            options={[
+              { value: 'family', label: t('payments.form.visibilityFamily') },
+              { value: 'private', label: t('payments.form.visibilityPrivate') },
+            ]}
+          />
+          {isPrivate ? (
+            <AppText variant="caption" tone="textMuted">
+              {t('payments.form.visibilityPrivateHint')}
+            </AppText>
+          ) : null}
         </View>
       ) : null}
 
