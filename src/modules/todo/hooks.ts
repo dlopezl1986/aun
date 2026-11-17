@@ -101,7 +101,7 @@ export function useDeleteArea() {
 
 export function useCreateProject() {
   const { t } = useTranslation();
-  return useDataMutation((s, v: { name: string; color: string; areaId: string | null }) => s.tasks.createProject(v), {
+  return useDataMutation((s, v: { name: string; color: string; areaId: string | null; lists?: string[] }) => s.tasks.createProject(v), {
     invalidate: ['tasks'],
     successMessage: t('todo.toast.projectCreated'),
   });
@@ -145,4 +145,18 @@ export function useDeleteTag() {
 
 export function useEnsureTag() {
   return useDataMutation((s, name: string) => s.tasks.ensureTag(name, colorFromString(name, strongPalette)), { invalidate: ['tasks'] });
+}
+
+// ---------- Board ----------
+
+/** Drag & drop of a card (silent: the board itself is the feedback). */
+export function useMoveTask() {
+  return useDataMutation(
+    (s, v: { id: string; sectionId: string | null; orderedIds: string[] }) => s.tasks.moveTask(v.id, v.sectionId, v.orderedIds),
+    { invalidate: ['tasks'] },
+  );
+}
+
+export function useReorderSections() {
+  return useDataMutation((s, ids: string[]) => s.tasks.reorderSections(ids), { invalidate: ['tasks'] });
 }

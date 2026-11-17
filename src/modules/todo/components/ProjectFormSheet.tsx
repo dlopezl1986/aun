@@ -33,7 +33,12 @@ function ProjectForm({ onClose, project, defaultAreaId, onCreated }: Props) {
     if (project) update.mutate({ id: project.id, patch: { name, color, areaId } }, { onSuccess: onClose });
     else
       create.mutate(
-        { name, color, areaId },
+        {
+          name,
+          color,
+          areaId,
+          lists: [t('todo.board.defaultLists.todo'), t('todo.board.defaultLists.doing'), t('todo.board.defaultLists.done')],
+        },
         {
           onSuccess: (p) => {
             onCreated?.(p);
@@ -47,7 +52,7 @@ function ProjectForm({ onClose, project, defaultAreaId, onCreated }: Props) {
     <Sheet
       visible
       onClose={onClose}
-      title={project ? t('todo.projects.edit') : t('todo.projects.new')}
+      title={project ? t('todo.board.edit') : t('todo.board.new')}
       footer={
         <>
           <Button label={t('common.cancel')} variant="ghost" onPress={onClose} />
@@ -63,12 +68,14 @@ function ProjectForm({ onClose, project, defaultAreaId, onCreated }: Props) {
         autoFocus
         onSubmitEditing={save}
       />
-      <ChipGroup<string>
-        accessibilityLabel={t('todo.projects.area')}
-        selected={areaId ?? 'none'}
-        onToggle={(id) => setAreaId(id === 'none' ? null : id)}
-        options={[{ value: 'none', label: t('todo.projects.noArea') }, ...areas.map((a) => ({ value: a.id, label: a.name }))]}
-      />
+      {areas.length ? (
+        <ChipGroup<string>
+          accessibilityLabel={t('todo.projects.area')}
+          selected={areaId ?? 'none'}
+          onToggle={(id) => setAreaId(id === 'none' ? null : id)}
+          options={[{ value: 'none', label: t('todo.projects.noArea') }, ...areas.map((a) => ({ value: a.id, label: a.name }))]}
+        />
+      ) : null}
       <ColorPicker value={color} onChange={setColor} />
     </Sheet>
   );

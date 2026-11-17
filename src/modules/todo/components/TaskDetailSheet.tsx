@@ -26,6 +26,7 @@ import { describeReminder, REMINDER_PRESETS } from '@/utils/recurrenceText';
 import { useDeleteTask, useEnsureTag, useQuickAddTask, useTags, useTasks, useTodoStructure, useToggleTask, useUpdateTask } from '../hooks';
 import { todoMeta } from '../meta';
 import { PRIORITIES, usePriorityColors } from '../priority';
+import { GENERAL_BOARD } from '../board/model';
 import { subtasksOf } from '../selectors';
 import type { Task, TaskPriority, TaskStatus } from '../types';
 
@@ -88,7 +89,9 @@ function Editor({ task, onClose }: { task: Task; onClose: () => void }) {
   const [dateValid, setDateValid] = useState(true);
 
   const projects = (structure.data?.projects ?? []).filter((p) => !p.archived || p.id === projectId);
-  const sections = (structure.data?.sections ?? []).filter((s) => s.projectId === projectId);
+  const sections = (structure.data?.sections ?? [])
+    .filter((s) => s.projectId === (projectId ?? GENERAL_BOARD))
+    .sort((a, b) => a.order - b.order);
   const subtasks = useMemo(() => subtasksOf(allTasks.data ?? [], task.id), [allTasks.data, task.id]);
   const time = timeText.trim() ? parseTime(timeText) : null;
   const timeInvalid = !!timeText.trim() && !time;
@@ -110,7 +113,7 @@ function Editor({ task, onClose }: { task: Task; onClose: () => void }) {
           dueTime: dueDate ? time : null,
           deadline,
           projectId,
-          sectionId: projectId ? sectionId : null,
+          sectionId,
           tagIds,
           assigneeName: assignee.trim() || null,
           recurrence: dueDate ? recurrence : null,
@@ -295,17 +298,28 @@ function Editor({ task, onClose }: { task: Task; onClose: () => void }) {
           accessibilityLabel={t('todo.detail.project')}
           selected={projectId ?? 'inbox'}
           onToggle={(id) => {
-            setProjectId(id === 'inbox' ? null : id);
-            setSectionId(null);
+            const next = id === 'inbox' ? null : id;
+            setProjectId(next);
+            // Lands in the first list of the new board.
+            const first = (structure.data?.sections ?? [])
+              .filter((x) => x.projectId === (next ?? GENERAL_BOARD))
+              .sort((a, b) => a.order - b.order)[0];
+            setSectionId(first?.id ?? null);
           }}
-          options={[{ value: 'inbox', label: t('todo.views.inbox') }, ...projects.map((p) => ({ value: p.id, label: p.name }))]}
+          options={[{ value: 'inbox', label: t('todo.board.general') }, ...projects.map((p) => ({ value: p.id, label: p.name }))]}
         />
-        {projectId && sections.length ? (
+        {sections.length ? (
           <ChipGroup<string>
             accessibilityLabel={t('todo.detail.section')}
             selected={sectionId ?? 'none'}
             onToggle={(id) => setSectionId(id === 'none' ? null : id)}
-            options={[{ value: 'none', label: t('todo.detail.noSection') }, ...sections.map((s) => ({ value: s.id, label: s.name }))]}
+            options={[
+              // Cards without a list sit in the board's leading list.
+              ...(!sectionId || (!task.sectionId && (task.projectId ?? null) === projectId)
+                ? [{ value: 'none', label: t('todo.board.defaultLists.todo') }]
+                : []),
+              ...sections.map((s) => ({ value: s.id, label: s.name })),
+            ]}
           />
         ) : null}
       </Section>

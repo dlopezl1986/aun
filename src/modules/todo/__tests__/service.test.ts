@@ -18,6 +18,23 @@ function setup() {
 }
 
 describe('TaskService', () => {
+  it('board: new boards get default lists; cards move between lists with their subtasks', async () => {
+    const s = setup();
+    const board = await s.createProject({ name: 'Casa', color: '#000000', areaId: null, lists: ['Por hacer', 'Hecho'] });
+    const [todo, done] = (await s.listStructure()).sections;
+    expect([todo.name, done.name]).toEqual(['Por hacer', 'Hecho']);
+    const a = await s.quickAdd({ title: 'A', projectId: board.id, sectionId: todo.id });
+    const b = await s.quickAdd({ title: 'B', projectId: board.id, sectionId: done.id });
+    const sub = await s.quickAdd({ title: 'A.1', projectId: board.id, sectionId: todo.id, parentTaskId: a.id });
+    await s.moveTask(a.id, done.id, [a.id, b.id]);
+    expect((await s.get(a.id))?.sectionId).toBe(done.id);
+    expect((await s.get(sub.id))?.sectionId).toBe(done.id);
+    expect((await s.get(a.id))?.order).toBe(0);
+    expect((await s.get(b.id))?.order).toBe(1);
+    await s.reorderSections([done.id, todo.id]);
+    expect((await s.listStructure()).sections.map((x) => x.name)).toEqual(['Hecho', 'Por hacer']);
+  });
+
   it('assigns a task created from a profile to that person', async () => {
     const s = setup();
     const task = await s.quickAdd({
