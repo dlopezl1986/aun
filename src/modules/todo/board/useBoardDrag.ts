@@ -62,7 +62,7 @@ function edgeSpeed(pos: number, start: number, end: number): number {
   return 0;
 }
 
-export function useBoardDrag(onDrop: (cardId: string, toList: string, index: number) => void) {
+export function useBoardDrag(onDrop: (cardId: string, toList: string, index: number) => void, enabled = true) {
   const [drag, setDrag] = useState<DragState | null>(null);
   const dragRef = useRef<DragState | null>(null);
   const pending = useRef<Pending | null>(null);
@@ -70,9 +70,11 @@ export function useBoardDrag(onDrop: (cardId: string, toList: string, index: num
   const scroller = useRef<HTMLElement | null>(null);
   const lastDragEnd = useRef(0);
   const onDropRef = useRef(onDrop);
+  const enabledRef = useRef(enabled);
   useEffect(() => {
     onDropRef.current = onDrop;
-  }, [onDrop]);
+    enabledRef.current = enabled;
+  }, [onDrop, enabled]);
 
   const update = (next: DragState | null) => {
     dragRef.current = next;
@@ -235,7 +237,7 @@ export function useBoardDrag(onDrop: (cardId: string, toList: string, index: num
       root.current = el;
       if (!el) return;
       el.addEventListener('pointerdown', (e: PointerEvent) => {
-        if (e.button !== 0 || dragRef.current) return;
+        if (e.button !== 0 || dragRef.current || !enabledRef.current) return;
         const target = e.target as HTMLElement;
         if (target.closest('input, textarea, [data-nodrag]')) return;
         const card = target.closest<HTMLElement>('[id^="card-"]');

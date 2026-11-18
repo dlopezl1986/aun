@@ -213,20 +213,30 @@ export class TaskService {
   }
 
   /** `lists`: starting lists of a new board (e.g. Por hacer / En curso / Hecho). */
-  async createProject(input: { name: string; color: string; areaId: string | null; lists?: string[] }): Promise<Project> {
+  async createProject(input: {
+    name: string;
+    color: string;
+    areaId: string | null;
+    lists?: string[];
+    background?: string | null;
+  }): Promise<Project> {
     if (!input.name.trim()) throw new Error('Name is required');
     const project = await this.projects.create({
       name: input.name.trim(),
       color: input.color,
       areaId: input.areaId,
       archived: false,
+      background: input.background ?? null,
       order: (await this.projects.list()).length,
     });
     for (const name of input.lists ?? []) await this.createSection(project.id, name);
     return project;
   }
 
-  async updateProject(id: string, patch: Partial<Pick<Project, 'name' | 'color' | 'areaId' | 'archived'>>): Promise<Project> {
+  async updateProject(
+    id: string,
+    patch: Partial<Pick<Project, 'name' | 'color' | 'areaId' | 'archived' | 'background'>>,
+  ): Promise<Project> {
     const updated = await this.projects.update(id, patch);
     if (patch.areaId !== undefined) {
       for (const t of (await this.tasks.list()).filter((x) => x.projectId === id)) await this.tasks.update(t.id, { areaId: patch.areaId });

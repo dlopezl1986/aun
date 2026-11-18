@@ -20,6 +20,8 @@ export interface Project extends BaseEntity {
   color: string;
   order: number;
   archived: boolean;
+  /** Board wallpaper: a preset (`wp:<id>`) or your own photo (`data:image/jpeg;base64,…`). */
+  background?: string | null;
 }
 
 export interface Section extends BaseEntity {
