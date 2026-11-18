@@ -62,6 +62,8 @@ export interface Task extends BaseEntity {
   reminders: number[];
   recurrence?: RecurrenceRule | null;
   completedAt?: string | null;
+  /** When the card went «en curso» (status or an «En curso» list): stale work is flagged on Inicio. */
+  startedAt?: string | null;
   order: number;
 }
 

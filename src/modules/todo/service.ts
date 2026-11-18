@@ -4,6 +4,7 @@ import type { RecurrenceRule } from '@/types/recurrence';
 import { matchScore, type SearchResult } from '@/types/search';
 import { addDays, fromDateKey, toDateKey, type DateKey } from '@/utils/date';
 import { expandOccurrences } from '@/utils/recurrence';
+import { isDoingList } from './board/model';
 import type { Area, Project, Section, Tag, Task, TaskPriority, TaskStatus } from './types';
 
 export interface QuickTaskInput {
@@ -115,6 +116,11 @@ export class TaskService {
       if (!next.title) throw new Error('Task title is required');
     }
     if (patch.status !== undefined) next.completedAt = patch.status === 'completed' ? new Date().toISOString() : null;
+    if (patch.status === 'in_progress') {
+      // Remembers when work started (Inicio flags cards «en curso» for over a week).
+      const before = await this.tasks.get(id);
+      if (before && before.status !== 'in_progress') (next as { startedAt?: string }).startedAt = new Date().toISOString();
+    }
     if (patch.projectId !== undefined) {
       next.areaId = patch.projectId ? ((await this.projects.get(patch.projectId))?.areaId ?? null) : (patch.areaId ?? null);
       // A section only makes sense inside its project.
@@ -139,7 +145,17 @@ export class TaskService {
     const task = all.get(id);
     if (!task) throw new Error('Task not found');
     if ((task.sectionId ?? null) !== sectionId) {
-      await this.tasks.update(id, { sectionId });
+      const sections = new Map((await this.sections.list()).map((x) => [x.id, x.name]));
+      const doingBefore = isDoingList(task.sectionId ? sections.get(task.sectionId) : null);
+      const doingAfter = isDoingList(sectionId ? sections.get(sectionId) : null);
+      // Entering an «En curso» list starts the clock; leaving it stops it.
+      const startedAt =
+        doingAfter && !doingBefore
+          ? new Date().toISOString()
+          : !doingAfter && task.status !== 'in_progress'
+            ? null
+            : (task.startedAt ?? null);
+      await this.tasks.update(id, { sectionId, startedAt });
       // Subtasks travel with their card.
       for (const sub of [...all.values()].filter((t) => t.parentTaskId === id)) await this.tasks.update(sub.id, { sectionId });
     }

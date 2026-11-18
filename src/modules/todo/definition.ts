@@ -2,7 +2,8 @@ import type { AppModule } from '@/types/module';
 import { taskAlertSource } from './alerts';
 import { linkedTasksSource, taskLinkSource } from './links';
 import { todoMeta } from './meta';
-import { QuickTaskSheet, TodayTasksWidget, TodoTodaySummary, TodoWeeklyStats } from './widgets';
+import { HomeTasksCard } from './HomeTasksCard';
+import { QuickTaskSheet, TodoWeeklyStats } from './widgets';
 
 export const todoModule: AppModule = {
   id: todoMeta.id,
@@ -17,22 +18,11 @@ export const todoModule: AppModule = {
   notificationSource: true,
   alerts: [taskAlertSource],
   entitlement: null,
-  todaySummary: TodoTodaySummary,
+  // Inicio: no «Hoy» tile or «Tareas de hoy» widget; a «Tareas pendientes» card at the very end instead.
+  homeFooter: HomeTasksCard,
   weeklyStats: TodoWeeklyStats,
   quickActions: [{ id: 'todo.newTask', labelKey: 'todo.quick.action', icon: 'check-square', Sheet: QuickTaskSheet }],
   linkSources: [taskLinkSource],
   related: [{ ...linkedTasksSource, Create: QuickTaskSheet }],
   search: { search: (q, s) => s.tasks.search(q.text) },
-  widgets: [
-    {
-      id: 'todo.today',
-      moduleId: 'todo',
-      titleKey: 'todo.widget.title',
-      descriptionKey: 'todo.widget.description',
-      icon: 'check-square',
-      size: 'md',
-      defaultVisible: true,
-      component: TodayTasksWidget,
-    },
-  ],
 };

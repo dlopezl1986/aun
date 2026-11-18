@@ -17,7 +17,7 @@ import { EmptyState } from '@/components/ui/States';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { useNotificationBadge } from '@/modules/notifications/hooks';
 import { useServices } from '@/services/ServicesProvider';
-import { useDashboardWidgets, useUserSettings } from '@/state/userSettingsStore';
+import { useDashboardWidgets, useEnabledModules, useUserSettings } from '@/state/userSettingsStore';
 import { SyncProblemNotice } from '@/modules/settings/components/SyncProblemNotice';
 import { VerifyEmailNotice } from '@/modules/settings/components/VerifyEmailNotice';
 import { GlobalSearch } from './components/GlobalSearch';
@@ -36,6 +36,7 @@ export function DashboardScreen() {
   const queryClient = useQueryClient();
   const { userId } = useServices();
   const widgets = useDashboardWidgets();
+  const enabledModules = useEnabledModules();
   const badge = useNotificationBadge();
   const moveWidget = useUserSettings((s) => s.moveWidget);
   const setWidgetSize = useUserSettings((s) => s.setWidgetSize);
@@ -121,6 +122,16 @@ export function DashboardScreen() {
             />
           </Card>
         )}
+
+        {/* Very end of Inicio: modules' footers (e.g. «Tareas pendientes», only when there are any). */}
+        {editing
+          ? null
+          : enabledModules
+              .filter((m) => m.homeFooter)
+              .map((m) => {
+                const Footer = m.homeFooter!;
+                return <Footer key={m.id} />;
+              })}
 
         {editing ? (
           <>
