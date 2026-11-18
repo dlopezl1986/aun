@@ -1,4 +1,4 @@
-import { homeTasks } from '../home';
+import { homeBoards, homeTasks } from '../home';
 import type { Section, Task } from '../types';
 
 let n = 0;
@@ -50,5 +50,27 @@ describe('Inicio «Tareas pendientes»', () => {
     const late = task({ dueDate: '2026-11-10', priority: 4, createdAt: '2026-11-17T10:00:00.000Z' });
     const urgent = task({ priority: 1, createdAt: '2026-11-17T10:00:00.000Z' });
     expect(homeTasks([urgent, late], [], now).others.map((x) => x.id)).toEqual([late.id, urgent.id]);
+  });
+});
+
+describe('Inicio «Tareas pendientes» by board', () => {
+  const now = Date.parse('2026-11-18T10:00:00.000Z');
+  const project = (id: string, order: number) =>
+    ({ id, ownerId: 'u', createdAt: '', updatedAt: '', areaId: null, name: id, color: '#000', order, archived: false }) as const;
+
+  it('groups cards per board: General first, then boards in order; old cards first', () => {
+    const work1 = task({ projectId: 'work', createdAt: '2026-11-17T10:00:00.000Z' });
+    const work2 = task({ projectId: 'work', createdAt: '2026-11-01T10:00:00.000Z' });
+    const home = task({ projectId: 'home', createdAt: '2026-11-17T10:00:00.000Z' });
+    const general = task({ createdAt: '2026-11-17T10:00:00.000Z' });
+    const r = homeBoards([work1, home, work2, general], [], [project('work', 2), project('home', 1)], now);
+    expect(r.boards.map((b) => b.boardId)).toEqual(['inbox', 'home', 'work']);
+    expect(r.boards[2].items.map((i) => [i.task.id, i.days])).toEqual([
+      [work2.id, 17],
+      [work1.id, null],
+    ]);
+    expect(r.boards[2].staleCount).toBe(1);
+    expect(r.staleCount).toBe(1);
+    expect(r.total).toBe(4);
   });
 });
