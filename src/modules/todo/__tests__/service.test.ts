@@ -31,8 +31,14 @@ describe('TaskService', () => {
     expect((await s.get(sub.id))?.sectionId).toBe(done.id);
     expect((await s.get(a.id))?.order).toBe(0);
     expect((await s.get(b.id))?.order).toBe(1);
+    // Moving into «En curso» starts the clock; moving out stops it.
+    const doing = await s.createSection(board.id, 'En curso');
+    await s.moveTask(b.id, doing.id, [b.id]);
+    expect((await s.get(b.id))?.startedAt).toBeTruthy();
+    await s.moveTask(b.id, todo.id, [b.id]);
+    expect((await s.get(b.id))?.startedAt).toBeNull();
     await s.reorderSections([done.id, todo.id]);
-    expect((await s.listStructure()).sections.map((x) => x.name)).toEqual(['Hecho', 'Por hacer']);
+    expect((await s.listStructure()).sections.map((x) => x.name)).toEqual(['Hecho', 'Por hacer', 'En curso']);
   });
 
   it('assigns a task created from a profile to that person', async () => {

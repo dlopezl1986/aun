@@ -75,3 +75,15 @@ export function applyMove(columns: BoardColumn[], move: { cardId: string; toColu
     return { ...c, cards: c.cards.filter((t) => t.id !== move.cardId) };
   });
 }
+
+const normalize = (name: string) => name.toLocaleLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+
+/** Lists that mean "working on it" (Trello users rarely touch the status). */
+export function isDoingList(name: string | null | undefined): boolean {
+  return !!name && /^(en curso|en progreso|en proceso|haciendo|doing|in progress|working on it)$/.test(normalize(name));
+}
+
+/** Lists that mean "finished". */
+export function isDoneList(name: string | null | undefined): boolean {
+  return !!name && /^(hecho|hechas?|finalizad[oa]s?|terminad[oa]s?|completad[oa]s?|listo|done|finished)$/.test(normalize(name));
+}

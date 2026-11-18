@@ -154,6 +154,8 @@ export interface AppModule {
   };
   /** Contributes a line to the dashboard “HOY” panel. */
   todaySummary?: ComponentType;
+  /** Shown at the very end of Inicio, under every widget (renders nothing when it has nothing to say). */
+  homeFooter?: ComponentType;
   widgets?: DashboardWidgetDefinition[];
   /** Contributes stat tiles to the "Tu semana" widget. */
   weeklyStats?: ComponentType;
