@@ -37,6 +37,7 @@ export function DashboardScreen() {
   const { userId } = useServices();
   const widgets = useDashboardWidgets();
   const enabledModules = useEnabledModules();
+  const [footerWidth, setFooterWidth] = useState(0);
   const badge = useNotificationBadge();
   const moveWidget = useUserSettings((s) => s.moveWidget);
   const setWidgetSize = useUserSettings((s) => s.setWidgetSize);
@@ -124,14 +125,24 @@ export function DashboardScreen() {
         )}
 
         {/* Very end of Inicio: modules' footers (e.g. «Tareas pendientes», only when there are any). */}
-        {editing
-          ? null
-          : enabledModules
+        {editing ? null : (
+          // Same width as one widget of the grid on wide screens (not stretched); height follows the content.
+          <View
+            onLayout={(e) => setFooterWidth(e.nativeEvent.layout.width)}
+            style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', gap: spacing.xl }}
+          >
+            {enabledModules
               .filter((m) => m.homeFooter)
               .map((m) => {
                 const Footer = m.homeFooter!;
-                return <Footer key={m.id} />;
+                return (
+                  <View key={m.id} style={{ width: footerWidth >= 680 ? (footerWidth - spacing.xl) / 2 : '100%' }}>
+                    <Footer />
+                  </View>
+                );
               })}
+          </View>
+        )}
 
         {editing ? (
           <>

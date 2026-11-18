@@ -8,6 +8,7 @@ import { Card, CardHeader } from '@/components/ui/Card';
 import { Divider } from '@/components/ui/Divider';
 import { Icon } from '@/components/ui/Icon';
 import { interaction } from '@/components/ui/interaction';
+import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { useNow } from '@/hooks/useNow';
 import { useToday } from '@/hooks/useToday';
 import { useTheme } from '@/theme';
@@ -22,21 +23,24 @@ import type { Task } from './types';
 const MAX_ROWS = 5;
 
 /**
- * Bottom of Inicio: pending cards, only when there are any. Cards «en curso»
- * for more than a week stand out first, so they get finished.
+ * Bottom of Inicio: pending cards, only when there are any, each with its
+ * board beside it. Cards unfinished for more than a week stand out first.
  */
 export function HomeTasksCard() {
   const { t } = useTranslation();
   const { spacing, radius, colors, mode } = useTheme();
   const today = useToday();
+  const { isCompact } = useBreakpoint();
   const now = useNow(60_000);
   const tasks = useTasks();
   const structure = useTodoStructure();
   const toggle = useToggleTask();
 
   const data = useMemo(() => homeTasks(tasks.data ?? [], structure.data?.sections ?? [], now), [tasks.data, structure.data, now]);
-  const boardName = (task: Task) =>
-    task.projectId ? (structure.data?.projects.find((p) => p.id === task.projectId)?.name ?? '') : t('todo.board.general');
+  const boardOf = (task: Task) => {
+    const p = task.projectId ? structure.data?.projects.find((x) => x.id === task.projectId) : undefined;
+    return p ? { name: p.name, color: p.color } : { name: t('todo.board.general'), color: todoMeta.accent };
+  };
 
   if (!data.total) return null;
   const shown = data.others.slice(0, MAX_ROWS);
@@ -85,6 +89,7 @@ export function HomeTasksCard() {
               accessibilityLabel={`${task.title}, ${t('todo.home.staleDays', { count: days })}`}
               style={(s) => ({
                 flexDirection: 'row',
+                flexWrap: 'wrap',
                 alignItems: 'center',
                 gap: spacing.sm,
                 padding: spacing.sm,
@@ -94,14 +99,10 @@ export function HomeTasksCard() {
                 borderColor: colors.border,
               })}
             >
-              <View style={{ flex: 1 }}>
-                <AppText variant="bodyStrong" numberOfLines={2}>
-                  {task.title}
-                </AppText>
-                <AppText variant="caption" tone="textSubtle" numberOfLines={1}>
-                  {boardName(task)}
-                </AppText>
-              </View>
+              <AppText variant="bodyStrong" numberOfLines={2} style={{ flex: 1, minWidth: isCompact ? '100%' : 0 }}>
+                {task.title}
+              </AppText>
+              <BoardChip {...boardOf(task)} />
               <View
                 style={{
                   paddingHorizontal: spacing.sm,
@@ -122,7 +123,12 @@ export function HomeTasksCard() {
       {shown.map((task, i) => (
         <View key={task.id}>
           {i > 0 ? <Divider inset={40} /> : null}
-          <TaskRow task={task} today={today} onToggle={(x) => toggle.mutate(x)} onOpen={(x) => openTodoTask(x.id)} />
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <TaskRow task={task} today={today} hideProject onToggle={(x) => toggle.mutate(x)} onOpen={(x) => openTodoTask(x.id)} />
+            </View>
+            <BoardChip {...boardOf(task)} />
+          </View>
         </View>
       ))}
       {more > 0 ? (
@@ -133,5 +139,30 @@ export function HomeTasksCard() {
         </Pressable>
       ) : null}
     </Card>
+  );
+}
+
+/** The board a card belongs to, as a small coloured pill. */
+function BoardChip({ name, color }: { name: string; color: string }) {
+  const { spacing, radius, colors } = useTheme();
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 5,
+        maxWidth: 140,
+        flexShrink: 0,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: 3,
+        borderRadius: radius.pill,
+        backgroundColor: colors.surfaceMuted,
+      }}
+    >
+      <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: color }} />
+      <AppText variant="caption" tone="textMuted" numberOfLines={1} style={{ flexShrink: 1 }}>
+        {name}
+      </AppText>
+    </View>
   );
 }
