@@ -1,557 +1,217 @@
-import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { ScrollView, View } from 'react-native';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect, useMemo, useState } from 'react';
+import { Pressable, ScrollView, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
-import { ChipGroup } from '@/components/forms/Chips';
 import { useDialog } from '@/components/feedback/DialogProvider';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Screen } from '@/components/layout/Screen';
 import { AppText } from '@/components/ui/AppText';
-import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
-import { Divider } from '@/components/ui/Divider';
-import { Icon, type IconName } from '@/components/ui/Icon';
+import { Icon } from '@/components/ui/Icon';
 import { IconButton } from '@/components/ui/IconButton';
-import { ListRow } from '@/components/ui/ListRow';
-import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
-import { useLocale } from '@/hooks/useLocale';
+import { interaction } from '@/components/ui/interaction';
+import { ErrorState, LoadingState } from '@/components/ui/States';
+import { useBreakpoint } from '@/hooks/useBreakpoint';
+import { useToday } from '@/hooks/useToday';
+import { asyncKeyValueStore, storageKeys } from '@/storage/keyValueStore';
 import { useTheme } from '@/theme';
-import { addDays, formatLongDate, fromDateKey, toDateKey } from '@/utils/date';
+import { withAlpha } from '@/utils/color';
+import { BoardView } from './board/BoardView';
+import { boardColumns, GENERAL_BOARD } from './board/model';
 import { ProjectFormSheet } from './components/ProjectFormSheet';
-import { QuickAddTask } from './components/QuickAddTask';
 import { TaskDetailSheet } from './components/TaskDetailSheet';
-import { TaskRow } from './components/TaskRow';
-import { SMART_VIEWS, TodoNav } from './components/TodoNav';
-import {
-  useArchiveCompleted,
-  useCreateSection,
-  useDeleteProject,
-  useDeleteSection,
-  useDeleteTag,
-  useDeleteTask,
-  useRenameSection,
-  useRenameTag,
-  useTags,
-  useTaskView,
-  useTodoStructure,
-  useToggleTask,
-} from './hooks';
+import { useArchiveCompleted, useDeleteProject, useTasks, useTodoStructure } from './hooks';
 import { todoMeta } from './meta';
-import { usePriorityColors } from './priority';
-import {
-  filterTasks,
-  groupByDate,
-  groupByPriority,
-  openCounts,
-  pendingGroups,
-  projectGroups,
-  tagTasks,
-  type PendingGroupKey,
-} from './selectors';
-import type { Project, Task, TaskView, TodoTarget } from './types';
+import type { Project, Task } from './types';
 
-const VIEWS: TaskView[] = SMART_VIEWS.map((v) => v.view);
+const LAST_BOARD_KEY = storageKeys.device('todo:lastBoard');
 
-function targetFromParams(p: { view?: string; project?: string; tag?: string }): TodoTarget {
-  if (p.project) return { kind: 'project', projectId: p.project };
-  if (p.tag) return { kind: 'tag', tagId: p.tag };
-  if (p.view === 'projects') return { kind: 'projects' };
-  if (p.view === 'tags') return { kind: 'tags' };
-  if (p.view && (VIEWS as string[]).includes(p.view)) return { kind: 'view', view: p.view as TaskView };
-  // Landing: everything that is pending, grouped by when it is due.
-  return { kind: 'view', view: 'all' };
-}
-
-function select(target: TodoTarget) {
-  router.setParams({
-    view: target.kind === 'view' ? target.view : target.kind === 'projects' || target.kind === 'tags' ? target.kind : undefined,
-    project: target.kind === 'project' ? target.projectId : undefined,
-    tag: target.kind === 'tag' ? target.tagId : undefined,
-  });
-}
-
-const PENDING_ICONS: Record<PendingGroupKey, IconName> = {
-  overdue: 'alert-circle',
-  today: 'sun',
-  upcoming: 'calendar',
-  someday: 'inbox',
-};
-
-/** Filters shown under the header ("Pendientes" first; the rest is secondary). */
-const FILTERS = ['all', 'today', 'priorities', 'projects', 'tags', 'completed'] as const;
-
-function GroupHeader({
-  title,
-  color,
-  icon = 'flag',
-  tone,
-  right,
-  count,
-}: {
-  title: string;
-  color?: string;
-  icon?: IconName;
-  /** Theme colour resolved here (inside the card palette). */
-  tone?: 'danger' | 'primary' | 'textMuted';
-  right?: ReactNode;
-  count?: number;
-}) {
-  const { spacing, colors } = useTheme();
-  if (tone) color = colors[tone];
-  return (
-    <View
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: spacing.sm,
-        paddingHorizontal: spacing.sm,
-        paddingTop: spacing.md,
-        minHeight: 40,
-      }}
-    >
-      {color ? <Icon name={icon} size={14} color={color} /> : null}
-      <AppText variant="smallStrong" style={{ flex: 1 }} accessibilityRole="header">
-        {title}
-        {count !== undefined ? (
-          <AppText variant="caption" tone="textSubtle">
-            {'  '}
-            {count}
-          </AppText>
-        ) : null}
-      </AppText>
-      {right}
-    </View>
-  );
-}
-
+/**
+ * Tareas as Trello-like boards: pick a board on top, its lists sit side by
+ * side and cards are dragged between them. A board is a project; "General"
+ * holds the tasks that have no project.
+ */
 export function TodoScreen() {
   const { t } = useTranslation();
-  const locale = useLocale();
-  const { spacing } = useTheme();
   const dialog = useDialog();
-  const priorityColors = usePriorityColors();
-  const params = useLocalSearchParams<{ view?: string; project?: string; tag?: string; task?: string }>();
-  const target = targetFromParams(params);
+  const { spacing, radius, colors } = useTheme();
+  const { isCompact } = useBreakpoint();
+  const today = useToday();
+  const params = useLocalSearchParams<{ board?: string; task?: string }>();
 
-  // Coming back to the ToDo tab always lands on "Pendientes" (filters are per visit),
-  // unless we arrive to open a specific task.
-  const left = useRef(false);
-  const openingTask = useRef(false);
-  const taskParam = typeof params.task === 'string';
-  useEffect(() => {
-    openingTask.current = taskParam;
-  }, [taskParam]);
-  useFocusEffect(
-    useCallback(() => {
-      if (left.current && !openingTask.current) router.setParams({ view: undefined, project: undefined, tag: undefined });
-      left.current = false;
-      return () => {
-        left.current = true;
-      };
-    }, []),
-  );
-
-  const { counts, today, isLoading, isError, refetch, data } = useTaskView('all');
-  const all = useMemo(() => data ?? [], [data]);
+  const tasksQuery = useTasks();
   const structure = useTodoStructure();
-  const tagsQuery = useTags();
-  const toggle = useToggleTask();
-  const del = useDeleteTask();
-  const archive = useArchiveCompleted();
-  const createSection = useCreateSection();
-  const renameSection = useRenameSection();
-  const deleteSection = useDeleteSection();
   const deleteProject = useDeleteProject();
-  const renameTag = useRenameTag();
-  const deleteTag = useDeleteTag();
+  const archive = useArchiveCompleted();
+  const [projectSheet, setProjectSheet] = useState<{ open: boolean; project: Project | null }>({ open: false, project: null });
 
-  const [projectSheet, setProjectSheet] = useState<{ open: boolean; project: Project | null; areaId: string | null }>({
-    open: false,
-    project: null,
-    areaId: null,
-  });
-  const [addingIn, setAddingIn] = useState<string | null>(null);
+  // The last board you used opens again next time.
+  const [remembered, setRemembered] = useState<string | null>(null);
+  useEffect(() => {
+    asyncKeyValueStore
+      .getItem(LAST_BOARD_KEY)
+      .then((v) => setRemembered(v ?? GENERAL_BOARD))
+      .catch(() => setRemembered(GENERAL_BOARD));
+  }, []);
+
+  const projects = useMemo(() => (structure.data?.projects ?? []).filter((p) => !p.archived), [structure.data]);
+  const sections = useMemo(() => structure.data?.sections ?? [], [structure.data]);
+  const tasks = useMemo(() => tasksQuery.data ?? [], [tasksQuery.data]);
+
+  const wanted = typeof params.board === 'string' ? params.board : remembered;
+  const boardId = wanted && (wanted === GENERAL_BOARD || projects.some((p) => p.id === wanted)) ? wanted : GENERAL_BOARD;
+  const project = projects.find((p) => p.id === boardId);
+
+  const selectBoard = (id: string) => {
+    router.setParams({ board: id });
+    setRemembered(id);
+    void asyncKeyValueStore.setItem(LAST_BOARD_KEY, id).catch(() => undefined);
+  };
+
+  // Opening a task from elsewhere (search, Inicio, alerts) shows its board.
   const openTaskId = typeof params.task === 'string' ? params.task : null;
+  const openTaskBoard = openTaskId ? tasks.find((x) => x.id === openTaskId) : undefined;
+  useEffect(() => {
+    const owner = openTaskBoard ? (openTaskBoard.parentTaskId ? undefined : (openTaskBoard.projectId ?? GENERAL_BOARD)) : undefined;
+    if (owner && owner !== boardId && (owner === GENERAL_BOARD || projects.some((p) => p.id === owner))) router.setParams({ board: owner });
+  }, [openTaskBoard, boardId, projects]);
+
   const openTask = (task: Task) => router.setParams({ task: task.id });
   const closeTask = () => router.setParams({ task: undefined });
 
-  const projects = structure.data?.projects ?? [];
-  const sections = structure.data?.sections ?? [];
-  const tags = tagsQuery.data ?? [];
-  const project = target.kind === 'project' ? projects.find((p) => p.id === target.projectId) : undefined;
-  const tag = target.kind === 'tag' ? tags.find((x) => x.id === target.tagId) : undefined;
-  const { byTag } = openCounts(all);
+  const boards = [
+    { id: GENERAL_BOARD, name: t('todo.board.general'), color: todoMeta.accent },
+    ...projects.map((p) => ({ id: p.id, name: p.name, color: p.color })),
+  ];
+  const columns = useMemo(() => boardColumns(tasks, boardId, sections), [tasks, boardId, sections]);
+  const openCount = columns.reduce((n, c) => n + c.cards.length, 0);
+  const doneCount = columns.reduce((n, c) => n + c.done.length, 0);
 
-  const onDelete = async (task: Task) => {
-    const ok = await dialog.confirm({
-      title: t('todo.deleteTitle'),
-      message: t('todo.deleteMessage', { title: task.title }),
-      confirmLabel: t('common.delete'),
-      destructive: true,
+  const boardMenu = async () => {
+    const choice = await dialog.choose({
+      title: project?.name ?? t('todo.board.general'),
+      choices: [
+        ...(doneCount ? [{ value: 'archive', label: t('todo.archiveCompleted') }] : []),
+        ...(project ? [{ value: 'delete', label: t('todo.board.delete') }] : []),
+        ...(project ? [{ value: 'edit', label: t('todo.board.edit') }] : []),
+      ],
     });
-    if (ok) del.mutate(task.id);
+    if (choice === 'edit' && project) setProjectSheet({ open: true, project });
+    if (choice === 'archive') {
+      const ok = await dialog.confirm({
+        title: t('todo.archiveCompleted'),
+        message: t('todo.archiveMessage'),
+        confirmLabel: t('todo.archive'),
+      });
+      if (ok) archive.mutate();
+    }
+    if (choice === 'delete' && project) {
+      const ok = await dialog.confirm({
+        title: t('todo.board.deleteTitle', { name: project.name }),
+        message: t('todo.board.deleteMessage'),
+        confirmLabel: t('common.delete'),
+        destructive: true,
+      });
+      if (ok) {
+        deleteProject.mutate(project.id);
+        selectBoard(GENERAL_BOARD);
+      }
+    }
   };
 
-  const rows = (list: Task[], opts: { hideProject?: boolean; deletable?: boolean } = {}) =>
-    list.map((task, i) => (
-      <View key={task.id}>
-        {i > 0 ? <Divider inset={40} /> : null}
-        <TaskRow
-          task={task}
-          today={today}
-          onToggle={(x) => toggle.mutate(x)}
-          onOpen={openTask}
-          onDelete={opts.deletable ? onDelete : undefined}
-          hideProject={opts.hideProject}
-        />
-      </View>
-    ));
-
-  // ---------- Title of the current target ----------
-  let title = t('modules.todo.title');
-  let subtitle = t('todo.subtitle');
-  if (target.kind === 'view') title = t(`todo.views.${target.view}`);
-  if (target.kind === 'view' && target.view === 'all')
-    subtitle = counts.all ? t('todo.pending.subtitle', { count: counts.all }) : t('todo.pending.allDone');
-  if (target.kind === 'projects') title = t('todo.views.projects');
-  if (target.kind === 'tags') title = t('todo.views.tags');
-  if (project) {
-    title = project.name;
-    subtitle = t('todo.projects.subtitle');
-  }
-  if (tag) title = `#${tag.name}`;
-
-  // ---------- Content ----------
-  const empty = (view: TaskView) => (
-    <EmptyState
-      icon={SMART_VIEWS.find((v) => v.view === view)!.icon}
-      accent={todoMeta.accent}
-      title={t(`todo.empty.${view}.title`)}
-      description={t(`todo.empty.${view}.description`)}
-    />
-  );
-
-  let content: ReactNode = null;
-  if (target.kind === 'view') {
-    const list = filterTasks(all, target.view, today);
-    if (!list.length) content = empty(target.view);
-    else if (target.view === 'all') {
-      const groupTones = { overdue: 'danger', today: 'primary', upcoming: 'textMuted', someday: 'textMuted' } as const;
-      content = pendingGroups(list, today).map(({ key, tasks }) => (
-        <View key={key}>
-          <GroupHeader
-            title={key === 'today' ? `${t('common.today')} · ${formatLongDate(fromDateKey(today), locale)}` : t(`todo.pending.${key}`)}
-            icon={PENDING_ICONS[key]}
-            tone={groupTones[key]}
-            count={tasks.length}
-          />
-          {rows(tasks)}
-        </View>
-      ));
-    } else if (target.view === 'upcoming') {
-      const tomorrow = toDateKey(addDays(fromDateKey(today), 1));
-      content = groupByDate(list).map(([date, items]) => (
-        <View key={date}>
-          <GroupHeader
-            title={
-              date === tomorrow
-                ? `${t('common.tomorrow')} · ${formatLongDate(fromDateKey(date), locale)}`
-                : formatLongDate(fromDateKey(date), locale)
-            }
-            count={items.length}
-          />
-          {rows(items)}
-        </View>
-      ));
-    } else if (target.view === 'priorities') {
-      content = groupByPriority(list).map(([p, items]) => (
-        <View key={p}>
-          <GroupHeader title={t(`todo.priority.p${p}`)} color={priorityColors[p]} count={items.length} />
-          {rows(items)}
-        </View>
-      ));
-    } else if (target.view === 'completed') {
-      content = (
-        <>
-          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', padding: spacing.sm }}>
-            <Button
-              label={t('todo.archiveCompleted')}
-              icon="archive"
-              variant="secondary"
-              size="sm"
-              loading={archive.isPending}
-              onPress={async () => {
-                const ok = await dialog.confirm({
-                  title: t('todo.archiveCompleted'),
-                  message: t('todo.archiveMessage'),
-                  confirmLabel: t('todo.archive'),
-                });
-                if (ok) archive.mutate();
-              }}
-            />
-          </View>
-          {rows(list, { deletable: true })}
-        </>
-      );
-    } else content = rows(list);
-  } else if (target.kind === 'project') {
-    if (!project) content = <EmptyState icon="folder" title={t('todo.projects.notFound')} />;
-    else {
-      const groups = projectGroups(all, project.id, sections);
-      const total = groups.reduce((n, g) => n + g.tasks.length, 0);
-      content = (
-        <>
-          {groups.map(({ section, tasks }) => {
-            if (!section && !tasks.length) return null;
-            const key = section?.id ?? 'none';
-            return (
-              <View key={key}>
-                {section ? (
-                  <GroupHeader
-                    title={section.name}
-                    count={tasks.length}
-                    right={
-                      <>
-                        <IconButton
-                          icon="plus"
-                          size={16}
-                          label={t('todo.sections.addTask', { name: section.name })}
-                          onPress={() => setAddingIn(addingIn === key ? null : key)}
-                        />
-                        <IconButton
-                          icon="edit-2"
-                          size={16}
-                          label={t('todo.sections.rename')}
-                          onPress={async () => {
-                            const name = await dialog.prompt({
-                              title: t('todo.sections.rename'),
-                              label: t('todo.sections.name'),
-                              initialValue: section.name,
-                              confirmLabel: t('common.save'),
-                            });
-                            if (name && name !== section.name) renameSection.mutate({ id: section.id, name });
-                          }}
-                        />
-                        <IconButton
-                          icon="trash-2"
-                          size={16}
-                          label={t('todo.sections.delete')}
-                          onPress={async () => {
-                            const ok = await dialog.confirm({
-                              title: t('todo.sections.deleteTitle', { name: section.name }),
-                              message: t('todo.sections.deleteMessage'),
-                              confirmLabel: t('common.delete'),
-                              destructive: true,
-                            });
-                            if (ok) deleteSection.mutate(section.id);
-                          }}
-                        />
-                      </>
-                    }
-                  />
-                ) : null}
-                {addingIn === key && section ? (
-                  <View style={{ padding: spacing.sm }}>
-                    <QuickAddTask today={today} defaultWhen="none" projectId={project.id} sectionId={section.id} autoFocus compact />
-                  </View>
-                ) : null}
-                {rows(tasks, { hideProject: true })}
-                {section && !tasks.length && addingIn !== key ? (
-                  <AppText variant="caption" tone="textSubtle" style={{ paddingHorizontal: spacing.sm, paddingBottom: spacing.sm }}>
-                    {t('todo.sections.empty')}
-                  </AppText>
-                ) : null}
-              </View>
-            );
-          })}
-          {!total && !sections.some((s) => s.projectId === project.id) ? (
-            <EmptyState
-              icon="folder"
-              accent={project.color}
-              title={t('todo.projects.emptyTitle')}
-              description={t('todo.projects.emptyDescription')}
-            />
-          ) : null}
-          <View style={{ flexDirection: 'row', padding: spacing.sm }}>
-            <Button
-              label={t('todo.sections.add')}
-              icon="plus"
-              variant="ghost"
-              size="sm"
-              onPress={async () => {
-                const name = await dialog.prompt({
-                  title: t('todo.sections.add'),
-                  label: t('todo.sections.name'),
-                  placeholder: t('todo.sections.placeholder'),
-                  confirmLabel: t('common.create'),
-                });
-                if (name) createSection.mutate({ projectId: project.id, name });
-              }}
-            />
-          </View>
-        </>
-      );
-    }
-  } else if (target.kind === 'tag') {
-    const list = tag ? tagTasks(all, tag.id) : [];
-    content = !tag ? (
-      <EmptyState icon="hash" title={t('todo.tags.notFound')} />
-    ) : list.length ? (
-      rows(list)
-    ) : (
-      <EmptyState icon="hash" accent={tag.color} title={t('todo.tags.emptyTitle')} description={t('todo.tags.emptyDescription')} />
-    );
-  } else if (target.kind === 'tags') {
-    content = tags.length ? (
-      tags.map((x, i) => (
-        <View key={x.id}>
-          {i > 0 ? <Divider /> : null}
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <View style={{ flex: 1 }}>
-              <ListRow
-                icon="hash"
-                accent={x.color}
-                title={x.name}
-                subtitle={t('todo.tags.count', { count: byTag.get(x.id) ?? 0 })}
-                onPress={() => select({ kind: 'tag', tagId: x.id })}
-              />
-            </View>
-            <View style={{ flexDirection: 'row' }}>
-              <IconButton
-                icon="edit-2"
-                size={16}
-                label={`${t('todo.tags.rename')}: ${x.name}`}
-                onPress={async () => {
-                  const name = await dialog.prompt({
-                    title: t('todo.tags.rename'),
-                    label: t('todo.tags.name'),
-                    initialValue: x.name,
-                    confirmLabel: t('common.save'),
-                  });
-                  if (name && name !== x.name) renameTag.mutate({ id: x.id, name });
-                }}
-              />
-              <IconButton
-                icon="trash-2"
-                size={16}
-                label={`${t('common.delete')}: ${x.name}`}
-                onPress={async () => {
-                  const ok = await dialog.confirm({
-                    title: t('todo.tags.deleteTitle', { name: x.name }),
-                    message: t('todo.tags.deleteMessage'),
-                    confirmLabel: t('common.delete'),
-                    destructive: true,
-                  });
-                  if (ok) deleteTag.mutate(x.id);
-                }}
-              />
-            </View>
-          </View>
-        </View>
-      ))
-    ) : (
-      <EmptyState icon="hash" accent={todoMeta.accent} title={t('todo.tags.noneTitle')} description={t('todo.tags.noneDescription')} />
-    );
-  } else {
-    content = (
-      <View style={{ padding: spacing.sm }}>
-        <TodoNav
-          target={target}
-          counts={counts}
-          onSelect={select}
-          onNewProject={(areaId) => setProjectSheet({ open: true, project: null, areaId })}
-          projectsOnly
-        />
-      </View>
-    );
-  }
-
-  const showQuickAdd = (target.kind === 'view' && target.view !== 'completed') || target.kind === 'project' || target.kind === 'tag';
-  const quickAdd = showQuickAdd ? (
-    <Card>
-      <QuickAddTask
-        key={JSON.stringify(target)}
-        today={today}
-        defaultWhen={target.kind === 'view' && target.view === 'today' ? 'today' : 'none'}
-        projectId={project?.id}
-        tagId={tag?.id}
-        collapsible
-      />
-    </Card>
-  ) : null;
-
-  const headerActions = project ? (
-    <View style={{ flexDirection: 'row', gap: spacing.xs }}>
-      <Button
-        label={t('common.edit')}
-        icon="edit-2"
-        variant="secondary"
-        size="sm"
-        onPress={() => setProjectSheet({ open: true, project, areaId: project.areaId })}
-      />
-      <IconButton
-        icon="trash-2"
-        label={t('todo.projects.delete')}
-        onPress={async () => {
-          const ok = await dialog.confirm({
-            title: t('todo.projects.deleteTitle', { name: project.name }),
-            message: t('todo.projects.deleteMessage'),
-            confirmLabel: t('common.delete'),
-            destructive: true,
-          });
-          if (ok) {
-            deleteProject.mutate(project.id);
-            select({ kind: 'projects' });
-          }
-        }}
-      />
-    </View>
-  ) : undefined;
-
-  const filterOptions = FILTERS.map((value) => {
-    const label = t(`todo.views.${value}`);
-    const count = value === 'all' || value === 'today' || value === 'priorities' ? counts[value] : 0;
-    return { value, label: count ? `${label} · ${count}` : label };
-  });
-  const selectedFilter =
-    target.kind === 'view' ? target.view : target.kind === 'project' ? 'projects' : target.kind === 'tag' ? 'tags' : target.kind;
+  const loading = tasksQuery.isLoading || structure.isLoading || remembered === null;
 
   return (
     <Screen>
       <PageHeader
-        title={title}
-        subtitle={subtitle}
-        icon={project ? 'folder' : tag ? 'hash' : todoMeta.icon}
-        accent={project?.color ?? tag?.color ?? todoMeta.accent}
-        actions={headerActions}
-        onBack={project || tag ? () => select({ kind: project ? 'projects' : 'tags' }) : undefined}
+        title={project?.name ?? t('modules.todo.title')}
+        subtitle={openCount ? t('todo.board.subtitle', { count: openCount }) : t('todo.pending.allDone')}
+        icon={project ? 'trello' : todoMeta.icon}
+        accent={project?.color ?? todoMeta.accent}
       />
-      <View style={{ gap: spacing.lg, width: '100%', maxWidth: 860, alignSelf: 'center' }}>
-        {quickAdd}
+
+      {/* Board switcher */}
+      <View style={isCompact ? { marginHorizontal: -spacing.lg } : undefined}>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          style={{ flexGrow: 0 }}
-          contentContainerStyle={{ paddingRight: spacing.md }}
+          contentContainerStyle={{ gap: spacing.sm, alignItems: 'center', paddingHorizontal: isCompact ? spacing.lg : 0 }}
+          accessibilityRole="tablist"
+          accessibilityLabel={t('todo.board.boards')}
         >
-          <ChipGroup<string>
-            accessibilityLabel={t('todo.viewsLabel')}
-            options={filterOptions}
-            selected={selectedFilter}
-            onToggle={(v) => select(v === 'projects' || v === 'tags' ? { kind: v } : { kind: 'view', view: v as TaskView })}
-          />
+          {boards.map((b) => {
+            const active = b.id === boardId;
+            return (
+              <Pressable
+                key={b.id}
+                onPress={() => selectBoard(b.id)}
+                accessibilityRole="tab"
+                aria-selected={active}
+                style={(s) => ({
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: spacing.sm,
+                  minHeight: 36,
+                  paddingHorizontal: spacing.md,
+                  borderRadius: radius.pill,
+                  borderWidth: 1,
+                  borderColor: active ? b.color : colors.border,
+                  backgroundColor: active ? withAlpha(b.color, 0.16) : interaction(s).hovered ? colors.surfaceMuted : 'transparent',
+                })}
+              >
+                <View style={{ width: 10, height: 10, borderRadius: 3, backgroundColor: b.color }} />
+                <AppText variant="smallStrong" color={active ? b.color : colors.textMuted} numberOfLines={1}>
+                  {b.name}
+                </AppText>
+              </Pressable>
+            );
+          })}
+          <Pressable
+            onPress={() => setProjectSheet({ open: true, project: null })}
+            accessibilityRole="button"
+            accessibilityLabel={t('todo.board.new')}
+            style={(s) => ({
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: spacing.xs,
+              minHeight: 36,
+              paddingHorizontal: spacing.md,
+              borderRadius: radius.pill,
+              borderWidth: 1,
+              borderStyle: 'dashed',
+              borderColor: colors.borderStrong,
+              backgroundColor: interaction(s).hovered ? colors.surfaceMuted : 'transparent',
+            })}
+          >
+            <Icon name="plus" size={14} color={colors.textMuted} />
+            <AppText variant="smallStrong" tone="textMuted">
+              {t('todo.board.newShort')}
+            </AppText>
+          </Pressable>
+          {project || doneCount ? <IconButton icon="more-horizontal" label={t('todo.board.actions')} onPress={boardMenu} /> : null}
         </ScrollView>
-        <Card padded={false} style={{ paddingVertical: 8, paddingHorizontal: 8 }}>
-          {isLoading || structure.isLoading ? <LoadingState /> : isError ? <ErrorState onRetry={() => void refetch()} /> : content}
-        </Card>
       </View>
+
+      {loading ? (
+        <LoadingState />
+      ) : tasksQuery.isError ? (
+        <ErrorState onRetry={() => void tasksQuery.refetch()} />
+      ) : (
+        <BoardView
+          boardId={boardId}
+          color={project?.color ?? todoMeta.accent}
+          tasks={tasks}
+          sections={sections}
+          today={today}
+          onOpen={openTask}
+        />
+      )}
+
       <ProjectFormSheet
         visible={projectSheet.open}
         project={projectSheet.project}
-        defaultAreaId={projectSheet.areaId}
-        onClose={() => setProjectSheet({ open: false, project: null, areaId: null })}
-        onCreated={(p) => select({ kind: 'project', projectId: p.id })}
+        onClose={() => setProjectSheet({ open: false, project: null })}
+        onCreated={(p) => selectBoard(p.id)}
       />
       <TaskDetailSheet taskId={openTaskId} onClose={closeTask} />
     </Screen>

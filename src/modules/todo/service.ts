@@ -82,6 +82,8 @@ export class TaskService {
     const title = input.title.trim();
     if (!title) throw new Error('Task title is required');
     const existing = await this.tasks.list();
+    // New cards go to the bottom of their list.
+    const order = existing.reduce((max, t) => Math.max(max, (t.order ?? 0) + 1), existing.length);
     let areaId: string | null = null;
     if (input.projectId) areaId = (await this.projects.get(input.projectId))?.areaId ?? null;
     return this.tasks.create({
@@ -102,7 +104,7 @@ export class TaskService {
       reminders: [],
       recurrence: null,
       completedAt: null,
-      order: existing.length,
+      order,
     });
   }
 
@@ -126,6 +128,24 @@ export class TaskService {
       }
     }
     return updated;
+  }
+
+  /**
+   * Board drag & drop: puts the card in list `sectionId` (null = loose cards)
+   * and renumbers that list in `orderedIds` order.
+   */
+  async moveTask(id: string, sectionId: string | null, orderedIds: string[]): Promise<void> {
+    const all = new Map((await this.tasks.list()).map((t) => [t.id, t]));
+    const task = all.get(id);
+    if (!task) throw new Error('Task not found');
+    if ((task.sectionId ?? null) !== sectionId) {
+      await this.tasks.update(id, { sectionId });
+      // Subtasks travel with their card.
+      for (const sub of [...all.values()].filter((t) => t.parentTaskId === id)) await this.tasks.update(sub.id, { sectionId });
+    }
+    for (const [order, taskId] of orderedIds.entries()) {
+      if (all.get(taskId) && all.get(taskId)!.order !== order) await this.tasks.update(taskId, { order });
+    }
   }
 
   setStatus(id: string, status: TaskStatus): Promise<Task> {
@@ -192,15 +212,18 @@ export class TaskService {
     await this.areas.remove(id);
   }
 
-  async createProject(input: { name: string; color: string; areaId: string | null }): Promise<Project> {
+  /** `lists`: starting lists of a new board (e.g. Por hacer / En curso / Hecho). */
+  async createProject(input: { name: string; color: string; areaId: string | null; lists?: string[] }): Promise<Project> {
     if (!input.name.trim()) throw new Error('Name is required');
-    return this.projects.create({
+    const project = await this.projects.create({
       name: input.name.trim(),
       color: input.color,
       areaId: input.areaId,
       archived: false,
       order: (await this.projects.list()).length,
     });
+    for (const name of input.lists ?? []) await this.createSection(project.id, name);
+    return project;
   }
 
   async updateProject(id: string, patch: Partial<Pick<Project, 'name' | 'color' | 'areaId' | 'archived'>>): Promise<Project> {
@@ -223,6 +246,14 @@ export class TaskService {
     if (!name.trim()) throw new Error('Name is required');
     const order = (await this.sections.list()).filter((s) => s.projectId === projectId).length;
     return this.sections.create({ projectId, name: name.trim(), order });
+  }
+
+  /** Board: lists in their new left-to-right order. */
+  async reorderSections(orderedIds: string[]): Promise<void> {
+    const all = new Map((await this.sections.list()).map((s) => [s.id, s]));
+    for (const [order, id] of orderedIds.entries()) {
+      if (all.get(id) && all.get(id)!.order !== order) await this.sections.update(id, { order });
+    }
   }
 
   renameSection(id: string, name: string): Promise<Section> {
