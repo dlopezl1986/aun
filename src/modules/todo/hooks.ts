@@ -101,16 +101,21 @@ export function useDeleteArea() {
 
 export function useCreateProject() {
   const { t } = useTranslation();
-  return useDataMutation((s, v: { name: string; color: string; areaId: string | null; lists?: string[] }) => s.tasks.createProject(v), {
-    invalidate: ['tasks'],
-    successMessage: t('todo.toast.projectCreated'),
-  });
+  return useDataMutation(
+    (s, v: { name: string; color: string; areaId: string | null; lists?: string[]; background?: string | null }) =>
+      s.tasks.createProject(v),
+    {
+      invalidate: ['tasks'],
+      successMessage: t('todo.toast.projectCreated'),
+    },
+  );
 }
 
 export function useUpdateProject() {
   const { t } = useTranslation();
   return useDataMutation(
-    (s, v: { id: string; patch: Partial<Pick<Project, 'name' | 'color' | 'areaId' | 'archived'>> }) => s.tasks.updateProject(v.id, v.patch),
+    (s, v: { id: string; patch: Partial<Pick<Project, 'name' | 'color' | 'areaId' | 'archived' | 'background'>> }) =>
+      s.tasks.updateProject(v.id, v.patch),
     { invalidate: ['tasks'], successMessage: t('common.saved') },
   );
 }

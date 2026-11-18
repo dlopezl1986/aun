@@ -72,15 +72,9 @@ export function BoardCard({ task, today, onOpen, onToggle, onLongPress, ghost, h
 
   const body = (
     <>
-      {task.priority < 4 || tags.length ? (
+      {tags.length ? (
         // Trello-style labels: short colour bars (names are in the accessible label).
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginBottom: spacing.sm }}>
-          {task.priority < 4 ? (
-            <View
-              accessibilityLabel={t(`todo.board.priority${task.priority}`)}
-              style={{ width: 40, height: 8, borderRadius: radius.pill, backgroundColor: priorityColors[task.priority] }}
-            />
-          ) : null}
           {tags.map((tag) => (
             <View
               key={tag.id}
@@ -125,8 +119,26 @@ export function BoardCard({ task, today, onOpen, onToggle, onLongPress, ghost, h
           {task.title}
         </AppText>
       </View>
-      {due || hasNotes || progress || linkCount || task.recurrence || initials || task.status === 'in_progress' ? (
+      {task.priority < 4 || due || hasNotes || progress || linkCount || task.recurrence || initials || task.status === 'in_progress' ? (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: spacing.md, marginTop: spacing.xs }}>
+          {task.priority < 4 ? (
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 3,
+                paddingHorizontal: 6,
+                paddingVertical: 1,
+                borderRadius: radius.xs,
+                backgroundColor: labelBg(priorityColors[task.priority]),
+              }}
+            >
+              <Icon name="flag" size={11} color={priorityColors[task.priority]} />
+              <AppText variant="caption" color={priorityColors[task.priority]}>
+                {t(`todo.board.priority${task.priority}`)}
+              </AppText>
+            </View>
+          ) : null}
           {due ? (
             <View
               style={{
@@ -182,6 +194,17 @@ export function BoardCard({ task, today, onOpen, onToggle, onLongPress, ghost, h
           ) : null}
         </View>
       ) : null}
+      {progress && progress.total > 0 ? (
+        <View style={{ height: 4, borderRadius: 2, backgroundColor: colors.surfaceMuted, marginTop: spacing.sm, overflow: 'hidden' }}>
+          <View
+            style={{
+              width: `${Math.round((progress.done / progress.total) * 100)}%`,
+              height: 4,
+              backgroundColor: progress.done === progress.total ? colors.success : colors.primary,
+            }}
+          />
+        </View>
+      ) : null}
     </>
   );
 
@@ -192,7 +215,10 @@ export function BoardCard({ task, today, onOpen, onToggle, onLongPress, ghost, h
     borderColor: colors.border,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm + 2,
-    boxShadow: '0 1px 2px rgba(11, 18, 32, 0.10)',
+    boxShadow: '0 1px 1px rgba(11, 18, 32, 0.08), 0 2px 8px rgba(11, 18, 32, 0.06)',
+    // Priority at a glance: a coloured edge (Planner-like).
+    borderLeftWidth: task.priority < 4 && !done ? 4 : 1,
+    borderLeftColor: task.priority < 4 && !done ? priorityColors[task.priority] : colors.border,
   } as const;
 
   if (ghost) {

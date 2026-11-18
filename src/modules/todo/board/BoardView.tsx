@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import { useMemo, useState } from 'react';
 import { Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -10,7 +11,7 @@ import { IconButton } from '@/components/ui/IconButton';
 import { interaction } from '@/components/ui/interaction';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { SurfaceScope, useTheme } from '@/theme';
-import { isLight, withAlpha } from '@/utils/color';
+import { withAlpha } from '@/utils/color';
 import {
   useCreateSection,
   useDeleteSection,
@@ -20,17 +21,25 @@ import {
   useReorderSections,
   useTodoStructure,
   useToggleTask,
+  useUpdateTask,
 } from '../hooks';
+import { PRIORITIES, usePriorityColors } from '../priority';
 import { parseQuickTask } from '../quickParse';
-import type { Section, Task } from '../types';
+import type { Section, Task, TaskPriority } from '../types';
+import type { ResolvedBackground } from './backgrounds';
 import { BoardCard } from './BoardCard';
 import { applyMove, boardColumns, GENERAL_BOARD, LOOSE_LIST, moveCard, type BoardColumn } from './model';
 import { dragSupported, listDomId, useBoardDrag } from './useBoardDrag';
 
+export type GroupBy = 'lists' | 'priority';
+
 interface Props {
   boardId: string;
-  /** Board colour: the canvas behind the lists, as in Trello. */
-  color: string;
+  background: ResolvedBackground;
+  /** «Listas» (Trello) or «Prioridad» (Planner): dragging between priority columns changes the priority. */
+  groupBy: GroupBy;
+  /** Cards shown (filter); dragging is off while filtering. */
+  filter: ((task: Task) => boolean) | null;
   tasks: Task[];
   sections: Section[];
   today: string;
@@ -39,20 +48,47 @@ interface Props {
 
 type PendingMove = { cardId: string; toColumn: string; orderedIds: string[] } | null;
 
-export function BoardView({ boardId, color, tasks, sections, today, onOpen }: Props) {
+const PRIORITY_COLUMN = 'prio-';
+
+export function BoardView({ boardId, background, groupBy, filter, tasks, sections, today, onOpen }: Props) {
   const { t } = useTranslation();
   const dialog = useDialog();
   const { spacing, radius, mode } = useTheme();
   const { isCompact, width } = useBreakpoint();
+  const priorityColors = usePriorityColors();
   const move = useMoveTask();
+  const setPriority = useUpdateTask(true);
   const reorder = useReorderSections();
   const createSection = useCreateSection();
   const toggle = useToggleTask();
   const [pending, setPending] = useState<PendingMove>(null);
 
-  const base = useMemo(() => boardColumns(tasks, boardId, sections), [tasks, boardId, sections]);
-  const columns = useMemo(() => applyMove(base, pending), [base, pending]);
-  const listName = (c: BoardColumn) => c.section?.name ?? t('todo.board.defaultLists.todo');
+  const base = useMemo(() => {
+    const byList = boardColumns(tasks, boardId, sections);
+    if (groupBy === 'lists') return byList;
+    // Planner-style: one column per priority, cards keep their board order.
+    const all = byList.flatMap((c) => c.cards).sort((a, b) => a.order - b.order);
+    const done = byList.flatMap((c) => c.done);
+    return PRIORITIES.map((p) => ({
+      id: `${PRIORITY_COLUMN}${p}`,
+      section: null,
+      cards: all.filter((x) => x.priority === p),
+      done: done.filter((x) => x.priority === p),
+    }));
+  }, [tasks, boardId, sections, groupBy]);
+  const columns = useMemo(() => {
+    const moved = applyMove(base, pending);
+    return filter ? moved.map((c) => ({ ...c, cards: c.cards.filter(filter), done: c.done.filter(filter) })) : moved;
+  }, [base, pending, filter]);
+  const columnPriority = (c: BoardColumn) =>
+    c.id.startsWith(PRIORITY_COLUMN) ? (Number(c.id.slice(PRIORITY_COLUMN.length)) as TaskPriority) : null;
+  const listName = (c: BoardColumn) => {
+    const p = columnPriority(c);
+    if (p) return t(`todo.board.priorityColumn${p}`);
+    return c.section?.name ?? t('todo.board.defaultLists.todo');
+  };
+  // New cards in a priority column land in the board's first list.
+  const firstList = boardColumns(tasks, boardId, sections)[0];
 
   const commitMove = (cardId: string, toColumn: string, index: number) => {
     const from = columns.find((c) => c.cards.some((x) => x.id === cardId));
@@ -62,18 +98,19 @@ export function BoardView({ boardId, color, tasks, sections, today, onOpen }: Pr
     const orderedIds = moveCard(columns, cardId, toColumn, index);
     const next = { cardId, toColumn, orderedIds };
     setPending(next);
-    move.mutate(
-      { id: cardId, sectionId: toColumn === LOOSE_LIST ? null : toColumn, orderedIds },
-      { onSettled: () => setPending((p) => (p === next ? null : p)) },
-    );
+    const done = { onSettled: () => setPending((p) => (p === next ? null : p)) };
+    if (toColumn.startsWith(PRIORITY_COLUMN)) {
+      if (from.id === toColumn) return setPending(null);
+      setPriority.mutate({ id: cardId, patch: { priority: Number(toColumn.slice(PRIORITY_COLUMN.length)) as TaskPriority } }, done);
+    } else move.mutate({ id: cardId, sectionId: toColumn === LOOSE_LIST ? null : toColumn, orderedIds }, done);
   };
 
-  const { drag, rootRef, scrollerRef, justDragged } = useBoardDrag(commitMove);
+  const { drag, rootRef, scrollerRef, justDragged } = useBoardDrag(commitMove, !filter);
 
   /** Native apps (no drag): long press → choose the list. */
   const moveMenu = async (task: Task) => {
     const value = await dialog.choose({
-      title: t('todo.board.moveTo'),
+      title: groupBy === 'priority' ? t('todo.board.setPriority') : t('todo.board.moveTo'),
       message: task.title,
       choices: columns.map((c) => ({ value: c.id, label: listName(c) })),
     });
@@ -93,8 +130,9 @@ export function BoardView({ boardId, color, tasks, sections, today, onOpen }: Pr
     if (name) createSection.mutate({ projectId: boardId, name });
   };
 
-  // Text straight on the board colour (light boards get dark text).
-  const onBoard = mode !== 'dark' && isLight(color) ? '#0B1220' : '#FFFFFF';
+  // Text straight on the wallpaper.
+  const onBoard = background.dark || mode === 'dark' ? '#FFFFFF' : '#0B1220';
+  const glass = background.dark || mode === 'dark' ? 'rgba(255, 255, 255, 0.22)' : 'rgba(255, 255, 255, 0.6)';
 
   const draggingCard = drag ? tasks.find((x) => x.id === drag.cardId) : undefined;
 
@@ -104,12 +142,19 @@ export function BoardView({ boardId, color, tasks, sections, today, onOpen }: Pr
       style={{
         marginHorizontal: isCompact ? -spacing.lg : 0,
         paddingTop: spacing.md,
-        minHeight: 440,
-        borderRadius: isCompact ? 0 : radius.lg,
-        // Same colour in dark mode, dimmed so the lists stand out.
-        backgroundColor: mode === 'dark' ? withAlpha(color, 0.45) : color,
+        minHeight: 460,
       }}
     >
+      {/* Wallpaper */}
+      <View
+        pointerEvents="none"
+        style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, borderRadius: isCompact ? 0 : radius.lg, overflow: 'hidden' }}
+      >
+        <Image source={background.source} style={{ flex: 1 }} contentFit="cover" transition={200} />
+        {mode === 'dark' ? (
+          <View style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: 'rgba(5, 10, 20, 0.35)' }} />
+        ) : null}
+      </View>
       <ScrollView
         ref={scrollerRef as never}
         horizontal
@@ -129,6 +174,10 @@ export function BoardView({ boardId, color, tasks, sections, today, onOpen }: Pr
             boardId={boardId}
             column={column}
             name={listName(column)}
+            accent={columnPriority(column) ? priorityColors[columnPriority(column)!] : undefined}
+            priority={columnPriority(column) ?? undefined}
+            targetList={column.section?.id ?? (columnPriority(column) ? (firstList?.section?.id ?? null) : null)}
+            draggable={!filter}
             width={listWidth}
             today={today}
             drag={drag}
@@ -148,26 +197,29 @@ export function BoardView({ boardId, color, tasks, sections, today, onOpen }: Pr
             onLongPress={dragSupported ? undefined : moveMenu}
           />
         ))}
-        <Pressable
-          onPress={addList}
-          accessibilityRole="button"
-          accessibilityLabel={t('todo.board.addList')}
-          style={(s) => ({
-            width: listWidth,
-            minHeight: 48,
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: spacing.sm,
-            paddingHorizontal: spacing.lg,
-            borderRadius: radius.lg,
-            backgroundColor: interaction(s).hovered ? 'rgba(255, 255, 255, 0.34)' : 'rgba(255, 255, 255, 0.24)',
-          })}
-        >
-          <Icon name="plus" size={16} color={onBoard} />
-          <AppText variant="smallStrong" color={onBoard}>
-            {t('todo.board.addAnotherList')}
-          </AppText>
-        </Pressable>
+        {groupBy === 'lists' ? (
+          <Pressable
+            onPress={addList}
+            accessibilityRole="button"
+            accessibilityLabel={t('todo.board.addList')}
+            style={(s) => ({
+              width: listWidth,
+              minHeight: 48,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: spacing.sm,
+              paddingHorizontal: spacing.lg,
+              borderRadius: radius.lg,
+              backgroundColor: interaction(s).hovered ? withAlpha('#FFFFFF', 0.75) : glass,
+              ...(webGlass as object),
+            })}
+          >
+            <Icon name="plus" size={16} color={onBoard} />
+            <AppText variant="smallStrong" color={onBoard}>
+              {t('todo.board.addAnotherList')}
+            </AppText>
+          </Pressable>
+        ) : null}
       </ScrollView>
       {drag && draggingCard ? (
         <View
@@ -193,6 +245,12 @@ interface ListProps {
   boardId: string;
   column: BoardColumn;
   name: string;
+  /** Priority columns: their colour, and the priority new cards get. */
+  accent?: string;
+  priority?: TaskPriority;
+  /** List new cards go to. */
+  targetList: string | null;
+  draggable: boolean;
   width: number;
   today: string;
   drag: ReturnType<typeof useBoardDrag>['drag'];
@@ -208,6 +266,10 @@ function BoardList({
   boardId,
   column,
   name,
+  accent,
+  priority,
+  targetList,
+  draggable,
   width,
   today,
   drag,
@@ -284,15 +346,18 @@ function BoardList({
         accessibilityLabel={name}
         style={{
           width,
-          backgroundColor: colors.surfaceMuted,
+          backgroundColor: withAlpha(colors.surfaceMuted, 0.94),
           borderRadius: radius.lg,
           borderWidth: 1,
           borderColor: isOver ? colors.primary : colors.border,
+          boxShadow: '0 6px 18px rgba(11, 18, 32, 0.12)',
+          ...(webGlass as object),
           padding: spacing.sm,
           gap: spacing.sm,
         }}
       >
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingLeft: spacing.sm, minHeight: 36 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingLeft: spacing.sm, minHeight: 36 }}>
+          {accent ? <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: accent }} /> : null}
           <AppText variant="subheading" style={{ flex: 1 }} numberOfLines={1} accessibilityRole="header">
             {name}
             <AppText variant="caption" tone="textSubtle">
@@ -313,7 +378,7 @@ function BoardList({
               today={today}
               onOpen={onOpen}
               onToggle={onToggle}
-              onLongPress={onLongPress}
+              onLongPress={draggable ? onLongPress : undefined}
               hidden={drag?.cardId === task.id}
             />
           </View>
@@ -321,7 +386,7 @@ function BoardList({
         {placeholderBefore === 'end' ? placeholder : null}
 
         {adding ? (
-          <Composer boardId={boardId} column={column} today={today} onClose={() => setAdding(false)} />
+          <Composer boardId={boardId} sectionId={targetList} defaultPriority={priority} today={today} onClose={() => setAdding(false)} />
         ) : (
           <Pressable
             onPress={() => setAdding(true)}
@@ -368,12 +433,26 @@ function BoardList({
 }
 
 /** Inline "add a card" box: Enter adds and keeps it open for the next one. */
-function Composer({ boardId, column, today, onClose }: { boardId: string; column: BoardColumn; today: string; onClose: () => void }) {
+function Composer({
+  boardId,
+  sectionId,
+  defaultPriority,
+  today,
+  onClose,
+}: {
+  boardId: string;
+  sectionId: string | null;
+  defaultPriority?: TaskPriority;
+  today: string;
+  onClose: () => void;
+}) {
   const { t } = useTranslation();
   const { spacing, radius, colors, typography } = useTheme();
+  const priorityColors = usePriorityColors();
   const add = useQuickAddTask();
   const structure = useTodoStructure();
   const [text, setText] = useState('');
+  const [priority, setPriority] = useState<TaskPriority>(defaultPriority ?? 4);
 
   const submit = () => {
     const parsed = parseQuickTask(text, { today, projects: structure.data?.projects ?? [] });
@@ -381,10 +460,10 @@ function Composer({ boardId, column, today, onClose }: { boardId: string; column
     add.mutate({
       title: parsed.title,
       dueDate: parsed.dueDate ?? null,
-      priority: parsed.priority,
+      priority: parsed.priority ?? priority,
       tagNames: parsed.tagNames,
       projectId: boardId === GENERAL_BOARD ? null : boardId,
-      sectionId: column.section?.id ?? null,
+      sectionId,
     });
     setText('');
   };
@@ -419,6 +498,40 @@ function Composer({ boardId, column, today, onClose }: { boardId: string; column
           } as object
         }
       />
+      {/* Priority in one tap (Planner-style flags). */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }} accessibilityRole="radiogroup">
+        {PRIORITIES.map((p) => {
+          const on = p === priority;
+          const c = priorityColors[p];
+          return (
+            <Pressable
+              key={p}
+              onPress={() => setPriority(p)}
+              accessibilityRole="radio"
+              aria-checked={on}
+              accessibilityLabel={t(`todo.priority.p${p}`)}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 4,
+                paddingHorizontal: spacing.sm,
+                minHeight: 30,
+                borderRadius: radius.pill,
+                borderWidth: 1,
+                borderColor: on ? c : colors.border,
+                backgroundColor: on ? withAlpha(c, 0.14) : colors.surface,
+              }}
+            >
+              <Icon name={p === 4 ? 'minus' : 'flag'} size={12} color={on ? c : colors.textSubtle} />
+              {on ? (
+                <AppText variant="caption" color={c}>
+                  {t(`todo.board.priorityShort${p}`)}
+                </AppText>
+              ) : null}
+            </Pressable>
+          );
+        })}
+      </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
         <Button label={t('todo.board.addCard')} size="sm" onPress={submit} disabled={!text.trim()} loading={add.isPending} />
         <IconButton icon="x" label={t('common.cancel')} onPress={onClose} />
@@ -426,3 +539,6 @@ function Composer({ boardId, column, today, onClose }: { boardId: string; column
     </View>
   );
 }
+
+/** Frosted glass on the web, so lists read well on any wallpaper. */
+const webGlass = Platform.OS === 'web' ? { backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)' } : {};
