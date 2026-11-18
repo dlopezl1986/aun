@@ -197,7 +197,14 @@ export function TodoScreen() {
       ) : tasksQuery.isError ? (
         <ErrorState onRetry={() => void tasksQuery.refetch()} />
       ) : (
-        <BoardView boardId={boardId} tasks={tasks} sections={sections} today={today} onOpen={openTask} />
+        <BoardView
+          boardId={boardId}
+          color={project?.color ?? todoMeta.accent}
+          tasks={tasks}
+          sections={sections}
+          today={today}
+          onOpen={openTask}
+        />
       )}
 
       <ProjectFormSheet

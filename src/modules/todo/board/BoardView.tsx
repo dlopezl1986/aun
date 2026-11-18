@@ -10,6 +10,7 @@ import { IconButton } from '@/components/ui/IconButton';
 import { interaction } from '@/components/ui/interaction';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { SurfaceScope, useTheme } from '@/theme';
+import { isLight, withAlpha } from '@/utils/color';
 import {
   useCreateSection,
   useDeleteSection,
@@ -28,6 +29,8 @@ import { dragSupported, listDomId, useBoardDrag } from './useBoardDrag';
 
 interface Props {
   boardId: string;
+  /** Board colour: the canvas behind the lists, as in Trello. */
+  color: string;
   tasks: Task[];
   sections: Section[];
   today: string;
@@ -36,10 +39,10 @@ interface Props {
 
 type PendingMove = { cardId: string; toColumn: string; orderedIds: string[] } | null;
 
-export function BoardView({ boardId, tasks, sections, today, onOpen }: Props) {
+export function BoardView({ boardId, color, tasks, sections, today, onOpen }: Props) {
   const { t } = useTranslation();
   const dialog = useDialog();
-  const { spacing, radius, colors } = useTheme();
+  const { spacing, radius, mode } = useTheme();
   const { isCompact, width } = useBreakpoint();
   const move = useMoveTask();
   const reorder = useReorderSections();
@@ -90,10 +93,23 @@ export function BoardView({ boardId, tasks, sections, today, onOpen }: Props) {
     if (name) createSection.mutate({ projectId: boardId, name });
   };
 
+  // Text straight on the board colour (light boards get dark text).
+  const onBoard = mode !== 'dark' && isLight(color) ? '#0B1220' : '#FFFFFF';
+
   const draggingCard = drag ? tasks.find((x) => x.id === drag.cardId) : undefined;
 
   return (
-    <View ref={rootRef as never} style={isCompact ? { marginHorizontal: -spacing.lg } : undefined}>
+    <View
+      ref={rootRef as never}
+      style={{
+        marginHorizontal: isCompact ? -spacing.lg : 0,
+        paddingTop: spacing.md,
+        minHeight: 440,
+        borderRadius: isCompact ? 0 : radius.lg,
+        // Same colour in dark mode, dimmed so the lists stand out.
+        backgroundColor: mode === 'dark' ? withAlpha(color, 0.45) : color,
+      }}
+    >
       <ScrollView
         ref={scrollerRef as never}
         horizontal
@@ -103,7 +119,7 @@ export function BoardView({ boardId, tasks, sections, today, onOpen }: Props) {
         contentContainerStyle={{
           gap: spacing.md,
           alignItems: 'flex-start',
-          paddingHorizontal: isCompact ? spacing.lg : 0,
+          paddingHorizontal: spacing.md,
           paddingBottom: spacing.md,
         }}
       >
@@ -143,16 +159,13 @@ export function BoardView({ boardId, tasks, sections, today, onOpen }: Props) {
             alignItems: 'center',
             gap: spacing.sm,
             paddingHorizontal: spacing.lg,
-            borderRadius: radius.md,
-            borderWidth: 1,
-            borderStyle: 'dashed',
-            borderColor: colors.borderStrong,
-            backgroundColor: interaction(s).hovered ? colors.surfaceMuted : 'transparent',
+            borderRadius: radius.lg,
+            backgroundColor: interaction(s).hovered ? 'rgba(255, 255, 255, 0.34)' : 'rgba(255, 255, 255, 0.24)',
           })}
         >
-          <Icon name="plus" size={16} color={colors.textMuted} />
-          <AppText variant="smallStrong" tone="textMuted">
-            {t('todo.board.addList')}
+          <Icon name="plus" size={16} color={onBoard} />
+          <AppText variant="smallStrong" color={onBoard}>
+            {t('todo.board.addAnotherList')}
           </AppText>
         </Pressable>
       </ScrollView>
@@ -326,7 +339,7 @@ function BoardList({
           >
             <Icon name="plus" size={16} color={colors.textMuted} />
             <AppText variant="smallStrong" tone="textMuted">
-              {t('todo.board.addCard')}
+              {t('todo.board.addACard')}
             </AppText>
           </Pressable>
         )}

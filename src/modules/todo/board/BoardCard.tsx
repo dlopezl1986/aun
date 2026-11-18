@@ -61,6 +61,7 @@ export function BoardCard({ task, today, onOpen, onToggle, onLongPress, ghost, h
     task.title,
     task.priority < 4 ? t(`todo.priority.p${task.priority}`) : null,
     due?.label,
+    ...tags.map((tag) => tag.name),
     progress ? t('todo.subtasks.progress', { done: progress.done, total: progress.total }) : null,
     task.assigneeName,
   ]
@@ -72,30 +73,20 @@ export function BoardCard({ task, today, onOpen, onToggle, onLongPress, ghost, h
   const body = (
     <>
       {task.priority < 4 || tags.length ? (
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginBottom: spacing.xs }}>
+        // Trello-style labels: short colour bars (names are in the accessible label).
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginBottom: spacing.sm }}>
           {task.priority < 4 ? (
             <View
-              style={{
-                paddingHorizontal: spacing.sm,
-                paddingVertical: 1,
-                borderRadius: radius.xs,
-                backgroundColor: labelBg(priorityColors[task.priority]),
-              }}
-            >
-              <AppText variant="caption" color={priorityColors[task.priority]}>
-                {t(`todo.board.priority${task.priority}`)}
-              </AppText>
-            </View>
+              accessibilityLabel={t(`todo.board.priority${task.priority}`)}
+              style={{ width: 40, height: 8, borderRadius: radius.pill, backgroundColor: priorityColors[task.priority] }}
+            />
           ) : null}
           {tags.map((tag) => (
             <View
               key={tag.id}
-              style={{ paddingHorizontal: spacing.sm, paddingVertical: 1, borderRadius: radius.xs, backgroundColor: labelBg(tag.color) }}
-            >
-              <AppText variant="caption" color={tag.color} numberOfLines={1}>
-                {tag.name}
-              </AppText>
-            </View>
+              accessibilityLabel={tag.name}
+              style={{ width: 40, height: 8, borderRadius: radius.pill, backgroundColor: tag.color }}
+            />
           ))}
         </View>
       ) : null}
