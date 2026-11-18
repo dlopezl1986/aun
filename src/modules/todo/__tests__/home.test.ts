@@ -31,23 +31,24 @@ describe('Inicio «Tareas pendientes»', () => {
     expect(r.total).toBe(0);
   });
 
-  it('flags cards «en curso» for a week or more, by status or list', () => {
-    const oldList = task({ sectionId: 'doing', startedAt: '2026-11-08T10:00:00.000Z' });
-    const oldStatus = task({ status: 'in_progress', startedAt: '2026-11-10T09:00:00.000Z' });
-    const recent = task({ sectionId: 'doing', startedAt: '2026-11-15T10:00:00.000Z' });
-    const pending = task({ sectionId: 'todo', priority: 1 });
-    const r = homeTasks([recent, oldStatus, pending, oldList], sections, now);
+  it('flags unfinished cards created a week or more ago, whatever their list', () => {
+    const oldDoing = task({ sectionId: 'doing', createdAt: '2026-11-08T10:00:00.000Z', startedAt: '2026-11-17T10:00:00.000Z' });
+    const oldTodo = task({ sectionId: 'todo', createdAt: '2026-11-10T09:00:00.000Z' });
+    const recent = task({ sectionId: 'doing', createdAt: '2026-11-15T10:00:00.000Z' });
+    const pending = task({ sectionId: 'todo', priority: 1, createdAt: '2026-11-16T10:00:00.000Z' });
+    const oldDone = task({ sectionId: 'done', createdAt: '2026-10-01T10:00:00.000Z' });
+    const r = homeTasks([recent, oldTodo, pending, oldDoing, oldDone], sections, now);
     expect(r.stale.map((s) => [s.task.id, s.days])).toEqual([
-      [oldList.id, 10],
-      [oldStatus.id, 8],
+      [oldDoing.id, 10],
+      [oldTodo.id, 8],
     ]);
     expect(r.others.map((x) => x.id)).toEqual([pending.id, recent.id]);
     expect(r.total).toBe(4);
   });
 
   it('puts overdue first, then priority', () => {
-    const late = task({ dueDate: '2026-11-10', priority: 4 });
-    const urgent = task({ priority: 1 });
+    const late = task({ dueDate: '2026-11-10', priority: 4, createdAt: '2026-11-17T10:00:00.000Z' });
+    const urgent = task({ priority: 1, createdAt: '2026-11-17T10:00:00.000Z' });
     expect(homeTasks([urgent, late], [], now).others.map((x) => x.id)).toEqual([late.id, urgent.id]);
   });
 });

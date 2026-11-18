@@ -1,25 +1,21 @@
-import { isDoingList, isDoneList } from './board/model';
+import { isDoneList } from './board/model';
 import { isOpen } from './selectors';
 import type { Section, Task } from './types';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-/** «En curso» for longer than this is flagged on Inicio. */
+/** Unfinished for longer than this (since it was created) is flagged on Inicio. */
 export const STALE_DAYS = 7;
 
 export interface StaleTask {
   task: Task;
-  /** Whole days it has been «en curso». */
+  /** Whole days since it was created. */
   days: number;
-}
-
-/** Is the card being worked on (status, or sitting in an «En curso» list)? */
-export function isInProgress(task: Task, sections: Map<string, Section>): boolean {
-  return task.status === 'in_progress' || isDoingList(task.sectionId ? sections.get(task.sectionId)?.name : null);
 }
 
 /**
  * Inicio's «Tareas pendientes»: open top-level cards that are not in a
- * finished list. Cards «en curso» for more than a week come first, apart.
+ * finished list. Cards created more than a week ago and still unfinished come
+ * first, apart (Ruka counts from creation, not from when it was started).
  * The rest: overdue, then by priority, then by date.
  */
 export function homeTasks(tasks: Task[], sections: Section[], now: number): { stale: StaleTask[]; others: Task[]; total: number } {
@@ -28,13 +24,11 @@ export function homeTasks(tasks: Task[], sections: Section[], now: number): { st
   const stale: StaleTask[] = [];
   const others: Task[] = [];
   for (const task of open) {
-    if (isInProgress(task, byId)) {
-      const since = Date.parse(task.startedAt ?? task.updatedAt ?? task.createdAt);
-      const days = Number.isFinite(since) ? Math.floor((now - since) / DAY_MS) : 0;
-      if (days >= STALE_DAYS) {
-        stale.push({ task, days });
-        continue;
-      }
+    const since = Date.parse(task.createdAt);
+    const days = Number.isFinite(since) ? Math.floor((now - since) / DAY_MS) : 0;
+    if (days >= STALE_DAYS) {
+      stale.push({ task, days });
+      continue;
     }
     others.push(task);
   }
